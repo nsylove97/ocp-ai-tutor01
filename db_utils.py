@@ -130,3 +130,68 @@ def get_top_5_missed():
         return pd.DataFrame() # 빈 데이터프레임 반환
     finally:
         conn.close()
+
+def setup_database_tables():
+    """
+    앱에 필요한 모든 테이블을 생성합니다. (기존 db_setup.py의 create_tables 역할)
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 원본 문제 테이블
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS original_questions (
+        id INTEGER PRIMARY KEY, question TEXT NOT NULL, options TEXT NOT NULL,
+        answer TEXT NOT NULL, concept TEXT
+    )''')
+    # 변형 문제 테이블
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS modified_questions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, original_id INTEGER, question TEXT NOT NULL,
+        options TEXT NOT NULL, answer TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (original_id) REFERENCES original_questions (id)
+    )''')
+    # 사용자 답변 기록 테이블
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS user_answers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, question_id INTEGER NOT NULL,
+        question_type TEXT NOT NULL, user_choice TEXT NOT NULL,
+        is_correct BOOLEAN NOT NULL, solved_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+    
+    conn.commit()
+    conn.close()
+    print("데이터베이스 테이블 확인/생성 완료.")
+
+def load_original_questions_from_json(json_path='questions_final.json'):
+    """
+    JSON 파일에서 원본 질문 데이터를 읽어 DB에 삽입합니다.
+    기존 데이터를 모두 삭제하고 새로 로드합니다.
+    (기존 db_setup.py의 load_questions_from_json 역할)
+    """
+    try:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            questions = json.load(f)
+    except FileNotFoundError:
+        print(f"오류: '{json_path}' 파일을 찾을 수 없습니다.")
+        return 0, f"'{json_path}' 파일을 찾을 수 없습니다."
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 기존 데이터 삭제
+    cursor.execute("DELETE FROM original_questions")
+    
+    # 새 데이터 삽입
+    for q in questions:
+        options_str = json.dumps(q.get('options', {}))
+        answer_str = json.dumps(q.get('answer', []))
+        cursor.execute(
+            "INSERT INTO original_questions (id, question, options, answer) VALUES (?, ?, ?, ?)",
+            (q['id'], q['question'], options_str, answer_str)
+        )
+    
+    conn.commit()
+    conn.close()
+    print(f"'{json_path}' 파일로부터 총 {len(questions)}개의 문제를 DB에 로드했습니다.")
+    return len(questions), None # 성공 시 로드된 문제 수와 에러 없음(None)을 반환

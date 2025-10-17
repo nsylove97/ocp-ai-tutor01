@@ -1,7 +1,6 @@
 import streamlit as st
 import random
 import pandas as pd
-
 from gemini_handler import generate_explanation, generate_modified_question
 from db_utils import get_all_question_ids, get_question_by_id, get_wrong_answers, save_modified_question
 from ui_components import display_question, display_results
@@ -9,7 +8,8 @@ from db_utils import (
     get_all_question_ids, get_question_by_id, get_wrong_answers,
     save_modified_question, get_all_modified_questions,
     delete_wrong_answer, delete_modified_question, clear_all_modified_questions,
-    get_stats, get_top_5_missed
+    get_stats, get_top_5_missed,
+    setup_database_tables, load_original_questions_from_json
 )
 
 # --- AI 해설 함수에 캐싱 적용 ---
@@ -183,49 +183,115 @@ def render_results_page():
         st.session_state.current_view = 'home'
         st.rerun()
 
+# app.py
+
+# ... (파일 상단 import문 및 다른 함수 정의)
+
 def render_management_page():
     """오답 노트 및 AI 생성 문제를 관리하는 페이지"""
     st.header("⚙️ 설정 및 관리")
 
-    tab1, tab2 = st.tabs(["오답 노트 관리", "AI 변형 문제 관리"])
+    # 탭 순서를 변경하여 원본 문제 관리를 가장 앞에 배치
+    tab1, tab2, tab3 = st.tabs(["원본 문제 데이터", "오답 노트 관리", "AI 변형 문제 관리"])
 
+    # --- 탭 1: 원본 문제 데이터 관리 ---
     with tab1:
+        st.subheader("📚 원본 문제 데이터 관리")
+        st.info("배포된 환경에서 처음 앱을 사용하거나 원본 문제를 초기화하고 싶을 때 사용하세요. 기존 문제는 모두 삭제되고 새로 로드됩니다.")
+        
+        # 현재 DB에 있는 원본 문제 수 확인
+        num_original_questions = len(get_all_question_ids('original'))
+        st.metric("현재 저장된 원본 문제 수", f"{num_original_questions} 개")
+
+        if st.button("JSON 파일에서 원본 문제 불러오기", type="primary"):
+            with st.spinner("`questions_final.json` 파일을 읽어 데이터베이스를 설정하는 중입니다..."):
+                # 1. 테이블이 없을 수도 있으니 먼저 테이블 구조부터 확인/생성
+                setup_database_tables()
+                # 2. JSON 파일에서 데이터 로드
+                count, error = load_original_questions_from_json()
+
+                if error:
+                    st.error(f"문제 로딩 실패: {error}")
+                else:
+                    st.success(f"성공적으로 {count}개의 원본 문제를 데이터베이스에 불러왔습니다!")
+                    # 상태를 갱신하기 위해 새로고침
+                    st.rerun()
+
+    # --- 탭 2: 오답 노트 관리 ---
+    with tab2:
         st.subheader("📒 오답 노트 관리")
         wrong_answers = get_wrong_answers()
+        
         if not wrong_answers:
             st.info("관리할 오답 노트가 없습니다.")
         else:
+            st.warning(f"총 {len(wrong_answers)}개의 오답 기록이 있습니다. 이제 완전히 이해한 문제는 목록에서 삭제할 수 있습니다.")
+            st.write("---")
+            
+            # 각 오답 기록을 순회하며 표시
             for q_info in wrong_answers:
+                # 오답 문제의 상세 정보 가져오기
                 question = get_question_by_id(q_info['question_id'], q_info['question_type'])
+                
+                # DB에서 문제가 삭제되었을 경우를 대비한 방어 코드
                 if question:
+                    # 컬럼을 사용하여 레이아웃 정리
                     col1, col2 = st.columns([4, 1])
+                    
                     with col1:
-                        st.text(f"ID {question['id']} ({q_info['question_type']}): {question['question'][:80]}...")
+                        # 문제 내용을 간략하게 표시
+                        question_preview = question['question'].replace('\n', ' ').strip()
+                        st.text(f"ID {question['id']} ({q_info['question_type']}): {question_preview[:70]}...")
+                    
                     with col2:
-                        if st.button("삭제", key=f"del_wrong_{q_info['question_id']}_{q_info['question_type']}", type="secondary"):
+                        # 고유한 key를 생성하여 각 버튼이 독립적으로 작동하도록 함
+                        button_key = f"del_wrong_{q_info['question_id']}_{q_info['question_type']}"
+                        
+                        if st.button("삭제", key=button_key, type="secondary"):
+                            # '삭제' 버튼 클릭 시 해당 오답 기록 삭제 함수 호출
                             delete_wrong_answer(q_info['question_id'], q_info['question_type'])
-                            st.success("삭제되었습니다!")
+                            st.toast(f"ID {question['id']} 오답 기록이 삭제되었습니다.")
+                            
+                            # 목록을 즉시 갱신하기 위해 새로고침
                             st.rerun()
-    with tab2:
+
+    # --- 탭 3: AI 변형 문제 관리 ---
+    with tab3:
         st.subheader("✨ AI 변형 문제 관리")
         modified_questions = get_all_modified_questions()
+        
         if not modified_questions:
             st.info("관리할 AI 변형 문제가 없습니다.")
         else:
+            st.warning("여기서 삭제된 AI 변형 문제는 복구할 수 없습니다.")
+            
+            # 모든 변형 문제를 한 번에 삭제하는 버튼
             if st.button("모든 변형 문제 삭제", type="primary"):
                 clear_all_modified_questions()
                 st.success("모든 AI 변형 문제가 삭제되었습니다.")
                 st.rerun()
             
             st.write("---")
+
+            # 각 변형 문제를 순회하며 표시
             for mq in modified_questions:
                 col1, col2 = st.columns([4, 1])
+                
                 with col1:
-                    st.text(f"ID {mq['id']}: {mq['question'][:80]}...")
+                    # 문제 내용을 간략하게 표시
+                    question_preview = mq['question'].replace('\n', ' ').strip()
+                    st.text(f"ID {mq['id']}: {question_preview[:70]}...")
+                
                 with col2:
-                    if st.button("삭제", key=f"del_mod_{mq['id']}", type="secondary"):
+                    # 고유한 key를 생성
+                    button_key = f"del_mod_{mq['id']}"
+                    
+                    if st.button("삭제", key=button_key, type="secondary"):
+                        # '삭제' 버튼 클릭 시 해당 변형 문제 삭제 함수 호출
                         delete_modified_question(mq['id'])
-                        st.success(f"ID {mq['id']} 문제가 삭제되었습니다.")
+                        st.toast(f"ID {mq['id']} 변형 문제가 삭제되었습니다.")
+                        
+                        # 목록을 즉시 갱신하기 위해 새로고침
                         st.rerun()
 
 def render_analytics_page():
@@ -261,6 +327,7 @@ def render_analytics_page():
 def main():
     """메인 실행 함수"""
     st.set_page_config(page_title="Oracle OCP AI 튜터", layout="wide")
+    setup_database_tables()
     st.title("🚀 Oracle OCP AI 튜터")
     
     initialize_session_state()
