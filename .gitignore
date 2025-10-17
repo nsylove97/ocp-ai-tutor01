@@ -1,0 +1,14 @@
+# .gitignore
+
+# Python 캐시 파일
+__pycache__/
+*.pyc
+
+# 환경 변수 파일 (API 키 등)
+.env
+
+# 데이터베이스 파일
+*.db
+
+# Streamlit 설정
+.streamlit/

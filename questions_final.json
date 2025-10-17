@@ -1,0 +1,2812 @@
+[
+    {
+        "id": 1,
+        "question": "Which two statements are true about the Oracle Data Dictionary?",
+        "options": {
+            "A": "It is owned by the SYS us",
+            "B": "Data dictionary base tables can be queried directly.",
+            "C": "It is owned by the SYSTEM user.",
+            "D": "Data dictionary views are always created with queries that join two or more base tables.",
+            "E": "All data dictionary view joins base tables to dynamic performance views."
+        },
+        "answer": [
+            "A",
+            "B"
+        ]
+    },
+    {
+        "id": 2,
+        "question": "Which two statements are true about views used for viewing tablespace and datafile information?",
+        "options": {
+            "A": "Tablespace free space can be viewed in V$TABLESPACE",
+            "B": "V$TABLESPACE displays information that is contained in the controlfile about",
+            "C": "V$TABLESPACE displays information about tablespaces contained in the data dictionary",
+            "D": "Tablespace free space can be viewed in DBA_TABLESPACES",
+            "E": "A datafile can be renamed when the database is in MOUNT state and the new file"
+        },
+        "answer": [
+            "B",
+            "E"
+        ]
+    },
+    {
+        "id": 3,
+        "question": "Which three statements are true about table data storage in an Oracle Database?",
+        "options": {
+            "A": "Data block headers contain their own Data Block Address (DBA)",
+            "B": "A table row piece can be chained across several database blocks",
+            "C": "Multiple row pieces from the same row may be stored in different database blocks",
+            "D": "Multiple row pieces from the same row may be stored in the same block",
+            "E": "Data block free space is always contiguous in the middle of the block",
+            "F": "Index block free space is always contiguous in the middle of the block"
+        },
+        "answer": [
+            "A",
+            "C",
+            "D"
+        ]
+    },
+    {
+        "id": 4,
+        "question": "Which two statements are true about segment types in an Oracle Database?",
+        "options": {
+            "A": "Table segments always have two or more extents.",
+            "B": "Temporary segments are only stored in a temporary tablespace.",
+            "C": "Undo segments are only stored in an undo tablespace.",
+            "D": "Cluster segments may contain data from multiple tables.",
+            "E": "Index segments always have two or more extents."
+        },
+        "answer": [
+            "B",
+            "C"
+        ]
+    },
+    {
+        "id": 5,
+        "question": "Which three Oracle database space management features will work with both\nDictionary and Locally managed tablespaces?",
+        "options": {
+            "A": "Oracle Managed Files (OMF)",
+            "B": "Online table segment shrink",
+            "C": "Online index segment shrink",
+            "D": "Automatic data file extension (AUTOEXTEND)",
+            "E": "Capacity planning growth reports based on historical data in the"
+        },
+        "answer": [
+            "A",
+            "D",
+            "E"
+        ]
+    },
+    {
+        "id": 6,
+        "question": "Examine the description of the EMPLOYEES table:\nWhich query is valid? (1개)\nName            Null?           Type\n-------------   -------------   -------------\nEMP_ID          NOT NULL        NUMBER\nEMP_NAME                        VARCHAR2(40)\nDEPT_ID                         NUMBER(2)\nSALARY                          NUMBER(8,2)\nJOIN_DATE                       DATE",
+        "options": {
+            "A": "SELECT dept_id, AVG(MAX(salary)) FROM employees GROUP BY dept_id;",
+            "B": "SELECT dept_id, join_date, SUM(salary) FROM employees GROUP BY dept_id;",
+            "C": "SELECT dept_id, join_date, SUM(salary) FROM employees GROUP BY dept_id,",
+            "D": "SELECT dept_id, MAX(AVG(salary)) FROM employees GROUP BY dept_id;"
+        },
+        "answer": [
+            "C"
+        ]
+    },
+    {
+        "id": 7,
+        "question": "Which three statements are true about connection strings and service names\nused to connect to an Oracle database instance?",
+        "options": {
+            "A": "A single database instance can support connections for multiple service names.",
+            "B": "A service name is created by a listener.",
+            "C": "A single connection string can refer to multiple database instances.",
+            "D": "A connection string including a service name must be defined in the cnsnames.ora file.",
+            "E": "A connection string must include the SID of a database Instance.",
+            "F": "Different connection strings in the same tnsnames.ora file can contain the same"
+        },
+        "answer": [
+            "A",
+            "C",
+            "F"
+        ]
+    },
+    {
+        "id": 8,
+        "question": "Which three statements are true regarding single row subqueries? (3개)",
+        "options": {
+            "A": "Add the SEGMENT SPACE MANAGEMENT AUTO clause",
+            "B": "Set UNDO_TABLESPACE to UNDOTBS01",
+            "C": "Add the NOLOGGING clause",
+            "D": "Make certain that the database operates in automatic undo management mode",
+            "E": "Add the ONLINE clause",
+            "F": "They can be used in the having clause."
+        },
+        "answer": [
+            "C",
+            "D",
+            "F"
+        ]
+    },
+    {
+        "id": 10,
+        "question": "Examine this command and some partial output:\nListening Endpoints Summary...\n(DESCRIPTION=(ADDRESS=PROTOCOL=tcp) (HOST=host01.abc.com) (PORT=1562)))\nServices Summary...\nService \"DB01.abc.com\" has 1 instance(s).\nInstance \"DB01\", status UNKNOWN, has 1 handler(s) for this service...\nThe command completed successfully\nWhy does the DB01.abc.com service show unknown status? (1개)",
+        "options": {
+            "A": "The service DB01.abc.com is dynamically registered",
+            "B": "The LOCAL_LISTENER database parameter is not set to a service name that refers",
+            "C": "The service DB01.abc.com is statically registered",
+            "D": "The listener is not listening on the default port 1521",
+            "E": "The SID_LIST_LISTENER section is not contained in the LISTENER.ORA file."
+        },
+        "answer": [
+            "C"
+        ]
+    },
+    {
+        "id": 11,
+        "question": "Examine this command:\nALTER DATABASE\nMOVE DATAFILE 'u01/sales1.dbf'\nTO        'u01/sales01.dbf'\nREUSE;\nWhich two statements are true? (2개)",
+        "options": {
+            "A": "Compressed objects in SALES01.DBF will be uncompressed In SALES02.DBF after the move.",
+            "B": "DML may be performed on tables with one or more extents in this data file",
+            "C": "It overwrites any existing file with the name SALES02.DBF.dbf in /u02 by default.",
+            "D": "The \"to\" clause containing the new file name must be specified even if",
+            "E": "Tables with one or more extents in this data file may be queried"
+        },
+        "answer": [
+            "B",
+            "E"
+        ]
+    },
+    {
+        "id": 12,
+        "question": "Which is the default column or columns for sorting output from compound\nqueries using SET operators such as INTERSECT In a SQL statement? (1개)",
+        "options": {
+            "A": "the first column in the first SELECT of the compound query",
+            "B": "the first VARCHAR2 column in the first SELECT of the compound query",
+            "C": "the first NUMBER column in the first SELECT of the compound query",
+            "D": "the first NUMBER or VARCHAR2 column in the last SELECT of the compound query",
+            "E": "the first column in the last SELECT of the compound query"
+        },
+        "answer": [
+            "A"
+        ]
+    },
+    {
+        "id": 13,
+        "question": "Which two statements are true about the SET VERIFY ON command? (Choose two.) (2개)",
+        "options": {
+            "A": "It can be used only in SQL*Plus",
+            "B": "It displays values for variables used only in the WHERE clause of a query",
+            "C": "It can be used in SQL Developer and SQL*Plus",
+            "D": "It displays values for variables created by the DEFINE command",
+            "E": "It displays values for variables prefixed with &&"
+        },
+        "answer": [
+            "C",
+            "E"
+        ]
+    },
+    {
+        "id": 14,
+        "question": "Table ORDER_ITEMS contains columns ORDER_ID, UNIT_PRICE and QUANTITY,\nof data type NUMBER.\nExamine these SQL statements:\nStatement 1:\nSELECT MAX(unit_price*quantity) 'Maximum Order'\nFROM order_items;\nStatement 2:\nSELECT MAX(unit_price*quantity) 'Maximum Order'\nWhich two statements are true? (2개)",
+        "options": {
+            "A": "Statement 1 returns only one row of output.",
+            "B": "Statement 2 returns only one row of output.",
+            "C": "Both statements will return NULL if either UNIT_PRICE or QUANTITY contains NULL.",
+            "D": "Both the statements give the same output.",
+            "E": "Statement 2 may return multiple rows of output."
+        },
+        "answer": [
+            "A",
+            "E"
+        ]
+    },
+    {
+        "id": 15,
+        "question": "Which two statements are true regarding a SAVEPOINT? (Choose two.) (2개)",
+        "options": {
+            "A": "Rolling back to a SAVEPOINT can undo a CREATE INDEX statement",
+            "B": "Rolling back to a SAVEPOINT can undo a TRUNCATE statement",
+            "C": "Only one SAVEPOINT may be issued in a transaction",
+            "D": "A SAVEPOINT does not issue a COMMIT",
+            "E": "Rolling back to a SAVEPOINT can undo a DELETE statement"
+        },
+        "answer": [
+            "D",
+            "E"
+        ]
+    },
+    {
+        "id": 16,
+        "question": "Which two statements are true about the configuration and use of\nUNDO_RETENTION with GURANTEED RETENTION? (Choose two.) (2개)",
+        "options": {
+            "A": "UNDO_RETENTION specifies for how long Oracle attempts to keep expired and unexpired UNDO.",
+            "B": "UNDO_RETENTION specifies how long all types of UNDO are retained.",
+            "C": "Unexpired UNDO is always retained.",
+            "D": "Active UNDO is always retained.",
+            "E": "UNDO_RETENTION specifies for how long Oracle attempts to keep unexpired UNDO."
+        },
+        "answer": [
+            "C",
+            "E"
+        ]
+    },
+    {
+        "id": 17,
+        "question": "In one of your databases, the user HR has the password HRMGR.\nYou want to connect to a database instance whose listener listens on port 1531 by\nusing this statement:\nCONNECT/HR/HRMGR@orcl-\nNo name server is used.\nWhich statement is true about ORCL? (1개)",
+        "options": {
+            "A": "It must be the value of the SERVICE_NAMES parameter on the client side",
+            "B": "It must resolve to a valid connect descriptor in the server's tnsnames.ora file",
+            "C": "It must resolve to a valid connect descriptor in the client's tnsnames.ora file",
+            "D": "It must be the name of the database to whose instance HR wishes to connect",
+            "E": "It must be the name of the server running the database to whose instance"
+        },
+        "answer": [
+            "C"
+        ]
+    },
+    {
+        "id": 18,
+        "question": "Which four statements are true regarding primary and foreign key constraints\nand the effect they can have on table data? (Choose four.) (4개)",
+        "options": {
+            "A": "A table can have only one primary key but multiple foreign keys",
+            "B": "A table can have only one primary key and one foreign key",
+            "C": "The foreign key columns and parent table primary key columns must have the same names",
+            "D": "It is possible for child rows that have a foreign key to remain in the child table at",
+            "E": "It is possible for child rows that have a foreign key to be deleted automatically",
+            "F": "Only the primary key can be defined at the column and table level",
+            "G": "Primary key and foreign key constraints can be defined at both the column"
+        },
+        "answer": [
+            "A",
+            "D",
+            "E",
+            "G"
+        ]
+    },
+    {
+        "id": 19,
+        "question": "Examine the description of the CUSTOMERS table:\nName                    Null?               Type\n--------------------------------------------------------\nCUST_ID                 NOT NULL            NUMBER\nCUST_FIRST_NAME         NOT NULL            VARCHAR2(20)\nCUST_LAST_NAME          NOT NULL            VARCHAR2(30)\nCUST_INCOME_LEVEL                           VARCHAR2(30)\nCUST_CREDIT_LIMIT                           NUMBER\nFor customers whose income level has a value, you want to display the first name\nand due amount as 5% of their credit limit. Customers whose due amount is null\nshould not be displayed. Which query should be used? (1개)",
+        "options": {
+            "A": "SELECT cust_first_name, cust_credit_limit * .05 AS DUE_AMOUNT  FROM",
+            "B": "SELECT cust_first_name, cust_credit_limit * .05 AS DUE_AMOUNT  FROM",
+            "C": "SELECT cust_first_name, cust_credit_limit * .05 AS DUE_AMOUNT  FROM",
+            "D": "SELECT cust_first_name, cust_credit_limit * .05 AS DUE_AMOUNT  FROM",
+            "E": "SELECT cust_first_name, cust_credit_limit * .05 AS DUE_AMOUNT  FROM"
+        },
+        "answer": [
+            "E"
+        ]
+    },
+    {
+        "id": 20,
+        "question": "The INVOICE table has a QTY_SOLD column of data type NUMBER and an\nINVOICE_DATE column of data type DATE.\nNLS_DATE_FORMAT is set to DD-MON-RR.\nWhich two are true about data type conversions involving these columns in query\nexpressions? (Choose two.) (2개)",
+        "options": {
+            "A": "CONCAT (qty_sold, invoice_date) : requires explicit conversion",
+            "B": "invoice_date = '15-march-2019' : uses implicit conversion",
+            "C": "invoie_date > '01-02-2019' : uses implicit conversion",
+            "D": "qty_sold BETWEEN '101' AND '110' : uses implicit conversion",
+            "E": "qty_sold = '0554982' uses implicit conversion"
+        },
+        "answer": [
+            "B",
+            "D"
+        ]
+    },
+    {
+        "id": 21,
+        "question": "You have been tasked to create a table for a banking application.\nOne of the columns must meet three requirements:\n1. Be stored in a format supporting date arithmetic without using conversion functions\n2. Store a loan period of up to 10 years\n3. Be used for calculating interest for the number of days the loan remains unpaid\nWhich data type should you use? (1개)",
+        "options": {
+            "A": "INTERVAL YEAR TO MONTH",
+            "B": "INTERVAL DAY TO SECOND",
+            "C": "TIMESTAMP WITH LOCAL TIMEZONE",
+            "D": "TIMESTAMP",
+            "E": "TIMESTAMP WITH TIMEZONE"
+        },
+        "answer": [
+            "B"
+        ]
+    },
+    {
+        "id": 22,
+        "question": "You execute this command:\n[oracle@host01 ~]$ expdp system/oracle \\\n> FULL=Y \\\n> DUMPFILE=exp_db_full.dmp \\\n> PARALLEL=4 \\\n> LOGFILE=exp_db_full.log \\\n> JOB_NAME=exp_db_full\nDuring the export operation, you detach from the job by using CTRL+C and\nthen execute this command: Export> STOP_JOB=immediate\nAre you sure you wish to stop the job ([yes]/no): yes Which two statements are\ntrue about the job? (Choose two.) (2개)",
+        "options": {
+            "A": "You can no longer monitor it",
+            "B": "You can reattach to it and monitor it",
+            "C": "It is paused and can be resumed",
+            "D": "It continues to run in the background",
+            "E": "It terminates"
+        },
+        "answer": [
+            "B",
+            "C"
+        ]
+    },
+    {
+        "id": 23,
+        "question": "Which two statements are true about the PMON background process?\n(Choose two.) (2개)",
+        "options": {
+            "A": "It registers database services with all local and remote listeners",
+            "B": "It frees resources held by abnormally terminated processes",
+            "C": "It records checkpoint information in the control file",
+            "D": "It frees unused temporary segments",
+            "E": "It kills sessions that exceed idle time"
+        },
+        "answer": [
+            "B",
+            "E"
+        ]
+    },
+    {
+        "id": 24,
+        "question": "Which two tasks can you perform using DBCA for databases? (Choose two.) (2개)",
+        "options": {
+            "A": "Configure a nonstandard block size for a new database",
+            "B": "Register a new database with an available Enterprise Manager Management server",
+            "C": "Change the standard block size of an existing database",
+            "D": "Configure incremental backups for a new database",
+            "E": "Enable flashback database for an existing database"
+        },
+        "answer": [
+            "A",
+            "B"
+        ]
+    },
+    {
+        "id": 25,
+        "question": "Which two statements are true regarding the UNION and UNION ALL operators?\n(Choose two.) (2개)",
+        "options": {
+            "A": "Duplicates are eliminated automatically by the UNION ALL operator",
+            "B": "The number of columns selected in each SELECT statement must be identical",
+            "C": "The names of columns selected in each SELECT statement must be identical",
+            "D": "The output is sorted by the UNION ALL operator",
+            "E": "NULLS are not ignored during duplicate checking"
+        },
+        "answer": [
+            "B",
+            "E"
+        ]
+    },
+    {
+        "id": 26,
+        "question": "Which three statements are true about GLOBAL TEMPORARY TABLES? (Choose three.) (3개)",
+        "options": {
+            "A": "A TRUNCATE command issued in a session causes all rows in a",
+            "B": "GLOBAL TEMPORARY TABLE rows inserted by a session are available to any other",
+            "C": "GLOBAL TEMPORARY TABLE space allocation occurs at session start.",
+            "D": "Any GLOBAL TEMPORARY TABLE rows existing at session termination will be deleted.",
+            "E": "A GLOBAL TEMPORARY TABLE'S definition is available to multiple sessions.",
+            "F": "A DELETE command on a GLOBAL TEMPORARY TABLE cannot be rolled back."
+        },
+        "answer": [
+            "A",
+            "D",
+            "E"
+        ]
+    },
+    {
+        "id": 27,
+        "question": "Which three statements are true about inner and outer joins? (Choose three.) (3개)",
+        "options": {
+            "A": "A full outer join returns matched and unmatched rows",
+            "B": "An inner join returns matched rows",
+            "C": "Outer joins can only be used between two tables per query",
+            "D": "A full outer join must use Oracle syntax",
+            "E": "Outer joins can be used when there are multiple join conditions on two tables",
+            "F": "A left or right outer join returns only unmatched rows"
+        },
+        "answer": [
+            "A",
+            "B",
+            "E"
+        ]
+    },
+    {
+        "id": 28,
+        "question": "Which three statements are true about external tables in Oracle 18c and later\nreleases? (Choose three.) (3개)",
+        "options": {
+            "A": "External table files can be used for other external tables in a different database",
+            "B": "The ORACLE_LOADER access driver can be used to unload data from a database",
+            "C": "The ORACLE_DATAPUMP access driver can be used to unload data",
+            "D": "They cannot be partitioned",
+            "E": "The ORACLE_DATAPUMP access driver can be used to load data into a database",
+            "F": "They support UPDATEs but not INSERTs and DELETEs"
+        },
+        "answer": [
+            "A",
+            "C",
+            "E"
+        ]
+    },
+    {
+        "id": 29,
+        "question": "Which three statements are true about a self join? (Choose three.) (3개)",
+        "options": {
+            "A": "The ON clause must be used",
+            "B": "The query must use two different aliases for the table",
+            "C": "It must be an equijoin",
+            "D": "It must be an inner join",
+            "E": "The ON clause can be used",
+            "F": "It can be an outer join"
+        },
+        "answer": [
+            "B",
+            "E",
+            "F"
+        ]
+    },
+    {
+        "id": 30,
+        "question": "Which three statements are true about the Automatic Diagnostic Repository\n(ADR)? (3개)",
+        "options": {
+            "A": "It Is held Inside an Oracle database schema.",
+            "B": "The ADR base is specified In the diagnostic_dest database parameter.",
+            "C": "It is only used for Oracle Database diagnostic information.",
+            "D": "It is a file-based repository held outside any database.",
+            "E": "It can be used for problem diagnosis of a database when that database's"
+        },
+        "answer": [
+            "B",
+            "D",
+            "E"
+        ]
+    },
+    {
+        "id": 31,
+        "question": "Your database instance was shut down normally and then started in NOMOUNT\nstate. You then execute this command:\nALTER DATABASE MOUNT;\nWhich two actions are performed? (Choose two.) (2개)",
+        "options": {
+            "A": "The online redo logs are opened",
+            "B": "The online data files are opened",
+            "C": "The alert log records the execution details",
+            "D": "The Oracle background processes are started",
+            "E": "The initialization parameter file is read",
+            "F": "The control file is read"
+        },
+        "answer": [
+            "C",
+            "F"
+        ]
+    },
+    {
+        "id": 32,
+        "question": "Which three statements are true about advanced connection options supported\nby Oracle Net for connection to Oracle Database instances? (Choose three.) (3개)",
+        "options": {
+            "A": "Connect Time Failover requires the use of Transparent Application Failover (TAF)",
+            "B": "Source Routing requires the use of a name server",
+            "C": "Source Routing enables the use of Connection Manager (CMAN) which enables",
+            "D": "Load Balancing can balance the number of connections to dispatchers when using",
+            "E": "Load Balancing requires the use of a name server",
+            "F": "Connect Time Failover requires the connect string to have two or more listener"
+        },
+        "answer": [
+            "C",
+            "D",
+            "F"
+        ]
+    },
+    {
+        "id": 33,
+        "question": "A database is configured to use automatic undo management with temporary\nundo enabled. An UPDATE is executed on a temporary table.\nWhere is the UNDO stored? (1개)",
+        "options": {
+            "A": "in the undo tablespace",
+            "B": "in the SYSAUX tablespace",
+            "C": "in the SGA",
+            "D": "in the PGA",
+            "E": "in the temporary tablespace"
+        },
+        "answer": [
+            "E"
+        ]
+    },
+    {
+        "id": 34,
+        "question": "Which two statements are true about single row functions? (Choose two.) (2개)",
+        "options": {
+            "A": "MOD : returns the quotient of a division operation",
+            "B": "FLOOR : returns the smallest integer greater than or equal to a specified number",
+            "C": "TRUNC : can be used with NUMBER and DATE values",
+            "D": "CONCAT : can be used to combine any number of values",
+            "E": "CEIL : can be used for positive and negative numbers"
+        },
+        "answer": [
+            "A",
+            "E"
+        ]
+    },
+    {
+        "id": 35,
+        "question": "An Oracle database session has an uncommitted transaction in progress which\nupdated 5000 rows in a table. Which three situations does the transaction complete\nthereby committing the updates? (3개)",
+        "options": {
+            "A": "when a DBA issues a successful SHUTDOWN TRANSACTIONAL statement and the",
+            "B": "when a CREATE INDEX statement is executed successfully in the same session",
+            "C": "when a COMMIT statement is issued by the same user from another session in the",
+            "D": "when the session logs out successfully",
+            "E": "when a DBA issues a successful SHUTDOWN IMMEDIATE statement and the user",
+            "F": "when a CREATE TABLE AS SELECT statement is executed unsuccessfully"
+        },
+        "answer": [
+            "A",
+            "B",
+            "D"
+        ]
+    },
+    {
+        "id": 36,
+        "question": "Which two statements are true regarding indexes? (Choose two.) (2개)",
+        "options": {
+            "A": "An update to a table can result in updates to any or all of the table's indexes.",
+            "B": "An update to a table can result in no updates to any of the table's indexes.",
+            "C": "A UNIQUE index can be altered to be non-unique.",
+            "D": "When a table is dropped and is moved to the RECYCLE BIN, all indexes built on",
+            "E": "A table belonging to one user cannot have an index that belongs to a different user."
+        },
+        "answer": [
+            "A",
+            "B"
+        ]
+    },
+    {
+        "id": 37,
+        "question": "Which three statements are true about Oracle synonyms? (Choose two.) (2개)",
+        "options": {
+            "A": "A synonym has an object number.",
+            "B": "A synonym can be created on an object in a package.",
+            "C": "A synonym can have a synonym.",
+            "D": "All private synonym names must be unique in the database.",
+            "E": "Any user can create a PUBLIC synonym."
+        },
+        "answer": [
+            "A",
+            "C"
+        ]
+    },
+    {
+        "id": 38,
+        "question": "Which three statements are true about single-row functions? (Choose three.) (3개)",
+        "options": {
+            "A": "They can be used only in the WHERE clause of a SELECT statement",
+            "B": "The argument can be a column name, variable, literal or an expression",
+            "C": "The data type returned can be different from the data type of the argument",
+            "D": "They can be nested to any level",
+            "E": "They can accept only one argument",
+            "F": "They return a single result row per table"
+        },
+        "answer": [
+            "B",
+            "C",
+            "D"
+        ]
+    },
+    {
+        "id": 39,
+        "question": "You want to apply the principle of Least Privilege in all your live databases.\nOne of your requirements is to revoke unnecessary privileges from all users who have them using Privilege Analysis.\nWhich three types of analyses can be done using the DBMS_PRIVILEGE_CAPTURE package? (Choose three.) (3개)",
+        "options": {
+            "A": "analysis of all privileges used by all users including administrative users in the database",
+            "B": "analysis of all privileges used by all users but excluding administrative users in the database",
+            "C": "analysis of privileges that a user has on their own schema objects that they did not use",
+            "D": "analysis of privileges that a user has on their own schema objects that they did use",
+            "E": "analysis of privileges granted directly to a role that are then used by a user who",
+            "F": "analysis of privileges granted indirectly to a role that are then used by a user who"
+        },
+        "answer": [
+            "B",
+            "E",
+            "F"
+        ]
+    },
+    {
+        "id": 40,
+        "question": "Which two statements are true? (2개)\nName                    Null?               Type\n------------------      --------------      ------------\nPRODUCT_ID              NOT NULL            NUMBER(10)\nCUSTOMER_ID             NOT NULL            NUMBER(10)\nTIME_ID                 NOT NULL            DATE\nCHANNEL_ID              NOT NULL            NUMBER(5)\nPROMO_ID                NOT NULL            NUMBER(5)\nQUANTITY_SOLD           NOT NULL            NUMBER(10,2)\nPRICE                                       NUMBER(10,2)\nAMOUNT_SOLD             NOT NULL            NUMBER(10,2)\nThe SALES table has 55,000 rows.\nEXamine this statement:\nCREATE TABLE sales1 (prod_id, cust_id, quantity_sold, price)\nAS\nSELECT product_id, customer_id, quantity_sold, price\nFROM sales\nWHERE 1 = 1;",
+        "options": {
+            "A": "SALES1 has not NULL constraints on any selected columns which had those",
+            "B": "SALES1 has primary key and unique constraints on any selected columns which",
+            "C": "SALES1 is created with 55,000 rows.",
+            "D": "SALES1 is created with no rows.",
+            "E": "SALES1 is created with 1 row."
+        },
+        "answer": [
+            "A",
+            "C"
+        ]
+    },
+    {
+        "id": 41,
+        "question": "Examine the description of the SALES1 table:\nName                    Null?               Type\n-------------           --------------      ------------\nSALES_ID                NOT NULL            NUMBER\nSTORE_ID                NOT NULL            NUMBER\nITEMS_ID                                    NUMBER\nQUANTITY                                    NUMBER\nPROMO_ID                                    DATE\nSALES2 is a table with the same description as SALES1. Some sales data is duplicated in both tables.\nYou want to display the rows from the SALES1 table which are not present in the SALES2 table.\nWhich set operator generates the required output? (1개)",
+        "options": {
+            "A": "INTERSECT",
+            "B": "UNION ALL",
+            "C": "UNION",
+            "D": "SUBTRACT",
+            "E": "MINUS"
+        },
+        "answer": [
+            "E"
+        ]
+    },
+    {
+        "id": 42,
+        "question": "Examine the description of the BOOKS_TRANSACTIONS table:\nName                        Null?               Type\n-----------------           --------------      ------------\nTRANSACTION_ID              NOT NULL            VARCHAR2(6)\nTRANSACTION_ID                                  VARCHAR2(3)\nBORROWED_DATE                                   DATE\nBOOK_ID                                         VARCHAR2(6)\nMEMBER_ID                                       VARCHAR2(6)\nExamine this partial SQL statement:\nSELECT * FROM books_transactions\nWhich two WHERE conditions give the same result? (Choose two.) (2개)",
+        "options": {
+            "A": "WHERE borrowed_date = SYSDATE AND (transaction_type = 'RM'",
+            "B": "WHERE borrowed_date = SYSDATE AND transaction_type = 'RM'",
+            "C": "WHERE borrowed_date = SYSDATE AND (transaction_type = 'RM'",
+            "D": "WHERE borrowed_date = SYSDATE AND (transaction_type = 'RM'",
+            "E": "WHERE (borrowed_date = SYSDATE AND transaction_type - 'RM')"
+        },
+        "answer": [
+            "B",
+            "E"
+        ]
+    },
+    {
+        "id": 43,
+        "question": "Which three statements are true about data block storage in an Oracle Database? (3개)",
+        "options": {
+            "A": "A block header contains a row directory pointing to all rows in the block.",
+            "B": "An index block can contain row data.",
+            "C": "Row data is stored starting at the end of the block.",
+            "D": "A data block header is of a fixed length.",
+            "E": "A table block must always contain row data."
+        },
+        "answer": [
+            "A",
+            "B",
+            "C"
+        ]
+    },
+    {
+        "id": 44,
+        "question": "You currently have an active transaction in your session and have been granted\nselect access to v$transaction.\nExecuting:\nSELECT xid, status FROM v$transaction;\nin your session returns:\nXID                        STATUS\n-----------------          --------------\n0A0007000A070000           ACTIVE\nIn which three situations will re-executing this query still return a row but with a\ndifferent XID, indicating a new transaction has started? (Choose three.) (3개)",
+        "options": {
+            "A": "after successfully executing a CREATE TABLE statement followed by a CREATE INDEX statement",
+            "B": "after successfully executing a TRUNCATE statement followed by a DML statement",
+            "C": "after successfully executing a DML statement following a failed DML statement",
+            "D": "after successfully executing a CREATE TABLE AS SELECT statement followed",
+            "E": "after successfully executing a COMMIT or ROLLBACK followed by a DML statement",
+            "F": "after successfully executing a COMMIT or ROLLBACK followed by a SELECT statement"
+        },
+        "answer": [
+            "B",
+            "D",
+            "E"
+        ]
+    },
+    {
+        "id": 46,
+        "question": "You execute this command:\nCREATE SMALLFILE TABLESPACE sales\nDATAFILE ‘/u01/app/oracle/sales01.dbf\nSIZE 5G  SEGMENT SPACE MANAGEMENT AUTO\nWhich two statements are true about SALES tablespace? (Choose two) (2개)",
+        "options": {
+            "A": "It must be smaller than the smallest BIGFILE tablespace",
+            "B": "Free space is managed using freelists",
+            "C": "Any data files added to the tablespace must have a size of 5 gigabytes",
+            "D": "It uses the database default blocksize",
+            "E": "It is a locally managed tablespace"
+        },
+        "answer": [
+            "D",
+            "E"
+        ]
+    },
+    {
+        "id": 47,
+        "question": "Examine this description of the TRANSACTIONS table:\nName                        Null?        Type\n--------------------------- -----------  ----------------\nTRANSACTION_ID              NOT NULL     VARCHAR2(2)\nTRANSACTION_DATE                         DATE\nAMOUNT                                   NUMBER(10,2)\nCUSTOMER_ID                              VARCHAR2(6)\nWhich two SQL statements execute successfully? (Choose two.) (2개)",
+        "options": {
+            "A": "SELECT customer_id AS \"CUSTOMER-ID\", transaction_date AS DATE, amount",
+            "B": "SELECT customer_id AS \"CUSTOMER-ID\", transaction_date AS \"DATE\", amount",
+            "C": "SELECT customer_id AS CUSTOMER-ID, transaction_date AS TRANS_DATE, amount",
+            "D": "SELECT customer_id CUSTID, transaction_date TRANS_DATE, amount + 100 DUES",
+            "E": "SELECT customer_id AS ‘CUSTOMER-ID’, transaction_date AS DATE, amount + 100"
+        },
+        "answer": [
+            "B",
+            "D"
+        ]
+    },
+    {
+        "id": 48,
+        "question": "Table EMPLOYEES contains columns including EMPLOYEE_ID, JOB_ID and SALARY.\nOnly the EMPLOYEE_ID column is indexed.\nRows exist for employees 100 and 200. Examine this statement:\nUPDATE employees\nSET (job_id, salary)=\n(SELECT job_id, salary\nFROM employees\nWHERE employee_id = 200)\nWHERE employee_id = 100;\nWhich two statements are true? (Choose two.) (2개)",
+        "options": {
+            "A": "Employee 100 will have SALARY set to the same value as the SALARY of employee 200",
+            "B": "Employee 200 will have JOB_ID set to the same value as the JOB_ID of employee 100",
+            "C": "Employee 200 will have SALARY set to the same value as the SALARY of employee 100",
+            "D": "Employee 100 will have JOB_ID set to the same value as the JOB_ID of employee 200",
+            "E": "Employees 100 and 200 will have the same JOB_ID as before the update command",
+            "F": "Employees 100 and 200 will have the same SALARY as before the update command"
+        },
+        "answer": [
+            "A",
+            "D"
+        ]
+    },
+    {
+        "id": 49,
+        "question": "A script abc.sql must be executed to perform a job.\nA database user HR, who is defined in this database, executes this command:\n$ sqlplus hr/hr@orcl @abc.sql\nWhat will happen upon execution? (1개)",
+        "options": {
+            "A": "The command succeeds and HR will be connected to the orcl and abc.sql databases",
+            "B": "The command succeeds and HR will be connected to the orcl database instance, and",
+            "C": "The command fails because the script must refer to the full path name",
+            "D": "The command fails and reports an error because @ is used twice"
+        },
+        "answer": [
+            "B"
+        ]
+    },
+    {
+        "id": 50,
+        "question": "Your database instance is started with an SPFILE.\nA PFILE is also available.You execute this command:\nALTER SYSTEM SET DB_CACHE_SIZE=100K;  Where Is the value changed? (1개)",
+        "options": {
+            "A": "in the SPFILE, PFILE, and memory",
+            "B": "in the SPFILE and in memory",
+            "C": "only In the SPFILE",
+            "D": "in the SPFILE and PFILE",
+            "E": "only in memory"
+        },
+        "answer": [
+            "B"
+        ]
+    },
+    {
+        "id": 51,
+        "question": "Which two statements are true regarding Oracle database space\nmanagement within blocks managed by Automatic Segment Space Management\n(ASSM)? (Choose two.) (2개)",
+        "options": {
+            "A": "PCTFREE defaults to 10% for all blocks in all segments for all compression methods",
+            "B": "ASSM assigns blocks to one of four fullness categories based on what percentage of",
+            "C": "Update operations always attempt to find blocks with free space appropriate to the",
+            "D": "Insert operations always attempt to find blocks with free space appropriate to the",
+            "E": "A block will always be eligible for inserts if the row is short enough to fit into the block"
+        },
+        "answer": [
+            "B",
+            "D"
+        ]
+    },
+    {
+        "id": 52,
+        "question": "The SALES_Q1 and USERS tablespaces exist in one of your databases and\nTEMP is a temporary tablespace.\nSegment creation is not deferred. You execute this command:\nCREATE USER sales\nIDENTIFIED BY sales_123\nDEFAULT TABLESPACE sales_pl\nTEMPORARY TABLESPACE temp\nQUOTA 5M ON users;\nWhich three statements must be true so that the SALES user can create tables in\nSALES_Q1? (Choose three.) (3개)",
+        "options": {
+            "A": "The sales user must have a quota on the TEMP tablespace",
+            "B": "The sales user must have a quota on the SALES_Q1 tablespace to hold the initial",
+            "C": "The sales user must have been granted the CREATE SESSION privilege",
+            "D": "The sales user must have their quota on the users tablespace removed",
+            "E": "The sales user must have a quota on the SALES_Q1 tablespace to hold all the rows",
+            "F": "The sales user must have been granted the CREATE TABLE privilege"
+        },
+        "answer": [
+            "B",
+            "C",
+            "F"
+        ]
+    },
+    {
+        "id": 53,
+        "question": "Which two statements are true about Enterprise Manager Database Express? (Choose two.) (2개)",
+        "options": {
+            "A": "It is available only when the database is open",
+            "B": "It can be used to perform database recovery",
+            "C": "The same port number can be used for Database Express configurations for",
+            "D": "It can be used to switch a database into ARCHIVELOGMODE",
+            "E": "The same port number can be used for multiple Database Express configurations for"
+        },
+        "answer": [
+            "A",
+            "C"
+        ]
+    },
+    {
+        "id": 54,
+        "question": "In the promotions table, the PROMO_BEGIN_DATE column is of data type\ndate and the default date format Is DD-MON-RR. Which two statements are true\nabout expressions using PROMO_BEGIN_DATE contained In a query? (2개)",
+        "options": {
+            "A": "TO_NUMBER(PROMO_BEGIN_DATE) ~ 5 will return a number.",
+            "B": "PROMO_ BEGIN_DATE ~ SYSDATE will return a number.",
+            "C": "PROMO_ BEGIN_DATE ~ SYSDATE will return an error.",
+            "D": "PROMO_ BEGIN_DATE ~ 5 will return a date.",
+            "E": "TO_DATE(PROMO_ BEGIN_DATE * 5) will return a date."
+        },
+        "answer": [
+            "B",
+            "D"
+        ]
+    },
+    {
+        "id": 55,
+        "question": "Which two statements are true about the results of using the INTERSECT\noperator in compound queries? (Choose two.) (2개)",
+        "options": {
+            "A": "Column names in each SELECT in the compound query can be different",
+            "B": "The number of columns in each SELECT in the compound query can be different",
+            "C": "Reversing the order of the intersected tables can sometimes affect the output",
+            "D": "INTERSECT returns rows common to both sides of the compound query",
+            "E": "INTERSECT ignores NULLS"
+        },
+        "answer": [
+            "A",
+            "D"
+        ]
+    },
+    {
+        "id": 56,
+        "question": "In the SALES database, DEFERRED_SEGMENT_CREATION is TRUE.\nExamine this command:\nSQL> CREATE TABLE T1(c1 INT PRIMARY KEY, c2 CLOB);\nWhich segment or segments, if any, are created as a result of executing the command? (1개)",
+        "options": {
+            "A": "T1, an index segment for the primary key, a LOB segment, and a lobindex segment",
+            "B": "no segments are created",
+            "C": "T1 only",
+            "D": "T1 and an index segment created for the primary key only",
+            "E": "T1, an index segment for the primary key, and a LOB segment only"
+        },
+        "answer": [
+            "B"
+        ]
+    },
+    {
+        "id": 57,
+        "question": "Which two statements are true about the rules of precedence for operators?\n(Choose two.) (2개)",
+        "options": {
+            "A": "The concatenation operator | | is always evaluated before addition and subtraction in an expression",
+            "B": "NULLS influence the precedence of operators in an expression",
+            "C": "The + binary operator has the highest precedence in an expression in a SQL statement",
+            "D": "Arithmetic operators with equal precedence are evaluated from left to right within an expression",
+            "E": "Multiple parentheses can be used to override the default precedence of operators in an expression"
+        },
+        "answer": [
+            "D",
+            "E"
+        ]
+    },
+    {
+        "id": 58,
+        "question": "Which two statements are true about Enterprise Manager (EM) Express? (2개)",
+        "options": {
+            "A": "You can use a single instance of EM Express to manage multiple database running",
+            "B": "EM Express uses a separate repository database to store target database metadata.",
+            "C": "By default, EM express is available for a database after database creation using DBCA.",
+            "D": "You can shut down a database instance using EM Express.",
+            "E": "You cannot start up a database instance using EM Express."
+        },
+        "answer": [
+            "C",
+            "E"
+        ]
+    },
+    {
+        "id": 59,
+        "question": "Which statement is true about aggregate functions? (1개)",
+        "options": {
+            "A": "Aggregate functions can be nested to any number of levels",
+            "B": "The AVG function implicitly converts NULLS to zero",
+            "C": "Aggregate functions can be used in any clause of a SELECT statement",
+            "D": "The MAX and MIN functions can be used on columns with character data types"
+        },
+        "answer": [
+            "D"
+        ]
+    },
+    {
+        "id": 60,
+        "question": "Which three statements are true about the Oracle Data Dictionary? (Choose three.) (3개)",
+        "options": {
+            "A": "Data dictionary views are created by joins of dictionary base tables and",
+            "B": "The data dictionary is created and maintained by the database administrator",
+            "C": "Views with the same name but different prefixes, such as CDB, DBA, ALL and USER,",
+            "D": "Base tables can be queried directly",
+            "E": "It is owned by the SYSTEM user",
+            "F": "Usernames of all users including database administrators are stored in the data dictionary"
+        },
+        "answer": [
+            "C"
+        ]
+    },
+    {
+        "id": 61,
+        "question": "Examine this command:\nALTER DATABASE\nMOVE DATAFILE   '/u01/sales1.dbf'\nTO         '/u01/sales01.dbf'\nREUSE;\nWhich two statements are true? (Choose two.) (2개)",
+        "options": {
+            "A": "SELECT TO_CHAR(SYSDATE, 'DD-MON-YYYY') - '01-JAN-2019' FROM",
+            "B": "SELECT ROUND(SYSDATE - '01-JAN-2019') FROM DUAL;",
+            "C": "SELECT ROUND(SYSDATE – TO_DATE('01/JANUARY/2019')) FROM DUAL;",
+            "D": "SELECT TO_DATE(SYSDATE, 'DD/MONTH/YYYY') - '01/JANUARY/2019' FROM DUAL;",
+            "E": "SELECT SYSDATE - TO_DATE('01-JANUARY-2019') FROM DUAL;"
+        },
+        "answer": [
+            "A",
+            "E"
+        ]
+    },
+    {
+        "id": 63,
+        "question": "Which three statements are true about dropping and unused columns in an Oracle\ndatabase? (Choose three.) (3개)",
+        "options": {
+            "A": "A primary key column referenced by another column as a foreign key can be dropped if",
+            "B": "An UNUSED column's space is reclaimed automatically when the block containing that",
+            "C": "An UNUSED column's space is reclaimed automatically when the row containing that",
+            "D": "Partition key columns cannot be dropped.",
+            "E": "A DROP COLUMN command can be rolled back",
+            "F": "A column that is set to UNUSED still counts towards the limit of 1000 columns per table"
+        },
+        "answer": [
+            "A",
+            "D",
+            "F"
+        ]
+    },
+    {
+        "id": 64,
+        "question": "Which three activities are recorded in the database alert log? (Choose three.) (3개)",
+        "options": {
+            "A": "Data Definition Language (DDL) statements",
+            "B": "non-default database parameters",
+            "C": "block corruption errors",
+            "D": "deadlock errors",
+            "E": "session logins and logouts"
+        },
+        "answer": [
+            "B",
+            "C",
+            "D"
+        ]
+    },
+    {
+        "id": 65,
+        "question": "You must create a tablespace of non-standard block size in a new file system\nand plan to use this command:\nCREATE TABLESAPCE ns_tbs\nDATAFILE 'u02/oracle/data/nstbs_f01.dbf'\nSIZE 100G\nBLOCKSIZE 32K;\nThe standard block size is 8k but other non-standard block sizes will also be used.\nWhich two are requirements for this command to succeed? (2개)",
+        "options": {
+            "A": "DB_32K_CACHE_SIZE must be less than DB_CACHE_SIZE.",
+            "B": "DB_32K_CACHE_SIZE must be set to a value that can be accommodated in the SGA.",
+            "C": "DB_32K_CACHE_SIZE should be set to a value greater than DB_CACHE_SIZE.",
+            "D": "The /u02 file system must have at least 100g space for the datafile.",
+            "E": "The operating system must use a 32k block size.",
+            "F": "DB_CACHE_SIZE must be set to a size that is smaller than DB_32K_CACHE_SIZE."
+        },
+        "answer": [
+            "B",
+            "D"
+        ]
+    },
+    {
+        "id": 66,
+        "question": "While one of your databases was in mount state, the datafiles were renamed\nbecause they had been moved to a new file system. The database was then opened.\nWhich two statements are true? (2개)",
+        "options": {
+            "A": "DBA_DATA_FILES displays the original name for the data files.",
+            "B": "V$DATAFILE displays the new names for the data files.",
+            "C": "DBA_DATA_FILES displays both the new name and the old name for the data files.",
+            "D": "DBA_DATA_FILES displays the new name for the data files.",
+            "E": "DBA_DATA_FILES must be resynchronized manually with the control file an order to"
+        },
+        "answer": [
+            "B",
+            "D"
+        ]
+    },
+    {
+        "id": 67,
+        "question": "The SCOTT/TIGER user exists in two databases, BOSTON_DB and DALLAS_DB, in\ntwo different locations. Each database has a tnsnames.ora file defining DALLAS_DB as a\nservice name. Examine this command:\nCREATE DATABASE LINK dblink1 CONNECT TO scott IDENTIFIED BY tiger USING 'dallas_db';\nHow do you execute the command so that only SCOTT in BOSTON_DB can access the SCOTT schema in DALLAS_DB? (1개)",
+        "options": {
+            "A": "as SCOTT in DALLAS_DB",
+            "B": "as SCOTT in BOSTON_DB",
+            "C": "as SCOTT in BOSTON_DB and SYS in DALLAS_DB",
+            "D": "as SYS in both the databases",
+            "E": "as SCOTT in both the databases"
+        },
+        "answer": [
+            "B"
+        ]
+    },
+    {
+        "id": 68,
+        "question": "Examine the description of the employees table:\nName                        Null?               Type\n-----------------           --------------      ------------\nEMP_ID                      NOT NULL            VARCHAR2(6)\nEMP_NAME                                        VARCHAR2(3)\nDEPT_ID                                         DATE\nSALARY                                          VARCHAR2(6)\nJOIN_DATE                                       VARCHAR2(6)\nNLS_DATE_FORMAT is set to DD-MON-YY.\nWhich query requires explicit data type conversion? (1개)",
+        "options": {
+            "A": "SELECT join_date FROM employees WHERE join_date > '10-02-2018';",
+            "B": "SELECT join_date II '' II salary FROM employees;",
+            "C": "SELECT SUBSTR(join_date, 1, 2) - 10 FROM employees;",
+            "D": "SELECT join_date + '20' FROM employees;",
+            "E": "SELECT salary + '120.50' FROM employees;"
+        },
+        "answer": [
+            "A"
+        ]
+    },
+    {
+        "id": 69,
+        "question": "The stores table has a column START_DATE of data type DATE, containing\nthe date the row was inserted. You only want to display details of rows where\nSTART_DATE is within the last 25 months. Which where clause can be used? (1개)",
+        "options": {
+            "A": "WHERE MONTHS_BETWEEN (SYSDATE, start_date) <= 25",
+            "B": "WHERE ADD_MONTHS < (start_date, 25) <= SYSDATE",
+            "C": "WHERE TO_XUMBER(start_date - SYSDATE) <= 25",
+            "D": "WHERE MON'THS_BETWEEN (start_date, SYSDATE) <= 25"
+        },
+        "answer": [
+            "A"
+        ]
+    },
+    {
+        "id": 70,
+        "question": "Which three statements are true about sequences in a single instance\nOracle database? (3개)",
+        "options": {
+            "A": "Sequences can always have gaps.",
+            "B": "A sequence can Issue duplicate values.",
+            "C": "A sequence's unallocated cached values are lost if the instance shuts down.",
+            "D": "Two or more tables cannot have keys generated from the same sequence.",
+            "E": "A sequence can only be dropped by a DBA.",
+            "F": "A sequence number that was allocated can be rolled back if a transaction fails."
+        },
+        "answer": [
+            "A",
+            "B",
+            "C"
+        ]
+    },
+    {
+        "id": 71,
+        "question": "In your data center, Oracle Managed Files (OMF) is used for all databases.\nAll tablespaces are smallfile tablespaces.\nSALES_Q1 is a permanent user-defined tablespace in the SALES database.\nExamine this command\nwhich is about to be issued by a DBA logged in to the SALES database:\nALTER TABLESPACE sales_q1 ADD DATAFILE;\nWhich are two actions, either one of which you could take to ensure that the command\nexecutes successfully? (Choose two.) (2개)",
+        "options": {
+            "A": "Ensure that DB_RECOVERY_FILE_DEST and DB_CREATE_FILE_DEST each specify",
+            "B": "Specify a path in the DATAFILE clause of the command specifying a location with at",
+            "C": "Ensure that DB_CREATE_FILE_DEST specifies a location with at least 100 Mb of available space.",
+            "D": "Add the AUTOEXTEND ON clause with NEXT set to 100M.",
+            "E": "Ensure that DB_RECOVERY_FILE_DEST and DB_CREATE_FILE_DEST each specify locations"
+        },
+        "answer": [
+            "B",
+            "C"
+        ]
+    },
+    {
+        "id": 72,
+        "question": "Which two statements are true about substitution variables? (2개)",
+        "options": {
+            "A": "A substitution variable prefixed with & always prompts only once for a value in a session.",
+            "B": "A substitution variable prefixed with && prompts only once for a value in a session unless",
+            "C": "A substitution variable can be used only in a select statement.",
+            "D": "A substitution variable used to prompt for a column name must be enclosed",
+            "E": "A substitution variable can be used with any clause in a SELECT statement.",
+            "F": "A substitution variable used to prompt for a column name must be enclosed in double"
+        },
+        "answer": [
+            "B",
+            "E"
+        ]
+    },
+    {
+        "id": 73,
+        "question": "In which three situations does a new transaction always start? (Choose three.) (3개)",
+        "options": {
+            "A": "when issuing a SELECT FOR UPDATE statement after a CREATE TABLE AS SELECT",
+            "B": "when issuing a TRUNCATE statement after a SELECT statement was issued",
+            "C": "when issuing a CREATE TABLE statement after a SELECT statement was issued",
+            "D": "when issuing the first Data Manipulation Language (DML) statement after a COMMIT",
+            "E": "when issuing a CREATE INDEX statement after a CREATE TABLE statement completed",
+            "F": "when issuing a DML statement after a DML statement failed in the same session."
+        },
+        "answer": [
+            "A"
+        ]
+    },
+    {
+        "id": 74,
+        "question": "Which three statements are true about Oracle synonyms? (3개)",
+        "options": {
+            "A": "A synonym cannot be created for a PL/SQL package",
+            "B": "A synonym can be available to all users",
+            "C": "A SEQUENCE can have a synonym",
+            "D": "A synonym created by one user can refer to an object belonging to another user",
+            "E": "Any user can drop a PUBLIC synonym"
+        },
+        "answer": [
+            "B",
+            "C",
+            "D"
+        ]
+    },
+    {
+        "id": 75,
+        "question": "Which three instance situations are possible with the Oracle Database server without\nmulti- tenant? (Choose three.) (3개)",
+        "options": {
+            "A": "two or more instances on separate servers all associated with one database",
+            "B": "one instance on one server associated with one database",
+            "C": "one instance on one server associated with two or more databases on the same server",
+            "D": "one instance on one server not associated with any database",
+            "E": "one instance on one server associated with two or more databases on separate servers"
+        },
+        "answer": [
+            "A",
+            "B",
+            "D"
+        ]
+    },
+    {
+        "id": 76,
+        "question": "Examine the description of the product_details table:\nName                        Null?               Type\n-----------------           --------------      ------------\nPRODUCT_ID                  NOT NULL            NUMBER(2)\nPRODUCT_NAME                NOT NULL            VARCHAR2(25)\nPRODUCT_PRICE                                   NUMBER(8,2)\nEXPIRY_DATE                                     DATE\nWhich two statements are true? (2개)",
+        "options": {
+            "A": "PRODUCT_ID can be assigned the PRIMARY KEY constraint.",
+            "B": "PRODUCT_PRICE contains the value zero by default if no value is assigned to it.",
+            "C": "PRODUCT_PRICE can be used in an arithmetic expression even if it has no value stored in it.",
+            "D": "EXPIRY_DATE contains the sysdate by default if no date is assigned to it.",
+            "E": "PRODUCT_NAME cannot contain duplicate values.",
+            "F": "EXPIRY_DATE cannot be used in arithmetic expressions."
+        },
+        "answer": [
+            "A",
+            "C"
+        ]
+    },
+    {
+        "id": 77,
+        "question": "Examine these commands:\nWhich two statements are true about the sqlldr execution? (2개)\n[oracle@host01 ~]$ sqlplus u1/oracle\nSQL> SELECT * FROM emp;\nENO        ENAME        DN\n---------- ------------- ----------\n1          Alan         2\n2          Ben          2\nSQL> exit\n[oracle@host01 ~]$ cat emp.dat\n3,Curi,4\n4,Bob,4\n[oracle@host01 ~]$ sqlldr u1/oracle TABLE=emp",
+        "options": {
+            "A": "It overwrites data in EMP with data in EMP.DAT",
+            "B": "It uses the database buffer cache to load data",
+            "C": "It generates a log that contains control file entries, which can be used with",
+            "D": "It generates a sql script that it uses to load data from EMP.DAT to EMP",
+            "E": "It appends data from EMP.DAT to EMP"
+        },
+        "answer": [
+            "C",
+            "E"
+        ]
+    },
+    {
+        "id": 78,
+        "question": "Which three functions are performed by dispatchers in a shared server configuration?\n(Choose three.) (3개)",
+        "options": {
+            "A": "writing inbound request to the common request queue from all shared server connections",
+            "B": "checking for outbound shared server responses on the common outbound response queue",
+            "C": "receiving inbound requests from processes using shared server connections",
+            "D": "sending each connection input request to the appropriate shared server input queue",
+            "E": "broadcasting shared server session responses back to requesters on all connections",
+            "F": "sending shared server session responses back to requesters on the appropriate connection"
+        },
+        "answer": [
+            "A",
+            "C",
+            "F"
+        ]
+    },
+    {
+        "id": 79,
+        "question": "Which three statements are true about the Oracle join and ANSI join syntax? (Choose three.) (3개)",
+        "options": {
+            "A": "The Oracle join syntax supports creation of a Cartesian product of two tables",
+            "B": "The Oracle join syntax performs better than the SQL:1999 compliant ANSI join syntax",
+            "C": "The SQL:1999 compliant ANSI join syntax supports natural joins",
+            "D": "The SQL:1999 compliant ANSI join syntax supports creation of a Cartesian product of two tables",
+            "E": "The Oracle join syntax only supports right outer joins",
+            "F": "The Oracle join syntax supports natural joins",
+            "G": "The Oracle join syntax performs less well than the SQL:1999 compliant ANSI join syntax"
+        },
+        "answer": [
+            "A",
+            "C",
+            "D"
+        ]
+    },
+    {
+        "id": 80,
+        "question": "View the Exhibits and examine the structure of the COSTS and PROMOTIONS\ntables. You want to display PROD_IDS whose promotion cost is less than the highest\ncost PROD_ID in a promotion time interval.\nExamine this SQL statement:\nSELECT prod_id\nFROM costs\nWHERE promo_id IN\n(SELECT promo_id\nFROM promotions\nWHERE promo_cost < ALL\n(SELECT MAX(promo_cost)\nFROM promotions\nGROUP BY (promo_end_date - promo_begin_date)));\nExhibit 1. — Table COSTS\n| Name       | Null?    | Type         |\n| ---------- | -------- | ------------ |\n| PROD_ID    | NOT NULL | NUMBER       |\n| TIME_ID    | NOT NULL | DATE         |\n| PROMO_ID   | NOT NULL | NUMBER       |\n| CHANNEL_ID | NOT NULL | NUMBER       |\n| UNIT_COST  | NOT NULL | NUMBER(10,2) |\n| UNIT_PRICE | NOT NULL | NUMBER(10,2) |\nExhibit 2. — Table PROMOTIONS\n| Name                 | Null?    | Type         |\n| -------------------- | -------- | ------------ |\n| PROMO_ID             | NOT NULL | NUMBER(6)    |\n| PROMO_NAME           |          | VARCHAR2(30) |\n| PROMO_SUBCATEGORY    |          | VARCHAR2(30) |\n| PROMO_SUBCATEGORY_ID |          | NUMBER       |\n| PROMO_CATEGORY       |          | VARCHAR2(30) |\n| PROMO_CATEGORY_ID    |          | NUMBER       |\n| PROMO_COST           | NOT NULL | NUMBER(10,2) |\n| PROMO_BEGIN_DATE     | NOT NULL | DATE         |\n| PROMO_END_DATE       | NOT NULL | DATE         |\nWhat will be the result? (1개)",
+        "options": {
+            "A": "It gives an error because the ALL keyword is not valid",
+            "B": "It gives an error because the GROUP BY clause is not valid",
+            "C": "It executes successfully but does not give the required result",
+            "D": "It executes successfully and gives the required result"
+        },
+        "answer": [
+            "D"
+        ]
+    },
+    {
+        "id": 81,
+        "question": "Examine the description of the members table:\nName                        Null?               Type\n-----------------           --------------      ------------\nMEMBER_ID                   NOT NULL            VARCHAR2(6)\nFIRST_NAME                                      VARCHAR2(50)\nLAST_NAME                   NOT NULL            VARCHAR2(50)\nADDRESS                                         VARCHAR2(50)\nCITY                                            VARCHAR2(25)\nExamine the partial query:\nSELECT city, last_name AS lname FROM members ...;\nYou want to display all cities that contain the string AN. The cities must be returned\nin ascending order, with the last names further sorted in descending order.\nWhich two clauses must you add to the query? (2개)",
+        "options": {
+            "A": "ORDER BY 1, LNAME DESC",
+            "B": "ORDER BY 1, 2",
+            "C": "WHERE city IN ('%AN%')",
+            "D": "WHERE city = '%AN%'",
+            "E": "WHERE city LIKE '%AN%'",
+            "F": "ORDER BY last_name DESC, city ASC"
+        },
+        "answer": [
+            "A",
+            "E"
+        ]
+    },
+    {
+        "id": 82,
+        "question": "Examine this SQL statement:\nSELECT cust_id, cust_last_name \"Last Name\"\nFROM customers\nWHERE country_id = 10\nUNION\nSELECT cust_id CUST_NO, cust_last_name FROM customers\nWHERE country_id = 30\nIdentify three ORDER BY clauses, any one of which can complete the query\nsuccessfully. (Choose three.) (3개)",
+        "options": {
+            "A": "ORDER BY \"Last Name\"",
+            "B": "ORDER BY 2, 1",
+            "C": "ORDER BY 2, cust_id",
+            "D": "ORDER BY CUST_NO",
+            "E": "ORDER BY \"CUST_NO“"
+        },
+        "answer": [
+            "A",
+            "B",
+            "C"
+        ]
+    },
+    {
+        "id": 83,
+        "question": "View the Exhibit and examine the structure of the PRODUCTS table.\nWhich two tasks require subqueries? (2개)\nTable PRODUCTS\n| Name                 | Null?    | Type           |\n| -------------------- | -------- | -------------- |\n| PROD_ID              | NOT NULL | NUMBER(6)      |\n| PROD_NAME            | NOT NULL | VARCHAR2(50)   |\n| PROD_DESC            | NOT NULL | VARCHAR2(4000) |\n| PROD_CATEGORY        | NOT NULL | VARCHAR2(50)   |\n| PROD_CATEGORY_ID     | NOT NULL | NUMBER         |\n| PROD_UNIT_OF_MEASURE |          | VARCHAR2(20)   |\n| SUPPLIER_ID          | NOT NULL | NUMBER(6)      |\n| PROD_STATUS          | NOT NULL | VARCHAR2(20)   |\n| PROD_LIST_PRICE      |          | NUMBER(8,2)    |\n| PROD_MIN_PRICE       | NOT NULL | NUMBER(8,2)    |",
+        "options": {
+            "A": "Display the number of products whose PROD_LIST_PRICE is more than the",
+            "B": "Display suppliers whose PROD_LIST_PRICE is less than 1000",
+            "C": "Display products whose PROD_MIN_PRICE is more than the average",
+            "D": "Display the total number of products supplied by supplier 102 which have a product",
+            "E": "Display the minimum PROD_LIST_PRICE for each product status"
+        },
+        "answer": [
+            "A",
+            "C"
+        ]
+    },
+    {
+        "id": 84,
+        "question": "Which compression method is recommended for Direct-Path Insert operations? (1개)",
+        "options": {
+            "A": "COLUMN STORE COMPRESS BASIC",
+            "B": "COLUMN STORE COMPRESS ADVANCED",
+            "C": "ROW STORE COMPRESS BASIC",
+            "D": "ROW STORE COMPRESS ADVANCED"
+        },
+        "answer": [
+            "C"
+        ]
+    },
+    {
+        "id": 85,
+        "question": "Which two statements are true about UNDO and REDO? (2개)",
+        "options": {
+            "A": "The generation of UNDO generates REDO",
+            "B": "DML modifies Oracle database objects and only generates UNDO",
+            "C": "The generation of REDO generates UNDO",
+            "D": "DML modifies Oracle database objects and only generates REDO",
+            "E": "DML modifies Oracle database objects and generates UNDO and REDO"
+        },
+        "answer": [
+            "A",
+            "E"
+        ]
+    },
+    {
+        "id": 86,
+        "question": "Which three statements are true about the naming methods and their features\nsupported by Oracle database used to resolve connection information? (3개)",
+        "options": {
+            "A": "Local naming can be used if Connect-Time Failover Is required.",
+            "B": "A client can connect to an Oracle database instance even If no client side",
+            "C": "Directory Naming requires setting the TNS_ADMIN environment variable on the client side.",
+            "D": "Local Naming requires setting the TNS_ADMIN environment variable on the client side.",
+            "E": "Directory Naming can be used if Connect-Time Failover is required.",
+            "F": "Easy Connect supports TCP/IP and SSL."
+        },
+        "answer": [
+            "A",
+            "B",
+            "C"
+        ]
+    },
+    {
+        "id": 87,
+        "question": "Which three are types of segments in an Oracle Database? (Choose three.) (3개)",
+        "options": {
+            "A": "undo",
+            "B": "index",
+            "C": "stored procedures",
+            "D": "sequences",
+            "E": "tables",
+            "F": "clusters"
+        },
+        "answer": [
+            "B"
+        ]
+    },
+    {
+        "id": 88,
+        "question": "You execute this query:\nSELECT TO_CHAR(NEXT_DAY(LAST_DAY(SYSDATE), 'MON'), 'dd 'Monday for' fmMonth rrrr')\nWhat is the result? (1개)",
+        "options": {
+            "A": "It executes successfully but does not return any result",
+            "B": "It returns the date for the first Monday of the next month",
+            "C": "It generates an error",
+            "D": "It returns the date for the last Monday of the current month"
+        },
+        "answer": [
+            "B"
+        ]
+    },
+    {
+        "id": 89,
+        "question": "Which two statements are true about User Authentication in an Oracle Database? (2개)",
+        "options": {
+            "A": "Operating System authentication may be used for system-privileged administrative users.",
+            "B": "REKOTE_LOGIN_PASSMOREFILE must be set to exclusive to permit password changes for",
+            "C": "Password authentication must be used for system-privileged administrative users.",
+            "D": "Password File authentication must be used for system-privileged administrative users.",
+            "E": "Password File authentication is supported for any type of database user."
+        },
+        "answer": [
+            "A",
+            "C"
+        ]
+    },
+    {
+        "id": 90,
+        "question": "Which four account management capabilities can be configured using Oracle\nprofiles? (Choose four.) (4개)",
+        "options": {
+            "A": "the number of hours for which an account is locked after the configured",
+            "B": "the number of days for which an account may be inactive before it is locked",
+            "C": "the maximum amount of CPU time allowed for a user's sessions before",
+            "D": "the ability to prevent a password from ever being reused",
+            "E": "the number of password changes required within a period of time before",
+            "F": "the number of days for which an account is locked after the configured number",
+            "G": "the maximum number of sessions permitted for a user before"
+        },
+        "answer": [
+            "B",
+            "D",
+            "E"
+        ]
+    },
+    {
+        "id": 91,
+        "question": "Which two statements are true about undo and undo tablespaces? (2개)",
+        "options": {
+            "A": "There can be only one undo tablespace created in a database.",
+            "B": "An instance will crash if the active undo tablespace is lost.",
+            "C": "An undo tablespace may be owned by only one instance.",
+            "D": "undo segments are owned by SYSTEM.",
+            "E": "undo segments are owned by SYSBACKUP."
+        },
+        "answer": [
+            "B",
+            "C"
+        ]
+    },
+    {
+        "id": 92,
+        "question": "Examine this command:\nSQL> ALTER TABLE ORDERS SHRINK SPACE COMPACT\nWhich two statements are true? (2개)",
+        "options": {
+            "A": "The high-water mark (HWM) of orders is adjusted.",
+            "B": "Only queries are allowed on ORDERS while the shrink is executing.",
+            "C": "Queries and DML statements are allowed on ORDERS while the shrink is executing.",
+            "D": "The SHRINK operation causes rows to be moved to empty space starting",
+            "E": "Dependent indexes become UNUSABLE.",
+            "F": "The SHRINK operation causes rows to be moved to empty space starting toward the end of"
+        },
+        "answer": [
+            "C",
+            "D"
+        ]
+    },
+    {
+        "id": 93,
+        "question": "Which three files are used by conventional path SQL*Loader when the TABLE\noption is not specified? (Choose three.) (3개)",
+        "options": {
+            "A": "dump files",
+            "B": "control files",
+            "C": "password files",
+            "D": "bad files",
+            "E": "input files"
+        },
+        "answer": [
+            "B",
+            "D",
+            "E"
+        ]
+    },
+    {
+        "id": 94,
+        "question": "Which three statements are true about Deferred Segment Creation in Oracle databases? (3개)",
+        "options": {
+            "A": "It Is supported for Index Organized Tables (IOTs) contained in locally managed tablespaces.",
+            "B": "Sessions may dynamically switch back and forth from deferred to immediate segment creation.",
+            "C": "It Is the default behavior for tables and indexes.",
+            "D": "It is supported for SYS-owned tables contained in locally managed tablespaces.",
+            "E": "Indexes inherit the deferred or immediate segment creation attribute from their parent table"
+        },
+        "answer": [
+            "B",
+            "C",
+            "E"
+        ]
+    },
+    {
+        "id": 95,
+        "question": "You want to use table compression suitable for OLTP that will:\n1. Compress rows for all DML statements on that table\n2. Minimize the overheads associated with compression\nWhich compression option is best suited for this? (1개)",
+        "options": {
+            "A": "COLUMN STORE COMPRESS FOR QUERY LOW",
+            "B": "ROW STORE COMPRESS BASIC",
+            "C": "COLUMN STORE COMPRESS FOR ARCHIVE LOW",
+            "D": "COLUMN STORE COMPRESS FOR ARCHIVE HIGH",
+            "E": "ROW STORE COMPRESS ADVANCED"
+        },
+        "answer": [
+            "E"
+        ]
+    },
+    {
+        "id": 96,
+        "question": "You execute this command:\nCREATE  BIGFILE TABLESPACE big_tbs\nDATAFILE '/u01/oracle/data/big_f1.dbf'\nSIZE 20G;\nSufficient storage is available in filesystem /u01.\nWhich two statements are true about the BIG_TBS tablespace? (Choose two.) (2개)",
+        "options": {
+            "A": "AUTOEXTEND is possible for the datafile",
+            "B": "It must be bigger than the largest SMALLFILE tablespace",
+            "C": "Additional data files may not be added",
+            "D": "It will be a dictionary-managed tablespace by default",
+            "E": "It will always have a 32K blocksize"
+        },
+        "answer": [
+            "A",
+            "C"
+        ]
+    },
+    {
+        "id": 97,
+        "question": "Which two statements are true about date/time functions in a session where\nNLS_DATE_FORMAT is set to DD-MON-YYYY HH24:MI:SS? (Choose two.) (2개)",
+        "options": {
+            "A": "CURRENT_TIMESTAMP returns the same date and time as SYSDATE with additional",
+            "B": "SYSDATE can be queried only from the DUAL table",
+            "C": "CURRENT_DATE returns the current date and time as per the session time zone",
+            "D": "SYSDATE can be used in expressions only if the default date format is DD-MON-RR",
+            "E": "SYSDATE and CURRENT_DATE return the current date and time set for the operating",
+            "F": "CURRENT_TIMESTAMP returns the same date as CURRENT_DATE"
+        },
+        "answer": [
+            "C",
+            "F"
+        ]
+    },
+    {
+        "id": 98,
+        "question": "Which statement is true about the INTERSECT operator used in compound queries? (1개)",
+        "options": {
+            "A": "Multiple INTERSECT operators are not possible in the same SQL statement",
+            "B": "It processes NULLs in the selected columns",
+            "C": "INTERSECT is of lower precedence than UNION or UNION ALL",
+            "D": "It ignores NULL"
+        },
+        "answer": [
+            "B"
+        ]
+    },
+    {
+        "id": 99,
+        "question": "You start your database instance in NOMOUNT state. Which two actions\nare performed? (2개)",
+        "options": {
+            "A": "The control files are opened.",
+            "B": "The consistency of the database is checked.",
+            "C": "All required background processes are started.",
+            "D": "SYS can access the database.",
+            "E": "Memory is allocated for the SGA."
+        },
+        "answer": [
+            "C",
+            "E"
+        ]
+    },
+    {
+        "id": 100,
+        "question": "Your database instance is started with a PFILE. Examine these parameters:\nName                        TYPE                VALUE\n-----------------           --------------      ------------\nmemory_max_target           big integer         0\nmemory_max_target           big integer         0\nsga_max_size                big integer         2G\nsga_target                  big integer         2G\nYou want to increase the size of the buffer cache.\nFree memory is available to increase the size of the buffer cache.\nYou execute the command:\nSQL> ALTER SYSTEM SET DB_CACHE_SIZE=1024M;\nWhat is the outcome? (1개)",
+        "options": {
+            "A": "The value is changed only in the PFILE and takes effect at the next instance startup",
+            "B": "The value is changed for the current instance and in the PFILE",
+            "C": "It fails because the SCOPE clause is missing",
+            "D": "Change is applied to the current instance, but does not persist after instance restart"
+        },
+        "answer": [
+            "D"
+        ]
+    },
+    {
+        "id": 101,
+        "question": "In the spfile of a single instance database, LOCAL_LISTENER is set to LISTENER_1.\nThe TNSNAMES.ORA file in $ORACLE_HOME/network/admin in the database home contains:\nLISTENER_1=\n(ADDRESS=\n(PROTOCOL=TCP)\n(HOST=host1.abc.com)\n(PORT=1521)\n)\nWhich statement is true? (1개)",
+        "options": {
+            "A": "Dynamic service registration cannot be used for this database instance",
+            "B": "The LREG process registers services dynamically with the LISTENER_1 listener",
+            "C": "LISTENER_1 must also be defined in the LISTENER.ORA file to enable dynamic service registration",
+            "D": "There are two listeners named LISTENER and LISTENER_1 running simultaneously using",
+            "E": "The definition for LISTENER_1 requires a CONNECT_DATA section to enable dynamic"
+        },
+        "answer": [
+            "C"
+        ]
+    },
+    {
+        "id": 102,
+        "question": "View the Exhibit and examine the description of the tables.\nYou execute this SQL statement:\nINSERT INTO sales VALUES (\n23, 2300, SYSDATE,\n(SELECT channel_id\nFROM channels\nWHERE channel_desc = 'Direct Sales'),\n12, 1, 500);\nWhich three statements are true? (3개)",
+        "options": {
+            "A": "The statement will fail if a row already exists in the sales table for product 23.",
+            "B": "The sales table has five foreign keys.",
+            "C": "A product can have a different unit price at different times.",
+            "D": "A customer can exist in many countries.",
+            "E": "The statement will execute successfully and a new row will be inserted into the sales table.",
+            "F": "The statement will fail because a subquery may not be contained in a values clause."
+        },
+        "answer": [
+            "A",
+            "B",
+            "C"
+        ]
+    },
+    {
+        "id": 103,
+        "question": "In one of your databases, you create a user, HR, and then execute this\ncommand: GRANT CREATE SESSION TO hr WITH ADMIN OPTION;\nWhich three actions can HR perform? (Choose four.) (4개)",
+        "options": {
+            "A": "Revoke the CREATE SESSION privilege from other users",
+            "B": "Revoke the CREATE SESSION privilege from user HR",
+            "C": "Log in to the database instance",
+            "D": "Grant the CREATE SESSION privilege with ADMIN OPTION to other users",
+            "E": "Execute DDL statements in the HR schema",
+            "F": "Execute DML statements in the HR schema"
+        },
+        "answer": [
+            "A",
+            "B",
+            "C",
+            "D"
+        ]
+    },
+    {
+        "id": 104,
+        "question": "Which three statements are true about the tools used to configure Oracle Net\nServices? (Choose three.) (3개)",
+        "options": {
+            "A": "The Oracle Net Configuration Assistant is only used when running the Oracle installer",
+            "B": "Oracle Net Manager can be used to centrally configure listeners on any database server",
+            "C": "The lsnrctl utility requires a listener.ora file to exist before it is started",
+            "D": "Oracle Net Manager can be used to locally configure naming methods on a database server",
+            "E": "Enterprise Manager Cloud Control can be used to centrally configure listeners on any",
+            "F": "Enterprise Manager Cloud Control can be used to centrally configure net service names"
+        },
+        "answer": [
+            "D",
+            "E",
+            "F"
+        ]
+    },
+    {
+        "id": 105,
+        "question": "Which two statements are true about the ORDER BY clause when used with a\nSQL statement containing a SET operator such as UNION? (Choose two.) (2개)",
+        "options": {
+            "A": "Column positions must be used in the ORDER BY clause",
+            "B": "Only column names from the first SELECT statement in the compound query are recognized",
+            "C": "The first column in the first SELECT of the compound query with the UNION operator is",
+            "D": "Each SELECT statement in the compound query must have its own ORDER BY clause",
+            "E": "Each SELECT statement in the compound query can have its own ORDER BY clause"
+        },
+        "answer": [
+            "B",
+            "C"
+        ]
+    },
+    {
+        "id": 106,
+        "question": "Which three statements are true concerning logical and physical database\nstructures? (Choose three.) (3개)",
+        "options": {
+            "A": "All tablespaces may have one or more data files",
+            "B": "The extents of a segment must always reside in the same datafile",
+            "C": "A smallfile tablespace might be bigger than a bigfile tablespace",
+            "D": "A segment can span multiple data files in some tablespaces",
+            "E": "A segment's blocks can be of different sizes",
+            "F": "A segment might have only one extent",
+            "G": "Segments can span multiple tablespaces"
+        },
+        "answer": [
+            "C",
+            "D",
+            "F"
+        ]
+    },
+    {
+        "id": 107,
+        "question": "You want to write a query that prompts for two column names and the WHERE\ncondition each time it is executed in a session but only prompts for the table name the\nfirst time it is executed. The variables used in your query are never undefined in your\nsession. Which query can be used? (1개)",
+        "options": {
+            "A": "SELECT &&col1, &&col2FROM &tableWHERE &&condition = &&cond;",
+            "B": "SELECT &col1, &col2FROM &&tableWHERE &condition;",
+            "C": "SELECT &col1, &col2FROM \"&table\"WHERE &condition;",
+            "D": "SELECT '&&col1', '&&col2'FROM &tableWHERE '&&condition' = '&cond';",
+            "E": "SELECT &&col1, &&col2FROM &tableWHERE &&condition;"
+        },
+        "answer": [
+            "B"
+        ]
+    },
+    {
+        "id": 108,
+        "question": "Which two statements are true about the Automatic Diagnostic Repository\n(ADR)? (Choose two.) (2개)",
+        "options": {
+            "A": "The ADR base defaults to $ORACLE_HOME/rdbms/admin if neither DIAGNOSTIC_DEST nor",
+            "B": "The ADR base defaults to $ORACLE_HOME/dbs if the DIAGNOSTIC_DEST parameter and",
+            "C": "It supports diagnostics for Automatic Storage Management (ASM)",
+            "D": "It supports diagnostics for Oracle Clusterware",
+            "E": "It is held inside an Oracle database schema"
+        },
+        "answer": [
+            "C",
+            "D"
+        ]
+    },
+    {
+        "id": 109,
+        "question": "Which two statements are true about space-saving features in an Oracle\nDatabase? (Choose two.) (2개)",
+        "options": {
+            "A": "Private Temporary Tables (PTTS) store metadata in memory only",
+            "B": "An index created with the UNUSABLE attribute has no segment",
+            "C": "If they exist for a session, Private Temporary Tables (PTTs) are always dropped",
+            "D": "An index that is altered to be UNUSABLE will retain its segment",
+            "E": "A table that is truncated will always have its segment removed"
+        },
+        "answer": [
+            "A",
+            "B"
+        ]
+    },
+    {
+        "id": 110,
+        "question": "Examine the description of the PROMOTIONS table:\nName                    Null?               Type\n--------------------------------------------------------\nPROMO_ID                NOT NULL            NUMBER(6)\nPROMO_NAME              NOT NULL            VARCHAR2(30)\nPROMO_CATEGORY          NOT NULL            VARCHAR2(30)\nPROMO_COST              NOT NULL            NUMBER(10,2)\nYou want to display the unique promotion costs in each promotion category.\nWhich two queries can be used? (Choose two.) (2개)",
+        "options": {
+            "A": "SELECT promo_cost, promo_category FROM promotions ORDER BY by 1;",
+            "B": "SELECT DISTINCT promo_cost || ' in ' || DISTINCT promo_category FROM promotions ORDER BY 1;",
+            "C": "SELECT DISTINCT promo_category || ' has ' || promo_cost AS COSTS FROM promotions ORDER BY 1;",
+            "D": "SELECT promo_category, DISTINCT promo_cost FROM promotions ORDER BY 2;",
+            "E": "SELECT DISTINCT promo_category, promo_cost FROM promotions ORDER BY 1;"
+        },
+        "answer": [
+            "C",
+            "E"
+        ]
+    },
+    {
+        "id": 111,
+        "question": "The CUSTOMERS table has a CUST_CREDIT_LIMIT column of data type NUMBER.\nWhich two queries execute successfully? (Choose two.) (2개)",
+        "options": {
+            "A": "SELECT NVL(cust_credit_limit*.15, 'Not Available') FROM customers;",
+            "B": "SELECT NVL2(cust_credit_limit*.15, 'Not Available') FROM customers;",
+            "C": "SELECT NVL(TO_CHAR(cust_credit_limit*.15), 'Not Available') FROM customers;",
+            "D": "SELECT TO_CHAR(NVL(cust_credit_limit*.15, 'Not Available')) FROM customers;",
+            "E": "SELECT NVL2(cust_credit_limit, TO_CHAR(cust_credit_limit*.15), 'Not Available')"
+        },
+        "answer": [
+            "C",
+            "E"
+        ]
+    },
+    {
+        "id": 112,
+        "question": "In the ORCL database, UNDOTBS1 is the active undo tablespace with these properties:\n1. A size of 100 MB\n2. AUTOEXTEND is off\n3. UNDO_RETENTION is set to 15 minutes\n4. It has RETENTION GUARANTEE\nUNDOTBS1 fills with uncommitted undo 10 minutes after the database opens.\nWhat will happen when the next update is attempted by any transaction? (1개)",
+        "options": {
+            "A": "It succeeds and the generated undo is stored in SYSTEM.",
+            "B": "It fails and returns the error message \"ORA-30036: unable to extend segment by 8",
+            "C": "It succeeds and the least recently written undo block of UNDOTBS1 is overwritten by the",
+            "D": "It succeeds and the generated undo is stored in SYSAUX.",
+            "E": "It succeeds and the least recently read undo block of UNDOTBS1 is overwritten by the generated undo."
+        },
+        "answer": [
+            "B"
+        ]
+    },
+    {
+        "id": 113,
+        "question": "Which two statements are true about the DUAL table? (Choose two.) (2개)",
+        "options": {
+            "A": "It can be accessed only by the SYS user",
+            "B": "It consists of a single row and single column of VARCHAR2 data type",
+            "C": "It can display multiple rows but only a single column",
+            "D": "It can be used to display only constants or pseudo columns",
+            "E": "It can be accessed by any user who has the SELECT privilege in any schema",
+            "F": "It can display multiple rows and columns"
+        },
+        "answer": [
+            "B",
+            "F"
+        ]
+    },
+    {
+        "id": 114,
+        "question": "Which two statements are true about trace files produced by the Oracle\nDatabase server? (Choose two.) (2개)",
+        "options": {
+            "A": "They can be written by server processes",
+            "B": "Trace files are written to the Fast Recovery Area (FRA)",
+            "C": "They can be written by background processes",
+            "D": "All trace files contain error information that require contacting Oracle Support",
+            "E": "Trace file names are based on the database name concatenated with a sequential number"
+        },
+        "answer": [
+            "A",
+            "C"
+        ]
+    },
+    {
+        "id": 115,
+        "question": "The sales table has columns PROD_ID and QUANTITY_SOLD of data type\nnumber In two queries execute successfully?  (2개)",
+        "options": {
+            "A": "SELECT COUNT(prod_id) FROM sales WHERE quantity_sold > 55000 GROUP BY prod_id;",
+            "B": "SELECT COUNT(prod_id) FROM sales GROUP BY prod_id WHERE quantity_sold > 55000;",
+            "C": "SELECT prod_id FROM sales WHERE quantity_sold > 55000 AND COUNT(*) > 10",
+            "D": "SELECT prod_id FROM sales WHERE quantity_sold > 55000 GROUP BY proa_id",
+            "E": "SELECT prcd_id FROM sales WHERE quantity_sold > 55000 AND COUNT (*) > 10"
+        },
+        "answer": [
+            "A",
+            "D"
+        ]
+    },
+    {
+        "id": 116,
+        "question": "Which two are true about the roles? (Choose two.) (2개)",
+        "options": {
+            "A": "All privileges and roles granted to a user are enabled by default when the user logs in.",
+            "B": "The SET ROLE statement can be used once per session.",
+            "C": "The SET ROLE statement enables as well as disables roles in a session.",
+            "D": "A role must be disabled before it can be revoked from a user.",
+            "E": "The ALTER USER statement must be used to set specific default roles for a user."
+        },
+        "answer": [
+            "A",
+            "C"
+        ]
+    },
+    {
+        "id": 117,
+        "question": "Which two actions can you perform using DBCA for an existing database? (2개)",
+        "options": {
+            "A": "Create a template that can be used to clone the database.",
+            "B": "Change the server mode from dedicated to shared, and vice versa.",
+            "C": "Change the character set.",
+            "D": "Create an additional listener.",
+            "E": "Create nonstandard block size tablespaces."
+        },
+        "answer": [
+            "B",
+            "C"
+        ]
+    },
+    {
+        "id": 118,
+        "question": "Which three statements are true about the Automatic Diagnostic Repository (ADR)? (3개)",
+        "options": {
+            "A": "It Is held Inside an Oracle database schema.",
+            "B": "The ADR base is specified In the diagnostic_dest database parameter.",
+            "C": "It is only used for Oracle Database diagnostic information.",
+            "D": "It is a file-based repository held outside any database.",
+            "E": "It can be used for problem diagnosis of a database when that database's instance is down."
+        },
+        "answer": [
+            "B",
+            "D",
+            "E"
+        ]
+    },
+    {
+        "id": 119,
+        "question": "Examine the description of the CUSTOMERS table:\nName                        TYPE                VALUE\n-----------------           --------------      ------------\nCUST_ID                     NOT NULL            VARCHAR2(6)\nFIRST_NAME                                      VARCHAR2(50)\nLAST_NAME                   NOT NULL            VARCHAR2(50)\nADDRESS                                         VARCHAR2(50)\nCITY                                            VARCHAR2(25)\nYou want to display details of all customers who reside in cities starting with the letter D\nfollowed by at least two characters. Which query can be used? (1개)",
+        "options": {
+            "A": "SELECT * FROM customers WHERE city LIKE 'D_%';",
+            "B": "SELECT * FROM customers WHERE city = '%D_';",
+            "C": "SELECT * FROM customers WHERE city LIKE 'D_';",
+            "D": "SELECT * FROM customers WHERE city = 'D_%';"
+        },
+        "answer": [
+            "A"
+        ]
+    },
+    {
+        "id": 120,
+        "question": "Which three statements are true about using SQL*Plus? (3개)",
+        "options": {
+            "A": "It has its own commands that are separate from any SQL statements.",
+            "B": "It must be downloaded from the Oracle Technology Network (OTN).",
+            "C": "It can run scripts entered at the SQL prompt.",
+            "D": "It can run Recovery Manager (RMAN) commands.",
+            "E": "It has both command-line and graphical user interfaces (GUI).",
+            "F": "It can run scripts passed to it by a shell script."
+        },
+        "answer": [
+            "A",
+            "C",
+            "F"
+        ]
+    },
+    {
+        "id": 121,
+        "question": "Evaluate these commands which execute successfully:\nCREATE SEQUENCE ord_seq\nINCREMENT BY 1\nSTART WITH 1\nMAXVALUE 100000\nCYCLE\nCACHE 5000;\nCREATE TABLE ord_items (\nord_no       NUMBER(4) DEFAULT ord_seq.NEXTVAL NOT NULL,\nitem_no      NUMBER(3),\nqty          NUMBER(3),\nexpiry_date  DATE,\nCONSTRAINT it_pk PRIMARY KEY (ord_no, item_no),\nCONSTRAINT ord_fk FOREIGN KEY (ord_no) REFERENCES orders (ord_no)\n);\nWhich two statements are true about the ORD_ITEMS table and the ORD_SEQ sequence?\n(Choose two.) (2개)",
+        "options": {
+            "A": "If sequence ORD_SEQ is dropped then the default value for column ORD_NO",
+            "B": "Any user inserting rows into table ORD_ITEMS must have been granted access to",
+            "C": "Column ORD_NO gets the next number from sequence ORD_SEQ whenever",
+            "D": "Sequence ORD_SEQ cycles back to 1 after every 5000 numbers and can cycle 20 times",
+            "E": "Sequence ORD_SEQ is guaranteed not to generate duplicate numbers"
+        },
+        "answer": [
+            "B",
+            "C"
+        ]
+    },
+    {
+        "id": 122,
+        "question": "The EMPLOYEES table contains columns EMP_ID of data type NUMBER and HIRE_DATE\nof data type DATE.\nYou want to display the date of the first Monday after the completion of six months since\nhiring. The NLS_TERRITORY parameter is set to AMERICA in the session and, therefore, Sunday\nis the first day on the week.\nWhich query can be used? (1개)",
+        "options": {
+            "A": "SELECT emp_id, ADD_MONTHS(hire_date, 6), NEXT_DAY('MONDAY') FROM employees;",
+            "B": "SELECT emp_id, NEXT_DAY(ADD_MONTHS(hire_date, 6), 'MONDAY') FROM employees;",
+            "C": "SELECT emp_id, NEXT_DAY(MONTHS_BETWEEN(hire_date, SYSDATE), 6) FROM employees;",
+            "D": "SELECT emp_id, NEXT_DAY(ADD_MONTHS(hire_date, 6), 1) FROM employees;"
+        },
+        "answer": [
+            "B"
+        ]
+    },
+    {
+        "id": 123,
+        "question": "Which three statements are true about views in an Oracle database? (Choose three.) (3개)",
+        "options": {
+            "A": "Views can be updated without the need to re-grant privileges on the view",
+            "B": "Tables in the defining query of a view must always exist in order to create the view",
+            "C": "The WITH CHECK clause prevents certain rows from being displayed when querying the view",
+            "D": "Data Manipulation Language (DML) can always be used on views",
+            "E": "Inserting one or more rows using a view whose defining query contains a GROUP BY clause",
+            "F": "Deleting one or more rows using a view whose defining query contains a GROUP BY clause",
+            "G": "The WITH CHECK clause prevents certain rows from being updated or inserted"
+        },
+        "answer": [
+            "A",
+            "F",
+            "G"
+        ]
+    },
+    {
+        "id": 124,
+        "question": "Which three statements are true about time zones, date data types, and\ntimestamp data types in an Oracle database? (Choose three.) (3개)",
+        "options": {
+            "A": "The CURRENT_TIMESTAMP function returns data without time zone information",
+            "B": "A TIMESTAMP WITH LOCAL TIMEZONE data type column is stored in the database using",
+            "C": "A TIMESTAMP data type column contains information about year, month, and day",
+            "D": "The DBTIMEZONE function can return an offset from Universal Coordinated Time (UTC)",
+            "E": "The SESSIONTIMEZONE function can return an offset from Universal Coordinated Time (UTC)"
+        },
+        "answer": [
+            "B",
+            "D",
+            "E"
+        ]
+    },
+    {
+        "id": 125,
+        "question": "Which two queries execute successfully? (2개)",
+        "options": {
+            "A": "SELECT NULLIF(NULL, 100) FROM DUAL;",
+            "B": "SELECT NULLIF(100, ‘A’) FROM DUAL;",
+            "C": "SELECT COALESCE(100, ‘A’) FROM DUAL;",
+            "D": "SELECT COALESCE(100, NULL, 200) FROM DUAL;",
+            "E": "SELECT NULLIF(100, 100) FROM DUAL;"
+        },
+        "answer": [
+            "D",
+            "E"
+        ]
+    },
+    {
+        "id": 126,
+        "question": "The customers table has a cust_last_name column of data type varchar2.\nThe table has two rows whose \"jst_last_name values are Andersen and Ausson.\nWhich query produces output for cust_last_xame containing Oder for the first row\nand Aus for the second? (1개)",
+        "options": {
+            "A": "SELECT REPLACE(SUBSTR(cust_last_name, -3), 'An', 'O') FROM customers;",
+            "B": "SELECT REPLACE(TRIM(TRAILING 'son' FROM cust_last_name), 'An', 'O')",
+            "C": "SELECT INITCAP(REPLACE(TRIM('son' FROM cust_last_name), 'An', 'O'))",
+            "D": "SELECT REPLACE(REPLACE(cust_last_name, 'son', ''), 'An', 'O')"
+        },
+        "answer": [
+            "D"
+        ]
+    },
+    {
+        "id": 127,
+        "question": "The ORCL database has RESUMABLE__TIMEOUT = 7200 and DEFERRED_SEGMENT_CREATION = FALSE\nUser U1 has a 1 MB quota in tablespace DATA.\nU1 executes this command:\nSQL> CREATE TABLE t1 AS\n(SELECT object_name, sharing, created\nFROM dba_objects);\nU1 complains that the command is taking too long to execute.\nIn the alert log, the database administrator (DBA) finds this:\n2017-03-06T12:15:17.183438+05:30\nstatement in resumable session 'User U1(136), Session 1, Instance 1' was suspended\ndue to ORA-01536: space quota exceeded for tablespace 'DATA’\nWhich are three actions any one of which the DBA could take to resume the session?\n(Choose three.) (3개)",
+        "options": {
+            "A": "Add a data file to DATA",
+            "B": "Drop other U1 objects in DATA",
+            "C": "Increase U1's quota sufficiently in DATA",
+            "D": "Set DEFERRED_SEGMENT_CREATION to TRUE",
+            "E": "Grant UNLIMITED TABLESPACE to U1",
+            "F": "Set AUTOEXTEND ON for data files in DATA"
+        },
+        "answer": [
+            "B",
+            "C",
+            "E"
+        ]
+    },
+    {
+        "id": 128,
+        "question": "Which three statements are true about the DESCRIBE command? (Choose three.) (3개)",
+        "options": {
+            "A": "It displays the PRIMARY KEY constraint for any column or columns that have that constraint",
+            "B": "It can be used from SQL Developer",
+            "C": "It displays the NOT NULL constraint for any columns that have that constraint",
+            "D": "It can be used to display the structure of an existing view",
+            "E": "It displays all constraints that are defined for each column",
+            "F": "It can be used only from SQL*Plus"
+        },
+        "answer": [
+            "B",
+            "C",
+            "D"
+        ]
+    },
+    {
+        "id": 129,
+        "question": "Which three statements are true about undo segments and the use of undo by\ntransactions in an Oracle database instance? (Choose three.) (3개)",
+        "options": {
+            "A": "An undo segment may be used by multiple transactions simultaneously",
+            "B": "Undo segments can wrap around to the first extent when a transaction fills the last",
+            "C": "Undo segments have a minimum of three extents",
+            "D": "Undo segments can extend when a transaction fills the last extent of the undo segment",
+            "E": "A single transaction may use multiple undo segments simultaneously",
+            "F": "Undo segments must be stored in a BIGFILE tablespace",
+            "G": "Undo segments must be stored in a SMALLFILE tablespace"
+        },
+        "answer": [
+            "A",
+            "B",
+            "D"
+        ]
+    },
+    {
+        "id": 130,
+        "question": "Examine these commands:\n[oracle@host01 ~]$ sqlplus u1/oracle\nSQL> SELECT * FROM emp;\nENO        ENAME        DN\n---------- ------------- ----------\n1          Alan         2\n2          Ben          2\nSQL> exit\n[oracle@host01 ~]$ cat emp.dat\n3,Curi,4\n4,Bob,4\n[oracle@host01 ~]$ sqlldr u1/oracle TABLE=emp\nWhich two statements are true about the sqlldr execution? (2개)",
+        "options": {
+            "A": "It generates a sql script that it uses to load data from EMP.DAT TO EMP.",
+            "B": "It overwrites the data for Alan and adds data for Curl and Bob",
+            "C": "It appends data from EMP.DAT TO EMP.",
+            "D": "It overwrites all data in emp with data from emp.dat.",
+            "E": "It generates a log that contains control file entries, which can be used with"
+        },
+        "answer": [
+            "C",
+            "E"
+        ]
+    },
+    {
+        "id": 131,
+        "question": "In one of your databases, user KING is:\n1. Not a DBA user\n2. An operating system (OS) user\nExamine this command and its output:\nSHOW PARAMETER OS_AUTHENT_PREFIX\nNAME                    TYPE            VALUE\n------------------      ------------    ------------\nos_authen_prefix        string\nWhat must you do so that KING is authenticated by the OS when connecting to the\ndatabase instance? (1개)",
+        "options": {
+            "A": "Set OS_AUTHENT_PREFIX to OPS$",
+            "B": "Have the OS administrator add KING to the OSDBA group",
+            "C": "Grant DBA to KING",
+            "D": "Unset REMOTE_LOGIN_PASSWORDFILE",
+            "E": "Alter user KING to be IDENTIFIED EXTERNALLY"
+        },
+        "answer": [
+            "E"
+        ]
+    },
+    {
+        "id": 132,
+        "question": "Which two are true about a SQL statement using SET operators such as UNION?\n(Choose two.) (2개)",
+        "options": {
+            "A": "The data type group of each column returned by the second query",
+            "B": "The number, but not names, of columns must be identical for all SELECT",
+            "C": "The data type of each column returned by the second query must exactly",
+            "D": "The names and number of columns must be identical for all SELECT",
+            "E": "The data type of each column returned by the second query must be implicitly"
+        },
+        "answer": [
+            "A",
+            "B"
+        ]
+    },
+    {
+        "id": 133,
+        "question": "Which two statements are true about Database Instances and Real Application Clusters (RAC)?\n(2개)",
+        "options": {
+            "A": "A RAC database can have one Instance.",
+            "B": "A RAC database can have instances on separate servers.",
+            "C": "Two RAC databases can share their instances.",
+            "D": "A RAC database must have three or more Instances.",
+            "E": "A RAC database must have two or more instances."
+        },
+        "answer": [
+            "A",
+            "B"
+        ]
+    },
+    {
+        "id": 135,
+        "question": "Examine the description of the BOOKS table:\n| Name             | Null?    | Type         |\n| ---------------- | -------- | ------------ |\n| TRANSACTION_ID   | NOT NULL | VARCHAR2(6)  |\n| TRANSACTION_DATE |          | DATE         |\n| AMOUNT           |          | NUMBER(10,2) |\n| CUSTOMER_ID      |          | VARCHAR2(6)  |\nINSERT INTO books VALUES ('ADV112', 'Adventures of Tom Sawyer', NULL, NULL);\nSAVEPOINT a;\nDELETE FROM books;\nROLLBACK TO SAVEPOINT a;\nROLLBACK;\nWhich two statements are true? (Choose two.) (2개)",
+        "options": {
+            "A": "The second ROLLBACK command does nothing",
+            "B": "The second ROLLBACK command replays the delete",
+            "C": "The first ROLLBACK command restores the 101 rows that were deleted, leaving the inserted",
+            "D": "The second ROLLBACK command undoes the insert",
+            "E": "The first ROLLBACK command restores the 101 rows that were deleted and commits the inserted row"
+        },
+        "answer": [
+            "C",
+            "D"
+        ]
+    },
+    {
+        "id": 136,
+        "question": "Which two are true about shrinking a segment online? (Choose two.) (2개)",
+        "options": {
+            "A": "It is not possible to shrink either indexes or Index Organized Tables (IOTs)",
+            "B": "It always eliminates all migrated rows if any exist in the table",
+            "C": "To shrink a table it must have a PRIMARY KEY constraint",
+            "D": "To shrink a table it must have a UNIQUE KEY constraint",
+            "E": "To shrink a table it must have row movement enabled",
+            "F": "It must be in a tablespace that uses Automatic Segment Space Management (ASSM)"
+        },
+        "answer": [
+            "E",
+            "F"
+        ]
+    },
+    {
+        "id": 137,
+        "question": "Which two statements are true about interval data types? (2개)",
+        "options": {
+            "A": "INTERVAL year TO month columns support yearly intervals.",
+            "B": "The value in an interval day to SECOND column can be copied into an interval year to month column.",
+            "C": "INTERVAL day to second columns support fractions of seconds.",
+            "D": "INTERVAL year to month columns only support monthly Intervals within a single year.",
+            "E": "INTERVAL year to month columns only support monthly intervals within a range of years.",
+            "F": "The year field in an interval year to month column must be a positive value."
+        },
+        "answer": [
+            "A",
+            "C"
+        ]
+    },
+    {
+        "id": 138,
+        "question": "The orders table has a column ORDER_DATE of data type date. The default display\nformat for a date Is DD-MON-RR. Which two where conditions demonstrate the correct usage\nof conversion functions? (2개)",
+        "options": {
+            "A": "WHERE order_date > TO_CHAR(ADD_MONTHS(SYSDATE, 6), 'MON DD YYYY')",
+            "B": "WHERE TO_CHAR(order_date, 'MON DD YYYY') = 'JAN 20 2019'",
+            "C": "WHERE order_date > TO_DATE(ADD_MONTHS(SYSDATE, c) , 'MON DD YYYY')",
+            "D": "WHERE order_date IN (TO_DATE ('Oct 21 2018', 'Mon DD YYYY'),",
+            "E": "WHERE order date > TO DATE('JUL 10 2018', *MON DD YYYY')"
+        },
+        "answer": [
+            "B",
+            "E"
+        ]
+    },
+    {
+        "id": 139,
+        "question": "What is true about non-equijoin statement performance? (Choose two.) (2개)",
+        "options": {
+            "A": "Table aliases can improve performance",
+            "B": "The BETWEEN condition always performs better than using the >= and <= conditions",
+            "C": "The join syntax used makes no difference to performance",
+            "D": "The BETWEEN condition always performs less well than using the >= and <= conditions",
+            "E": "The Oracle join syntax performs better than the SQL:1999 compliant ANSI join syntax"
+        },
+        "answer": [
+            "A",
+            "C"
+        ]
+    },
+    {
+        "id": 140,
+        "question": "Which statement is true about database links? (1개)",
+        "options": {
+            "A": "Private database link creation requires the same user to exist in both the local and the remote databases.",
+            "B": "A public database link can be created only by sys.",
+            "C": "A database link can be created only between two Oracle databases.",
+            "D": "A public database link can be used by a user connected to the local database instance to connect",
+            "E": "A database link created in a database allows a connection from that database's instance to the"
+        },
+        "answer": [
+            "E"
+        ]
+    },
+    {
+        "id": 141,
+        "question": "Which two statements are true about the WHERE and HAVING clauses in a SELECT\nstatement? (Choose two.) (2개)",
+        "options": {
+            "A": "Aggregating functions and columns used in HAVING clauses must be specified in the SELECT list of a query",
+            "B": "WHERE and HAVING clauses can be used in the same statement only if applied to different table columns",
+            "C": "The HAVING clause can be used with aggregating functions in subqueries",
+            "D": "The WHERE clause can be used to exclude rows before dividing them into groups",
+            "E": "The WHERE clause can be used to exclude rows after dividing them into groups"
+        },
+        "answer": [
+            "C",
+            "D"
+        ]
+    },
+    {
+        "id": 142,
+        "question": "Which three statements are true about roles? (3개)",
+        "options": {
+            "A": "All roles granted to a user are set on by default when the user logs in,",
+            "B": "Object privileges may not be granted to roles.",
+            "C": "The SET ROLE statement can disable one or more roles for a session.",
+            "D": "Roles must be password protected.",
+            "E": "Roles may be granted to roles.",
+            "F": "The SET ROLE statement can enable one or more roles for a session."
+        },
+        "answer": [
+            "B",
+            "C",
+            "E"
+        ]
+    },
+    {
+        "id": 143,
+        "question": "Examine these SQL statements which execute successfully:\nWhich two statements are true after execution? (2개)\nCREATE TABLE emp (\nemp_no   NUMBER(2) CONSTRAINT emp_emp_no_pk PRIMARY KEY,\nename    VARCHAR2(15),\nsalary   NUMBER(8,2),\nmgr_no   NUMBER(2));\nALTER TABLE emp ADD CONSTRAINT emp_mgr_fk\nFOREIGN KEY (mgr_no)\nREFERENCES emp (emp_no)\nON DELETE SET NULL;\nALTER TABLE emp\nDISABLE CONSTRAINT emp_emp_no_pk\nCASCADE;\nALTER TABLE emp\nENABLE CONSTRAINT emp_emp_no_pk;",
+        "options": {
+            "A": "The primary key constraint will be enabled and deferred.",
+            "B": "The foreign key constraint will be enabled and deferred.",
+            "C": "The foreign key constraint will be disabled.",
+            "D": "The foreign key constraint will be enabled and immediate.",
+            "E": "The primary key constraint will be enabled and immediate."
+        },
+        "answer": [
+            "C",
+            "E"
+        ]
+    },
+    {
+        "id": 144,
+        "question": "Which two statements are true about views? (Choose two.) (2개)",
+        "options": {
+            "A": "The WITH CHECK clause prevents certain rows from being updated or inserted in the underlying",
+            "B": "The WITH CHECK clause prevents certain rows from being displayed when querying the view.",
+            "C": "Views can be updated without the need to re-grant privileges on the view.",
+            "D": "A view must only refer to tables in its defining query.",
+            "E": "Views can be indexed."
+        },
+        "answer": [
+            "A",
+            "C"
+        ]
+    },
+    {
+        "id": 145,
+        "question": "Which two queries execute successfully? (Choose two.) (2개)",
+        "options": {
+            "A": "SELECT INTERVAL '1' DAY - INTERVAL '1' MINUTE FROM DUAL",
+            "B": "SELECT SYSTIMESTAMP + INTERVAL '1' DAY FROM DUAL;",
+            "C": "SELECT INTERVAL '1' DAY - SYSDATE FROM DUAL;",
+            "D": "SELECT INTERVAL '1' DAY + INTERVAL '1' MONTH FROM DUAL;",
+            "E": "SELECT SYSDATE * INTERVAL '1' DAY FROM DUAL;"
+        },
+        "answer": [
+            "A",
+            "B"
+        ]
+    },
+    {
+        "id": 146,
+        "question": "Which two statements are true about Oracle databases and SQL? (Choose two.) (2개)",
+        "options": {
+            "A": "Updates performed by a database user can be rolled back by",
+            "B": "A query can access only tables within the same schema.",
+            "C": "The database guarantees read consistency at select level on",
+            "D": "A user can be the owner of multiple schemas in the same database.",
+            "E": "When you execute an update statement, the database instance locks each updated row."
+        },
+        "answer": [
+            "C",
+            "E"
+        ]
+    },
+    {
+        "id": 147,
+        "question": "Which two statements are true about the Oracle Database server\narchitecture? (Choose two.) (2개)",
+        "options": {
+            "A": "An Oracle Database server process represents the state of a user’s login to an instance.",
+            "B": "An Oracle Database server process is always associated with a session.",
+            "C": "Each server process has its own User Global Area (UGA).",
+            "D": "A connection represents the state of a user’s login to an instance.",
+            "E": "The entire data dictionary is always cached in the large pool."
+        },
+        "answer": [
+            "C",
+            "D"
+        ]
+    },
+    {
+        "id": 148,
+        "question": "Which two statements are true about the Oracle Database server during and\nimmediately after SHUTDOWN IMMEDIATE? (Choose two.) (2개)",
+        "options": {
+            "A": "New connection requests made to the database instance are refused.",
+            "B": "Uncommitted transactions are rolled back automatically.",
+            "C": "All existing connections to the database instance remain connected until all",
+            "D": "Uncommitted transactions are allowed to continue to the next COMMIT.",
+            "E": "All existing transactions are aborted immediately."
+        },
+        "answer": [
+            "A",
+            "B"
+        ]
+    },
+    {
+        "id": 149,
+        "question": "Which three statements are true about Oracle database block space management?\n(Choose three.) (3개)",
+        "options": {
+            "A": "A row can be migrated to a block in a different extent than the extent containing",
+            "B": "An insert statement can result in a migrated row.",
+            "C": "An update statement cannot cause chained rows to occur.",
+            "D": "A row can be migrated to a block in the same extent as the extent containing the original block.",
+            "E": "An insert statement can result in a chained row."
+        },
+        "answer": [
+            "A",
+            "D",
+            "E"
+        ]
+    },
+    {
+        "id": 150,
+        "question": "An Oracle Database server session has an uncommitted transaction in\nprogress which updated 5000 rows in one table. In which two situations does the\ntransaction complete, thereby committing the updates? (Choose two.) (2개)",
+        "options": {
+            "A": "When a DDL statement is executed successfully by same user in a different session.",
+            "B": "When a DDL statement is executed successfully by the user in the same session.",
+            "C": "When a DML statement is executed successfully by same user in a different session.",
+            "D": "When a DML statement is executed successfully by the user in the same session.",
+            "E": "When a DBA issues a successful SHUTDOWN NORMAL statement and the session terminates normally."
+        },
+        "answer": [
+            "B",
+            "E"
+        ]
+    },
+    {
+        "id": 151,
+        "question": "Which two statements are true about indexes and their administration in an\nOracle database? (Choose two.) (2개)",
+        "options": {
+            "A": "An index can be scanned to satisfy a query without the indexed table being accessed.",
+            "B": "A non-unique index can be converted to a unique index using a Data Definition",
+            "C": "A descending index is a type of bitmapped index.",
+            "D": "An invisible index is maintained when a Data Manipulation Language (DML)",
+            "E": "An index is always created by scanning the key columns from the underlying table."
+        },
+        "answer": [
+            "A",
+            "D"
+        ]
+    },
+    {
+        "id": 152,
+        "question": "Which two statements are true about sequences in a single instance Oracle\ndatabase? (Choose two.) (2개)",
+        "options": {
+            "A": "Sequences that start with 1 and increment by 1 can never have gaps.",
+            "B": "A sequence can issue the same number more than once.",
+            "C": "Sequence numbers that are allocated require a COMMIT statement to make the",
+            "D": "A sequence can provide numeric values for more than one column or table.",
+            "E": "The data dictionary is always updated each time a sequence number is allocated."
+        },
+        "answer": [
+            "B",
+            "D"
+        ]
+    },
+    {
+        "id": 153,
+        "question": "Examine the description of the SALES table:\n| Name          | Null?    | Type         |\n| ------------- | -------- | ------------ |\n| PRODUCT_ID    | NOT NULL | NUMBER(10)   |\n| CUSTOMER_ID   | NOT NULL | NUMBER(10)   |\n| TIME_ID       | NOT NULL | DATE         |\n| CHANNEL_ID    | NOT NULL | NUMBER(5)    |\n| PROMO_ID      | NOT NULL | NUMBER(5)    |\n| QUANTITY_SOLD | NOT NULL | NUMBER(10,2) |\n| PRICE         |          | NUMBER(10,2) |\n| AMOUNT_SOLD   | NOT NULL | NUMBER(10,2) |\nThe SALES table has 55,000 rows. Examine this statement:\nCREATE TABLE mysales (prod_id, cust_id, quantity_sold, price)\nAS\nSELECT product_id, customer_id, quantity_sold, price\nFROM sales\nWHERE 1 = 2;\nWhich two statements are true? (Choose two.) (2개)",
+        "options": {
+            "A": "MYSALES is created with no rows.",
+            "B": "MYSALES will have no constraints defined regardless of which constraints might be",
+            "C": "MYSALES has NOT NULL constraints on any selected columns which had that",
+            "D": "MYSALES is created with 2 rows.",
+            "E": "MYSALES is created with 1 row."
+        },
+        "answer": [
+            "A",
+            "C"
+        ]
+    },
+    {
+        "id": 154,
+        "question": "Which two types of files are opened by a database instance in the NOMOUNT state? (2개)",
+        "options": {
+            "A": "control files",
+            "B": "the alert log",
+            "C": "the initialization parameter file",
+            "D": "data files",
+            "E": "online redo logs"
+        },
+        "answer": [
+            "B",
+            "C"
+        ]
+    },
+    {
+        "id": 155,
+        "question": "A user complains about poor database performance.\nYou suspect that the user's session is waiting for an event to complete. You want to verify\nthis. Which two views may reveal for what the user's session is currently waiting? (Choose two.) (2개)",
+        "options": {
+            "A": "V$SYSTEM_EVENT",
+            "B": "V$SESSION_EVENT",
+            "C": "V$SESSION_WAIT_CLASS",
+            "D": "V$SESSION_WAIT",
+            "E": "V$SESSION"
+        },
+        "answer": [
+            "B",
+            "D"
+        ]
+    },
+    {
+        "id": 156,
+        "question": "Which three statements are true regarding indexes? (Choose three.) (3개)",
+        "options": {
+            "A": "A UNIQUE index can be altered to be non-unique",
+            "B": "A SELECT statement can access one or more indices without accessing any tables",
+            "C": "A table belonging to one user can have an index that belongs to a different user",
+            "D": "An update to a table can result in updates to any or all of the table's indexes",
+            "E": "When a table is dropped and is moved to the RECYCLE BIN, all indexes built on",
+            "F": "An update to a table can result in no updates to any of the table's indexes"
+        },
+        "answer": [
+            "B",
+            "D"
+        ]
+    },
+    {
+        "id": 157,
+        "question": "Which two are true about complete and incomplete recovery? (Choose two.) (2개)",
+        "options": {
+            "A": "Uncommitted transactions will be rolled back after complete recovery completes.",
+            "B": "The database must have FLASHBACK enabled in order to perform incomplete recovery.",
+            "C": "Uncommitted transactions will be rolled back after incomplete recovery completes.",
+            "D": "Incomplete recovery is possible only when the database is open.",
+            "E": "Only incremental backups can be used to roll forward the database while"
+        },
+        "answer": [
+            "A",
+            "E"
+        ]
+    },
+    {
+        "id": 158,
+        "question": "Which three are true about the Oracle Optimizer? (Choose three.) (3개)",
+        "options": {
+            "A": "It determines the optimal table join order and method.",
+            "B": "It generates execution plans for SQL statements based on relevant schema objects,",
+            "C": "It can optimize only SELECT statements.",
+            "D": "It will only generate SQL Plan Directives specific to a given SQL statement.",
+            "E": "It can re-optimize execution plans after previous executions detect suboptimal plans.",
+            "F": "It updates stale object statistics in the Data Dictionary."
+        },
+        "answer": [
+            "A",
+            "B",
+            "C"
+        ]
+    },
+    {
+        "id": 159,
+        "question": "What two are benefits of Data Pump? (Choose two.) (2개)",
+        "options": {
+            "A": "It can execute in parallel.",
+            "B": "It can restart failed export jobs.",
+            "C": "It makes use of client system resources.",
+            "D": "It can export data into sequential media, such as tapes.",
+            "E": "It represents database metadata information as DDL statements in the dump file."
+        },
+        "answer": [
+            "A",
+            "B"
+        ]
+    },
+    {
+        "id": 160,
+        "question": "Which statement is true about smallfile tablespaces?",
+        "options": {
+            "A": "Segments can span multiple data files.",
+            "B": "Extent location metadata is stored in the data dictionary by default.",
+            "C": "The number of data files is constrained only by the size of the storage array.",
+            "D": "Maximum file size can be set to unlimited only if the logical volume manager supports striping.",
+            "E": "Segments can span multiple tablespaces."
+        },
+        "answer": [
+            "A"
+        ]
+    },
+    {
+        "id": 161,
+        "question": "Which three failures require intervention for recovery? (Choose three.) (3개)",
+        "options": {
+            "A": "a user error such as dropping the wrong table",
+            "B": "network interface card (NIC) failure",
+            "C": "user process failure",
+            "D": "statement failure",
+            "E": "media failure"
+        },
+        "answer": [
+            "A",
+            "C",
+            "E"
+        ]
+    },
+    {
+        "id": 162,
+        "question": "Which three failures do not require intervention for recovery? (Choose three.) (3개)",
+        "options": {
+            "A": "user process failure",
+            "B": "media failure",
+            "C": "statement failure",
+            "D": "network interface card (NIC) failure",
+            "E": "transaction failure"
+        },
+        "answer": [
+            "A",
+            "C",
+            "E"
+        ]
+    },
+    {
+        "id": 163,
+        "question": "Which three statements are true about the SQL*Loader utility? (3개)",
+        "options": {
+            "A": "It can be used to load data from multiple external files into multiple tables.",
+            "B": "It can be used to extract and reorganize data from external files, and then load it into a table.",
+            "C": "It can be used to load data from external files using direct path only.",
+            "D": "It can be used to create tables using data that is stored in external files.",
+            "E": "It can be used to generate unique sequential values in specified columns while loading data."
+        },
+        "answer": [
+            "A",
+            "B",
+            "E"
+        ]
+    },
+    {
+        "id": 164,
+        "question": "Which two are true about conventional path SQL load? (Choose two.) (2개)",
+        "options": {
+            "A": "It does not generate UNDO.",
+            "B": "It cannot load data into clustered tables.",
+            "C": "It locks objects being processed.",
+            "D": "It enforces referential integrity constraints.",
+            "E": "It always generates redo."
+        },
+        "answer": [
+            "A",
+            "D"
+        ]
+    },
+    {
+        "id": 165,
+        "question": "Which two tasks can be performed in the NOMOUNT state? (Choose two.) (2개)",
+        "options": {
+            "A": "re-creating control files",
+            "B": "full database recovery",
+            "C": "enabling online redo log archiving",
+            "D": "renaming data files",
+            "E": "creating a database"
+        },
+        "answer": [
+            "A"
+        ]
+    },
+    {
+        "id": 166,
+        "question": "Which two are true about instance recovery for a database that is open in read write\nmode? (Choose two.) (2개)",
+        "options": {
+            "A": "It is guaranteed to complete within fast_start_mttr_target number of seconds.",
+            "B": "No users can log on until instance recovery has completed.",
+            "C": "Only the CURRENT REDO log group is required to perform instance recovery.",
+            "D": "It is always performed when opening a database.",
+            "E": "It always occurs during instance startup performed immediately after a SHUTDOWN ABORT.",
+            "F": "The database opens after the roll forward phase of instance recovery has completed."
+        },
+        "answer": [
+            "D",
+            "E"
+        ]
+    },
+    {
+        "id": 167,
+        "question": "Which is true about roles?",
+        "options": {
+            "A": "A role can be granted to other roles.",
+            "B": "Roles can be created only by SYS or SYSTEM.",
+            "C": "Roles containing object privileges can be created only by the object owner.",
+            "D": "All roles belong to the SYSTEM schema.",
+            "E": "A role can be password-protected only if it has been granted system privileges."
+        },
+        "answer": [
+            "E"
+        ]
+    },
+    {
+        "id": 168,
+        "question": "Which three are true about privileges and roles? (Choose three.) (3개)",
+        "options": {
+            "A": "System privileges always set privileges for an entire database.",
+            "B": "PUBLIC can be revoked from a user.",
+            "C": "All roles are owned by the SYS schema.",
+            "D": "A user has all object privileges for every object in their schema by default.",
+            "E": "A role is owned by the user who created it.",
+            "F": "A role can contain a combination of several privileges and roles.",
+            "G": "PUBLIC acts as a default role granted to every user in a database."
+        },
+        "answer": [
+            "A",
+            "D",
+            "F"
+        ]
+    },
+    {
+        "id": 169,
+        "question": "Which two statements are true about constraints? (Choose two.) (2개)",
+        "options": {
+            "A": "A UNIQUE constraint can use a pre-existing index on the constrained column or columns",
+            "B": "A FOREIGN KEY column can contain NULLs.",
+            "C": "A PRIMARY KEY constraint can only be added to an empty table.",
+            "D": "A column can have only one CHECK constraint.",
+            "E": "A CHECK constraint can refer to values in other rows."
+        },
+        "answer": [
+            "A",
+            "B"
+        ]
+    },
+    {
+        "id": 170,
+        "question": "You issued this command:\nDROP TABLE hr.employees;\nWhich three statements are true? (Choose three.) (3개)",
+        "options": {
+            "A": "Sequences used to populate columns in the HR.EMPLOYEES table are dropped.",
+            "B": "Synonyms for HR.EMPLOYEES are dropped.",
+            "C": "Views referencing HR.EMPLOYEES are dropped.",
+            "D": "All constraints defined on HR.EMPLOYEES are dropped.",
+            "E": "The HR.EMPLOYEES table may be moved to the recycle bin.",
+            "F": "All indexes defined on HR.EMPLOYEES are dropped."
+        },
+        "answer": [
+            "D",
+            "E",
+            "F"
+        ]
+    },
+    {
+        "id": 171,
+        "question": "Examine this query:\nSELECT employee_id, first_name, salary\nFROM employees\nWHERE hire_date > '&1';\nWhich two methods should you use to prevent prompting for a hire date value when this query\nis executed? (Choose two.) (2개)",
+        "options": {
+            "A": "The generation of UNDO generates REDO",
+            "B": "DML modifies Oracle database objects and only generates UNDO",
+            "C": "The generation of REDO generates UNDO",
+            "D": "DML modifies Oracle database objects and only generates REDO",
+            "E": "DML modifies Oracle database objects and generates UNDO and REDO",
+            "F": "Store the query in a script and pass the substitution value to the script when executing it."
+        },
+        "answer": [
+            "A",
+            "F"
+        ]
+    },
+    {
+        "id": 173,
+        "question": "Which three statemetns are true about UNDO and REDO? (3개)",
+        "options": {
+            "A": "REDO is used for ROLLBACK.",
+            "B": "REDO is used for instnce recovery.",
+            "C": "UNDO is used for some flashback operations.",
+            "D": "REDO is used for read cosisntency.",
+            "E": "UNDO is used for read consistency.",
+            "F": "Both REDO and UNDO Can be multiplexed."
+        },
+        "answer": [
+            "B",
+            "C",
+            "E"
+        ]
+    },
+    {
+        "id": 174,
+        "question": "Which two statements are true about a full outer join? (2개)",
+        "options": {
+            "A": "It includes rows that are returned by an inner join.",
+            "B": "It returns only unmatched rows from both tables being joined.",
+            "C": "The Oracle join operator (+) must be used on both sides of the join condition in the WHERE clause.",
+            "D": "It includes rows that are returned by a Cartesian product.",
+            "E": "It returns matched and unmatched rows from both tables being joined."
+        },
+        "answer": [
+            "E"
+        ]
+    },
+    {
+        "id": 175,
+        "question": "Which three are benefits of using temp UNDO when performing DML on global\ntemporary tables? (Choose three.) (3개)",
+        "options": {
+            "A": "It reduces the amount of redo generated.",
+            "B": "It permits DML on Global temporary tables even if the database is opened read only.",
+            "C": "It reduces I/Os to the SYSAUX tablespace.",
+            "D": "It reduces I/Os to the SYSTEM tablespace.",
+            "E": "It reduces the amount of UNDO stored in the UNDO tablespace."
+        },
+        "answer": [
+            "A",
+            "B",
+            "E"
+        ]
+    },
+    {
+        "id": 176,
+        "question": "Examine the description of the CUSTOMERS table:\nName                        Null?               Type\n-----------------           --------------      ------------\nCUSTNO                      NOT NULL            NUMBER(3)\nCUSTNAME                    NOT NULL            VARCHAR2(25)\nCUSTADDRESS                                     VARCHAR2(35)\nCUST_CREDIT_LIMIT                               NUMBER(5)\nCUSTNO is the PRIMARY KEY.\nYou must determine if any customers’ details have been entered more than once using a\ndifferent CUSTNO, by listing all duplicate names. Which two methods can you use to\nget the required result? (Choose two.)  (2개)",
+        "options": {
+            "A": "self join",
+            "B": "RIGHT OUTER JOIN with self join",
+            "C": "LEFT OUTER JOIN with self join",
+            "D": "FULL OUTER JOIN with self join",
+            "E": "subquery"
+        },
+        "answer": [
+            "A",
+            "E"
+        ]
+    },
+    {
+        "id": 177,
+        "question": "The PRODUCT_INFORMATION table has a UNIT_PRICE column of data type NUMBER(8,2).\nEvaluate this SQL statement:\nSELECT TO_CHAR(unit_price, '$9,999') FROM product_information;\nWhich two statements are true about the output? (Choose two.) (2개)",
+        "options": {
+            "A": "A row whose UNIT_PRICE column contains the value 10235.95 will be displayed as $1,0236.",
+            "B": "A row whose UNIT_PRICE column contains the value 1023.95 will be displayed as $1,024.",
+            "C": "A row whose UNIT_PRICE column contains the value 10235.95 will be displayed as $1,023.",
+            "D": "A row whose UNIT_PRICE column contains the value 10235.95 will be displayed as #######.",
+            "E": "A row whose UNIT_PRICE column contains the value 1023.99 will be displayed as $1,023."
+        },
+        "answer": [
+            "B",
+            "D"
+        ]
+    },
+    {
+        "id": 178,
+        "question": "Examine the description of the PRODUCT_INFORMATION table:\nName                        Null?               Type\n-----------------           --------------      ------------\nPROD_ID                     NOT NULL            NUMBER(2)\nPROD_NAME                                       VARCHAR2(10)\nLIST_PRICE                                      NUMBER(6,2)\nWhich query retrieves the number of products with a null list price?",
+        "options": {
+            "A": "SELECT COUNT(list_price) FROM product_information WHERE list_price IS NULL;",
+            "B": "SELECT COUNT(NVL(list_price, 0)) FROM product_information WHERE list_price IS NULL;",
+            "C": "SELECT COUNT(DISTINCT list price) FROM product_information WHERE list_price IS NULL;",
+            "D": "SELECT COUNT(list_price) FROM product_information WHERE list_price = NULL;"
+        },
+        "answer": [
+            "B"
+        ]
+    },
+    {
+        "id": 179,
+        "question": "Which three statements are true about multiple row subqueries? (3개)",
+        "options": {
+            "A": "Two or more values are always returned from the subquery.",
+            "B": "They can contain HAVING clauses.",
+            "C": "They can contain GROUP BY clauses.",
+            "D": "They can return multiple columns.",
+            "E": "They cannot contain a subquery."
+        },
+        "answer": [
+            "B",
+            "C",
+            "D"
+        ]
+    },
+    {
+        "id": 180,
+        "question": "Which two statements are true about the ORDER BY clause? (Choose two.) (2개)",
+        "options": {
+            "A": "Only columns that are specified in the SELECT list can be used in the ORDER BY",
+            "B": "Numeric values are displayed in descending order if they have decimal positions.",
+            "C": "NULLS are not included in the sort operation.",
+            "D": "Column aliases can be used in the ORDER BY clause.",
+            "E": "In a character sort, the values are case-sensitive."
+        },
+        "answer": [
+            "D",
+            "E"
+        ]
+    },
+    {
+        "id": 181,
+        "question": "Examine these statements executed in a single Oracle session:\nCREATE TABLE product (pcode NUMBER (2), pname VARCHAR2 (20));\nINSERT INTO product VALUES (1, 'pen');\nINSERT INTO product VALUES (2, 'pencil');\nINSERT INTO product VALUES (3, fountain pen');\nSAVEPOINT a;\nUPDATE product SET pcode = 10 WHERE pcode = 1;\nCOMMIT;\nDELETE FROM product WHERE pcode = 2;\nSAVEPOINT b;\nUPDATE product SET pcode = 30 WHERE pcode = 3;\nSAVEPOINT C;\nDELETE FROM product WHERE pcode = 10;\nROLLBACK TO SAVE POINT b;\nCOMMIT;\nWhich three statements are true? (Choose three.) (3개)",
+        "options": {
+            "A": "The code for pen is 10.",
+            "B": "There is no row containing fountain pen.",
+            "C": "There is no row containing pen.",
+            "D": "The code for fountain pen is 3.",
+            "E": "The code for pen is l.",
+            "F": "There is no row containing pencil."
+        },
+        "answer": [
+            "A",
+            "D",
+            "F"
+        ]
+    },
+    {
+        "id": 182,
+        "question": "Which two statements are true about unexpired undo? (2개)",
+        "options": {
+            "A": "It is retained if possible for the time specified in UNDO RETENTION.",
+            "B": "It may be used to support flashback queries.",
+            "C": "It is the first type of UNDO overwritten when trying to avoid out-of-space errors.",
+            "D": "It consists of UNDO only for uncommitted transactions.",
+            "E": "It is required when a transaction issues a ROLLBACK statement."
+        },
+        "answer": [
+            "A",
+            "B"
+        ]
+    },
+    {
+        "id": 183,
+        "question": "Which three actions are ways to apply the principle of least privilege?\n(Choose three.) (3개)",
+        "options": {
+            "A": "setting the O7_DICTIONARY_ACCESSIBILITY parameter to true",
+            "B": "setting the REMOTE_OS_AUTHENT parameter to true",
+            "C": "revoking execute privilege on UTL_SMTP, UTL_TCP, UTL_HTTP, and UTL_FILE from the SYSTEM user",
+            "D": "enabling Unified Auditing",
+            "E": "using Access Control Lists (ACLs)",
+            "F": "revoking execute privilege on UTL_SMTP, UTL_TCP, UTL_HTTP, and UTL_FILE from the public user"
+        },
+        "answer": [
+            "D",
+            "E",
+            "F"
+        ]
+    },
+    {
+        "id": 184,
+        "question": "Examine this query:\nSELECT TRUNC(ROUND(156.00, -2), -1) FROM DUAL;\nWhat is the result?",
+        "options": {
+            "A": "200",
+            "B": "16",
+            "C": "150",
+            "D": "100",
+            "E": "160"
+        },
+        "answer": [
+            "A"
+        ]
+    },
+    {
+        "id": 185,
+        "question": "Which two statements are true about a self join? (Choose two.) (2개)",
+        "options": {
+            "A": "It can be a left outer join.",
+            "B": "It must be an equijoin.",
+            "C": "It must be a full outer join.",
+            "D": "The join key column must have an index.",
+            "E": "It can be an inner join."
+        },
+        "answer": [
+            "A",
+            "E"
+        ]
+    },
+    {
+        "id": 186,
+        "question": "Which two queries execute successfully? (2개)",
+        "options": {
+            "A": "SELECT * FROM products",
+            "B": "SELECT * FROM products",
+            "C": "SELECT prod_id FROM products",
+            "D": "SELECT prod_id, prod_name FROM products",
+            "E": "SELECT prod_id, exp_date FROM products"
+        },
+        "answer": [
+            "B",
+            "E"
+        ]
+    },
+    {
+        "id": 187,
+        "question": "Which three statements are true about Enterprise Manager Cloud Control? (3개)",
+        "options": {
+            "A": "It uses a web-based console built into the Oracle database using XML DB.",
+            "B": "It is available to manage a database only when that database is open.",
+            "C": "It is integrated with My Oracle Support.",
+            "D": "It provides management for Oracle-engineered systems.",
+            "E": "It provides management for Oracle middleware."
+        },
+        "answer": [
+            "C",
+            "D",
+            "E"
+        ]
+    },
+    {
+        "id": 188,
+        "question": "Which two are benefits of external tables? (Choose two.) (2개)",
+        "options": {
+            "A": "They support UPDATES which transparently updates records in the file",
+            "B": "They support DELETES which transparently deletes records in the file",
+            "C": "They can be queried, transformed, and joined with other tables without",
+            "D": "They can be queried while the database is in the MOUNT state like",
+            "E": "The results of a complex join or aggregating function or both can be"
+        },
+        "answer": [
+            "C",
+            "E"
+        ]
+    }
+]
