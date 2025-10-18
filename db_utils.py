@@ -210,3 +210,25 @@ def update_original_question(q_id, question_text, options_dict, answer_list):
     )
     conn.commit()
     conn.close()
+
+def add_new_original_question(question_text, options_dict, answer_list):
+    """새로운 원본 문제를 데이터베이스에 추가합니다."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 새 ID 결정: 기존 ID 중 가장 큰 값 + 1
+    # MAX(id)가 NULL일 경우 (테이블이 비어있을 경우)를 대비해 IFNULL 사용
+    cursor.execute("SELECT IFNULL(MAX(id), 0) + 1 FROM original_questions")
+    new_id = cursor.fetchone()[0]
+    
+    options_str = json.dumps(options_dict)
+    answer_str = json.dumps(answer_list)
+    
+    cursor.execute(
+        "INSERT INTO original_questions (id, question, options, answer) VALUES (?, ?, ?, ?)",
+        (new_id, question_text, options_str, answer_str)
+    )
+    conn.commit()
+    conn.close()
+    
+    return new_id # 새로 생성된 문제의 ID 반환

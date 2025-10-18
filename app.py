@@ -12,7 +12,7 @@ from db_utils import (
     delete_wrong_answer, delete_modified_question, clear_all_modified_questions,
     get_stats, get_top_5_missed,
     setup_database_tables, load_original_questions_from_json,
-    update_original_question
+    update_original_question, add_new_original_question
 )
 
 # --- AI 해설 함수에 캐싱 적용 ---
@@ -142,7 +142,7 @@ def render_notes_page():
     wrong_answers = get_wrong_answers()
 
     if not wrong_answers:
-        st.success("🎉 축하합니다! 틀린 문제가 없습니다.")
+        st.toast("🎉 축하합니다! 틀린 문제가 없습니다.")
     else:
         st.info(f"총 {len(wrong_answers)}개의 틀린 문제가 있습니다.")
         if st.button("틀린 문제 다시 풀기", type="primary"):
@@ -185,7 +185,7 @@ def render_management_page():
     st.header("⚙️ 설정 및 관리")
 
     # 탭 순서를 변경하여 원본 문제 관리를 가장 앞에 배치
-    tab1, tab2, tab3, tab4 = st.tabs(["원본 문제 데이터", "문제 편집 (원본)", "오답 노트 관리", "AI 변형 문제 관리"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["원본 문제 데이터", "문제 추가 (원본)", "문제 편집 (원본)", "오답 노트 관리", "AI 변형 문제 관리"])
 
     # --- 탭 1: 원본 문제 데이터 관리 ---
     with tab1:
@@ -206,12 +206,48 @@ def render_management_page():
                 if error:
                     st.error(f"문제 로딩 실패: {error}")
                 else:
-                    st.success(f"성공적으로 {count}개의 원본 문제를 데이터베이스에 불러왔습니다!")
+                    st.toast(f"성공적으로 {count}개의 원본 문제를 데이터베이스에 불러왔습니다!")
                     # 상태를 갱신하기 위해 새로고침
                     st.rerun()
 
-    # --- 탭 2: 문제 편집 ---
+    # --- 탭 2: 문제 추가 (원본) ---
     with tab2:
+        st.subheader("➕ 새로운 원본 문제 추가")
+        st.info("새로운 OCP 문제를 직접 추가하여 나만의 문제 은행을 만드세요.")
+
+        with st.form(key="add_form"):
+            # 문제 내용 입력
+            new_question_text = st.text_area("질문 내용:", height=150, placeholder="예: Which three statements are true...?")
+            
+            # 선택지 입력 (기본으로 5개 제공)
+            new_options = {}
+            option_letters = ["A", "B", "C", "D", "E"]
+            for letter in option_letters:
+                new_options[letter] = st.text_input(f"선택지 {letter}:", key=f"new_option_{letter}")
+            
+            # 정답 선택
+            # 비어있는 선택지는 multiselect 옵션에서 제외
+            valid_options = [letter for letter, text in new_options.items() if text.strip()]
+            new_answer = st.multiselect("정답 선택:", options=valid_options)
+            
+            submitted = st.form_submit_button("새 문제 추가하기")
+
+            if submitted:
+                # 유효성 검사
+                if not new_question_text.strip():
+                    st.error("질문 내용을 입력해야 합니다.")
+                elif not all(text.strip() for text in new_options.values() if text):
+                    st.error("선택지 내용을 모두 입력해야 합니다. (최소 1개 이상)")
+                elif not new_answer:
+                    st.error("정답을 하나 이상 선택해야 합니다.")
+                else:
+                    # DB에 새 문제 추가
+                    new_id = add_new_original_question(new_question_text, new_options, new_answer)
+                    st.toast(f"성공적으로 새로운 문제(ID: {new_id})를 추가했습니다!")
+                    st.balloons() # 축하!
+
+    # --- 탭 3: 문제 편집 ---
+    with tab3:
         st.subheader("✏️ 원본 문제 편집")
         
         # 편집할 문제 ID 입력받기
@@ -248,12 +284,12 @@ def render_management_page():
                     if submitted:
                         # 버튼이 클릭되면, 입력된 값으로 DB 업데이트
                         update_original_question(edit_id, edited_question_text, edited_options, edited_answer)
-                        st.success(f"ID {edit_id} 문제가 성공적으로 업데이트되었습니다!")
+                        st.toast(f"ID {edit_id} 문제가 성공적으로 업데이트되었습니다!")
                         # 캐시된 데이터를 초기화하여 변경사항이 즉시 반영되도록 함
                         st.cache_data.clear()
  
-    # --- 탭 3: 오답 노트 관리 ---
-    with tab3:
+    # --- 탭 4: 오답 노트 관리 ---
+    with tab4:
         st.subheader("📒 오답 노트 관리")
         wrong_answers = get_wrong_answers()
         
@@ -290,8 +326,8 @@ def render_management_page():
                             # 목록을 즉시 갱신하기 위해 새로고침
                             st.rerun()
 
-    # --- 탭 4: AI 변형 문제 관리 ---
-    with tab4:
+    # --- 탭 5: AI 변형 문제 관리 ---
+    with tab5:
         st.subheader("✨ AI 변형 문제 관리")
         modified_questions = get_all_modified_questions()
         
@@ -303,7 +339,7 @@ def render_management_page():
             # 모든 변형 문제를 한 번에 삭제하는 버튼
             if st.button("모든 변형 문제 삭제", type="primary"):
                 clear_all_modified_questions()
-                st.success("모든 AI 변형 문제가 삭제되었습니다.")
+                st.toast("모든 AI 변형 문제가 삭제되었습니다.")
                 st.rerun()
             
             st.write("---")
@@ -361,33 +397,46 @@ def render_analytics_page():
 # --- 메인 애플리케이션 로직 ---
 def main():
     """메인 실행 함수"""
-    st.set_page_config(page_title="Oracle OCP AI 튜터", layout="wide")
+    st.set_page_config(page_title="Oracle OCP AI 튜터", layout="wide", initial_sidebar_state="expanded")
+    
     setup_database_tables()
+
     st.title("🚀 Oracle OCP AI 튜터")
     
     initialize_session_state()
 
     st.sidebar.title("메뉴")
-    if st.sidebar.button("퀴즈 풀기", use_container_width=True, type="primary" if st.session_state.current_view == 'home' else "secondary"):
+    
+    # 현재 뷰 상태에 따라 버튼 타입을 다르게 설정하여 시각적 피드백 제공
+    home_btn_type = "primary" if st.session_state.current_view in ['home', 'quiz', 'results'] else "secondary"
+    notes_btn_type = "primary" if st.session_state.current_view == 'notes' else "secondary"
+    analytics_btn_type = "primary" if st.session_state.current_view == 'analytics' else "secondary"
+    manage_btn_type = "primary" if st.session_state.current_view == 'manage' else "secondary"
+
+        # 퀴즈 풀기
+    if st.sidebar.button("📝 퀴즈 풀기", use_container_width=True, type=home_btn_type):
         st.session_state.current_view = 'home'
         st.session_state.questions_to_solve = []
         st.session_state.user_answers = {}
         st.session_state.current_question_index = 0
         st.rerun()
 
-    if st.sidebar.button("오답 노트", use_container_width=True, type="primary" if st.session_state.current_view == 'notes' else "secondary"):
+        # 오답 노트  
+    if st.sidebar.button("📒 오답 노트", use_container_width=True, type=notes_btn_type):
         st.session_state.current_view = 'notes'
         st.rerun()
         
+        # 학습 통계
+    if st.sidebar.button("📈 학습 통계", use_container_width=True, type=analytics_btn_type):
+        st.session_state.current_view = 'analytics'
+        st.rerun()
+
         # "설정 및 관리" 메뉴 추가
-    if st.sidebar.button("설정 및 관리", use_container_width=True, type="primary" if st.session_state.current_view == 'manage' else "secondary"):
+    if st.sidebar.button("⚙️ 설정 및 관리", use_container_width=True, type=manage_btn_type):
         st.session_state.current_view = 'manage'
         st.rerun()
 
-        # 학습 통계
-    if st.sidebar.button("학습 통계", use_container_width=True, type="primary" if st.session_state.current_view == 'analytics' else "secondary"):
-        st.session_state.current_view = 'analytics'
-        st.rerun()
+
 
     # --- 사이드바 하단에 초기화/종료 버튼 추가 ---
     st.sidebar.write("---")
@@ -416,7 +465,7 @@ def main():
             # 변형 문제 전체 삭제
             clear_all_modified_questions()
             
-            st.success("모든 학습 기록 및 AI 생성 문제가 영구적으로 삭제되었습니다.")
+            st.toast("모든 학습 기록 및 AI 생성 문제가 영구적으로 삭제되었습니다.")
             st.session_state.clear()
             st.rerun()
 

@@ -125,6 +125,21 @@
         ]
     },
     {
+    "id": 9,
+    "question": "NO.9 Examine this command:\nCREATE UNDO TABLESPACE undotbs01\nDATAFILE 'undotbs_01.dbf’\nSIZE 100M\nAUTOEXTEND ON;\n\nWhich two actions must you take to ensure UNDOTBS01 is used as the default\nUNDO tablespace? (Choose two) (2개)",
+    "options": {
+        "A": "Add the SEGMENT SPACE MANAGEMENT AUTO clause",
+        "B": "Set UNDO_TABLESPACE to UNDOTBS01",
+        "C": "Add the NOLOGGING clause",
+        "D": "Make certain that the database operates in automatic undo management mode",
+        "E": "Add the ONLINE clause"
+    },
+    "answer": [
+        "B",
+        "D"
+    ]
+    },
+    {
         "id": 10,
         "question": "Examine this command and some partial output:\nListening Endpoints Summary...\n(DESCRIPTION=(ADDRESS=PROTOCOL=tcp) (HOST=host01.abc.com) (PORT=1562)))\nServices Summary...\nService \"DB01.abc.com\" has 1 instance(s).\nInstance \"DB01\", status UNKNOWN, has 1 handler(s) for this service...\nThe command completed successfully\nWhy does the DB01.abc.com service show unknown status? (1개)",
         "options": {

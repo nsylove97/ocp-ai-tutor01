@@ -1,14 +1,16 @@
 # .gitignore
 
-# Python 캐시 파일
+# Python 가상환경 및 캐시
+.venv/
+venv/
 __pycache__/
 *.pyc
 
-# 환경 변수 파일 (API 키 등)
+# 환경변수 파일 (매우 중요!)
 .env
 
-# 데이터베이스 파일
+# 데이터베이스 파일 (개인 기록)
 *.db
 
-# Streamlit 설정
+# Streamlit 로컬 설정
 .streamlit/
