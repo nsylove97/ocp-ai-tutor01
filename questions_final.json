@@ -79,11 +79,11 @@
     },
     {
         "id": 6,
-        "question": "Examine the description of the EMPLOYEES table:\nWhich query is valid? (1개)\nName            Null?           Type\n-------------   -------------   -------------\nEMP_ID          NOT NULL        NUMBER\nEMP_NAME                        VARCHAR2(40)\nDEPT_ID                         NUMBER(2)\nSALARY                          NUMBER(8,2)\nJOIN_DATE                       DATE",
+        "question": "NO.6 Examine the description of the EMPLOYEES table:\n\nName            Null?           Type\n--------------- --------------- ----------------\nEMP_ID          NOT NULL        NUMBER\nEMP_NAME                        VARCHAR2(40)\nDEPT_ID                         NUMBER(2)\nSALARY                          NUMBER(8,2)\nJOIN_DATE                       DATE\n\nWhich query is valid? (1개)",
         "options": {
             "A": "SELECT dept_id, AVG(MAX(salary)) FROM employees GROUP BY dept_id;",
             "B": "SELECT dept_id, join_date, SUM(salary) FROM employees GROUP BY dept_id;",
-            "C": "SELECT dept_id, join_date, SUM(salary) FROM employees GROUP BY dept_id,",
+            "C": "SELECT dept_id, join_date, SUM(salary) FROM employees GROUP BY dept_id, join_date;",
             "D": "SELECT dept_id, MAX(AVG(salary)) FROM employees GROUP BY dept_id;"
         },
         "answer": [
