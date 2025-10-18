@@ -195,3 +195,18 @@ def load_original_questions_from_json(json_path='questions_final.json'):
     conn.close()
     print(f"'{json_path}' 파일로부터 총 {len(questions)}개의 문제를 DB에 로드했습니다.")
     return len(questions), None # 성공 시 로드된 문제 수와 에러 없음(None)을 반환
+
+def update_original_question(q_id, question_text, options_dict, answer_list):
+    """ID를 기반으로 원본 문제의 내용을 업데이트합니다."""
+    conn = get_db_connection()
+    
+    # 딕셔너리와 리스트를 DB에 저장하기 위해 JSON 문자열로 변환
+    options_str = json.dumps(options_dict)
+    answer_str = json.dumps(answer_list)
+    
+    conn.execute(
+        "UPDATE original_questions SET question = ?, options = ?, answer = ? WHERE id = ?",
+        (question_text, options_str, answer_str, q_id)
+    )
+    conn.commit()
+    conn.close()
