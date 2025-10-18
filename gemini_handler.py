@@ -1,4 +1,4 @@
-# gemini_handler.py (프롬프트 복원 최종 버전)
+# gemini_handler.py 
 import os
 import json
 import re
