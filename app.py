@@ -592,8 +592,7 @@ def main():
     authenticator = stauth.Authenticate(credentials, "ocp_cookie_v3", "auth_key_v3", 30)
 
     # --- 3. 로그인 처리 ---
-    # 명시적으로 버튼 레이블(name)과 location을 전달합니다.
-    login_result = authenticator.login('로그인', location='main')
+    login_result = authenticator.login(location='main')
 
     name, authentication_status, username = (None, None, None)
 
@@ -615,7 +614,7 @@ def main():
             try:
                 # ✅ 최신 streamlit-authenticator 문법 (preauthorization 제거)
                 # register_user도 name과 location을 키워드로 전달
-                if authenticator.register_user('회원가입', location='main'):
+                if authenticator.register_user(location='main'):
                      reg_username = st.session_state.get("username_register")
                      reg_name = st.session_state.get("name_register")
                      reg_password = st.session_state.get("password_register")
