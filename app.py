@@ -462,7 +462,8 @@ def main():
         # st.session_state에서 이름과 사용자 이름을 가져옵니다.
         name = st.session_state["name"]
         username = st.session_state["username"]
-        
+        run_main_app(authenticator, name, username)
+
         # --- 이하 로그인 성공 후의 로직은 이전과 동일 ---
         st.sidebar.write(f"환영합니다, **{name}** 님!")
         authenticator.logout('로그아웃', 'sidebar')
@@ -532,45 +533,30 @@ def main():
 
         # --- 회원가입 기능 (추가) ---
     if not st.session_state["authentication_status"]:
-        try:
-            if st.button('회원가입'):
-                st.session_state.show_register_form = True
-
-            if st.session_state.get('show_register_form'):
-                with st.form("회원가입"):
-                    st.subheader("새 계정 만들기")
-                    new_name = st.text_input("이름", key="new_name")
+        st.write("---")
+        with st.expander("아직 계정이 없으신가요? 새 계정 만들기"):
+            try:
+                with st.form("회원가입 폼"):
+                    st.subheader("회원가입")
+                    new_name = st.text_input("이름").strip()
                     new_username = st.text_input("사용자 이름 (ID)").strip()
                     new_password = st.text_input("비밀번호", type="password")
                     
                     if st.form_submit_button("가입하기"):
                         if new_name and new_username and new_password:
-                            # --- 비밀번호 해싱 방식 (bcrypt 직접 사용) ---
-                            # 1. 비밀번호를 바이트(bytes) 형태로 인코딩합니다.
                             password_bytes = new_password.encode('utf-8')
-
-                            # 2. bcrypt의 gensalt()로 솔트(salt)를 생성합니다.
                             salt = bcrypt.gensalt()
-
-                            # 3. hashpw() 함수로 비밀번호와 솔트를 결합하여 해시를 생성합니다.
                             hashed_password_bytes = bcrypt.hashpw(password_bytes, salt)
-
-                            # 4. DB에 저장하기 위해 다시 문자열(string) 형태로 디코딩합니다.
                             hashed_password = hashed_password_bytes.decode('utf-8')
                             
-                            # DB에 사용자 추가
                             success, message = add_new_user(new_username, new_name, hashed_password)
-                            
-                            if authenticator.register_user('회원가입'):
-                                st.success("회원가입이 완료되었습니다. 이제 로그인해주세요.")
-                                st.session_state.show_register_form = False # 폼 숨기기
-                                st.rerun()
+                            if success:
+                                st.success("회원가입이 완료되었습니다. 이제 위에서 로그인해주세요.")
                             else:
-                                st.error(message) # "이미 존재하는 사용자 이름입니다."
+                                st.error(message)
                         else:
                             st.error("모든 항목을 입력해주세요.")
-        except Exception as e:
-            st.error(f"회원가입 처리 중 오류 발생: {e}")
-
+            except Exception as e:
+                st.error(f"회원가입 처리 중 오류 발생: {e}")
 if __name__ == "__main__":
     main()
