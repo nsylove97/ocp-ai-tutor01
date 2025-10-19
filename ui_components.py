@@ -11,100 +11,54 @@ from db_utils import get_question_by_id, save_user_answer
 # --- CSS Injection ---
 # 앱 전체에 적용될 커스텀 CSS 스타일을 한 번만 주입합니다.
 # 이 코드는 파일이 임포트될 때 한 번만 실행됩니다.
-st.markdown(
-    '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">',
-    unsafe_allow_html=True,
-)
+# --- Minimal, safer CSS for iPhone Safari ---
+try:
+    st.markdown(
+        '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">',
+        unsafe_allow_html=True,
+    )
 
-st.markdown(
-    """
-<style>
-/* 기본 레이아웃 안정화 (iOS 뷰포트/주소창 이슈 대응) */
-html, body, #root, .main, .block-container {
-    height: 100%;
-    min-height: 100%;
-    -webkit-text-size-adjust: 100%;
-    overscroll-behavior: contain;
-}
-/* Streamlit 버튼 기본 정리 */
-div[data-testid="stButton"] { margin-bottom: 10px; }
-div[data-testid="stButton"] > button {
-    width: 100%;
-    text-align: left !important;
-    padding: 1rem !important;
-    border-radius: 0.5rem !important;
-    margin-bottom: 0.5rem;
-    color: #31333f !important;
-    background-color: #ffffff !important;
-    border: 1px solid #e6e6e6 !important;
-    transition: all 0.18s ease-in-out;
-    -webkit-transition: all 0.18s ease-in-out;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: rgba(0,0,0,0);
-}
-div[data-testid="stButton"] > button:hover { border-color: #1c83e1 !important; background-color: #f0f2f6 !important; }
-div[data-testid="stButton"] > button[kind="primary"] {
-    border: 2px solid #1c83e1 !important;
-    background-color: #e5f1fc !important;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
-}
-div[data-testid="stButton"] > button:focus { outline: none !important; box-shadow: 0 0 0 2px rgba(28,131,225,0.28) !important; }
-
-
-/* 모달(다양한 구현체 대응): 고정배치, 안전영역, 터치스크롤 보장 */
-/* 대상 선택자를 넓혀 Safari/다른 구현 차이를 커버 */
-[data-modal-container], .stModal, .modal, div[role="dialog"], .modal-container {
-    position: fixed !important;
-    inset: 0;
-    width: 100% !important;
-    height: 100% !important;
-    min-height: 100% !important;
-    background-color: rgba(0,0,0,0.48) !important;
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    z-index: 9999 !important;
-    overflow: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-    -webkit-backface-visibility: hidden;
-}
-
-/* 모달 컨텐츠 박스 반응형/스크롤 허용 */
-[data-modal-container] > div, .stModal > div, .modal > div, .modal-container > div, div[role="dialog"] > div {
-    background: #fff !important;
-    padding: 1.1rem !important;
-    border-radius: 0.6rem !important;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
-    max-width: 920px !important;
-    width: calc(100% - 2rem) !important;
-    box-sizing: border-box !important;
-    max-height: calc(100% - 2rem) !important;
-    overflow: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    margin: auto !important;
-}
-@media (max-width:480px) {
-    [data-modal-container] > div, .stModal > div, .modal > div, .modal-container > div {
-        padding: 0.9rem !important;
-        width: calc(100% - 1.2rem) !important;
+    st.markdown(
+        """
+    <style>
+    /* Safer, minimal CSS: avoid heavy fixed/inset rules that may break Safari */
+    html, body, .main, .block-container {
+        min-height: 100vh;
+        -webkit-text-size-adjust: 100%;
     }
-}
-
-/* 입력/버튼 터치 관련 안정화 (iOS Safari 특화) */
-input, textarea, button {
-    -webkit-appearance: none !important;
-    -webkit-user-select: text !important;
-    touch-action: manipulation !important;
-}
-
-/* 안전 영역 보정 (iPhone notch 등) */
-body { padding-bottom: env(safe-area-inset-bottom, 0); padding-top: env(safe-area-inset-top, 0); }
-</style>
-""",
-    unsafe_allow_html=True,
-)
-
+    /* 기본 버튼 스타일 최소화 (브라우저별 기본 동작을 많이 건드리지 않음) */
+    div[data-testid="stButton"] > button {
+        -webkit-tap-highlight-color: rgba(0,0,0,0);
+        touch-action: manipulation;
+    }
+    /* 모달 안전 설정: position:fixed는 유지하되 inset/100vh 사용 최소화 */
+    [data-modal-container], .stModal, .modal {
+        position: fixed !important;
+        left: 0; right: 0; top: 0; bottom: 0;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        background: rgba(0,0,0,0.45) !important;
+        overflow: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    [data-modal-container] > div, .stModal > div {
+        max-width: 900px;
+        width: calc(100% - 2rem);
+        max-height: calc(100% - 2rem);
+        overflow: auto;
+        background: #fff;
+        padding: 1rem;
+        border-radius: 8px;
+    }
+    </style>
+    """,
+        unsafe_allow_html=True,
+    )
+except Exception as e:
+    # CSS 주입 실패해도 앱 동작하도록 안전하게 무시하고 콘솔에 로깅
+    print("UI CSS injection failed:", e)
 
 # --- Helper Functions ---
 def _handle_choice_selection(choice_key, answer_count):
