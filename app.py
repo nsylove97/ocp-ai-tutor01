@@ -331,37 +331,32 @@ def render_analytics_page(username):
                 st.markdown(row['question'], unsafe_allow_html=True)
 
 # --- Main App Entry Point ---
-def run_main_app(authenticator):
-    """로그인 성공 후의 메인 앱 로직"""
-    # session_state에서 직접 사용자 정보 가져오기 (가장 안정적인 방법)
-    name = st.session_state.get("name")
+def run_main_app(authenticator, all_user_info):
+    """로그인 성공 후 실행되는 메인 앱 로직."""
     username = st.session_state.get("username")
-    st.session_state.is_admin = (username == MASTER_ACCOUNT_USERNAME)
-
-    if not name or not username:
-        st.error("사용자 정보를 불러올 수 없습니다. 다시 로그인해주세요.")
-        authenticator.logout('로그아웃', location='sidebar', key='err_logout')
-        return
-
-    st.sidebar.write(f"환영합니다, **{name}** 님!")
-    authenticator.logout('로그아웃', location='sidebar', key='main_logout')
+    name = st.session_state.get("name")
     
-    if 'db_setup_done' not in st.session_state:
-        setup_database_tables()
-        st.session_state.db_setup_done = True
+    # 관리자 여부 확인
+    st.session_state.is_admin = (all_user_info.get(username, {}).get('role') == 'admin')
 
+    # 사이드바 렌더링
+    st.sidebar.title(f"환영합니다, {name}님!")
+    authenticator.logout('로그아웃', 'sidebar', key='main_logout')
+    
     initialize_session_state()
 
+    st.sidebar.write("---")
     st.sidebar.title("메뉴")
     menu = {"home": "📝 퀴즈 풀기", "notes": "📒 오답 노트", "analytics": "📈 학습 통계", "manage": "⚙️ 설정 및 관리"}
     for view, label in menu.items():
         if st.sidebar.button(label, use_container_width=True, type="primary" if st.session_state.current_view == view else "secondary"):
-            st.session_state.current_view = view
-            if view == 'home':
-                st.session_state.questions_to_solve = []
-                st.session_state.user_answers = {}
-                st.session_state.current_question_index = 0
-            st.rerun()
+            if st.session_state.current_view != view:
+                st.session_state.current_view = view
+                if view == 'home':
+                    st.session_state.questions_to_solve = []
+                    st.session_state.user_answers = {}
+                    st.session_state.current_question_index = 0
+                st.rerun()
 
     st.sidebar.write("---")
     if st.sidebar.button("학습 초기화", use_container_width=True):
@@ -391,7 +386,7 @@ def main():
     
     # --- 2. 마스터 계정 확인 및 자동 생성 ---
     credentials, all_user_info = fetch_all_users()
-    if MASTER_ACCOUNT_USERNAME not in credentials['usernames'] or all_user_info.get(MASTER_ACCOUNT_USERNAME, {}).get('role') != 'admin':
+    if MASTER_ACCOUNT_USERNAME not in credentials['usernames']:
         hashed_pw = bcrypt.hashpw(MASTER_ACCOUNT_PASSWORD.encode(), bcrypt.gensalt()).decode()
         ensure_master_account(MASTER_ACCOUNT_USERNAME, MASTER_ACCOUNT_NAME, hashed_pw)
         # 마스터 계정을 추가했으므로, 사용자 정보를 다시 불러옵니다.
@@ -401,39 +396,28 @@ def main():
     # --- 3. Authenticator 객체 생성 ---
     authenticator = stauth.Authenticate(credentials, "ocp_cookie", "auth_key", 30)
 
-    # --- 4. 로그인 위젯 렌더링 ---
-    # st.session_state에 자동으로 'authentication_status', 'name', 'username'이 저장됩니다.
-    authenticator.login(location='main')
-
-    # --- 5. 인증 상태에 따라 앱의 흐름을 분기 ---
+    # --- 인증 상태를 먼저 확인 ---
+    # 로그인 성공 시, 메인 앱을 실행하고 main 함수를 즉시 종료합니다.
     if st.session_state.get("authentication_status"):
-        # --- 5a. 로그인 성공 시 ---
-        # 메인 애플리케이션 로직을 실행합니다.
-        run_main_app(authenticator)
-    else:
-        authenticator.login(location='main')
-        if st.session_state["authentication_status"] is False:
-            st.error('아이디 또는 비밀번호가 일치하지 않습니다.')
-        elif st.session_state["authentication_status"] is None:
-            st.info('로그인하거나 새 계정을 만들어주세요.')
-        
-        if not st.session_state.get("authentication_status"):
-            st.write("---")
-            with st.expander("새 계정 만들기"):
-                with st.form("reg_form"):
-                    new_name = st.text_input("이름")
-                    new_user = st.text_input("아이디")
-                    new_pwd = st.text_input("비밀번호", type="password")
-                    if st.form_submit_button("가입하기"):
-                        if new_name and new_user and new_pwd:
-                            if new_user == MASTER_ACCOUNT_USERNAME:
-                                st.error(f"'{MASTER_ACCOUNT_USERNAME}'은(는) 관리자용으로 예약된 아이디입니다. 다른 아이디를 사용해주세요.")
-                                return
-                            hashed_pwd = bcrypt.hashpw(new_pwd.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-                            success, msg = add_new_user(new_user, new_name, hashed_pwd)
-                            if success: st.success("가입 완료! 로그인해주세요.")
-                            else: st.error(msg)
-                        else: st.error("모든 정보를 입력해주세요.")
+        run_main_app(authenticator, all_user_info)
+        return
+    
+    # 회원가입 폼 (로그인하지 않은 상태에서만 보임)
+    with st.expander("새 계정 만들기"):
+        with st.form("reg_form"):
+            new_name, new_user, new_pwd = st.text_input("이름"), st.text_input("아이디"), st.text_input("비밀번호", type="password")
+            if st.form_submit_button("가입하기"):
+                if new_user == MASTER_ACCOUNT_USERNAME:
+                    st.error("예약된 아이디입니다.")
+                elif all((new_name, new_user, new_pwd)):
+                    hashed = bcrypt.hashpw(new_pwd.encode(), bcrypt.gensalt()).decode()
+                    success, msg = add_new_user(new_user, new_name, hashed)
+                    if success:
+                        st.success("가입 완료! 로그인해주세요.")
+                    else:
+                        st.error(msg)
+                else:
+                    st.error("모든 정보를 입력해주세요.")
 
 if __name__ == "__main__":
     main()
