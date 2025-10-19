@@ -23,7 +23,7 @@ from db_utils import (
     get_all_modified_questions, save_modified_question,
     delete_modified_question, clear_all_modified_questions,
     get_stats, get_top_5_missed,
-    add_user_table, fetch_all_users, add_new_user,
+    setup_database_tables, fetch_all_users, add_new_user,
     delete_user, get_all_users_for_admin, ensure_master_account
 )
 from ui_components import display_question, display_results
@@ -434,7 +434,6 @@ def main():
     st.set_page_config(page_title="Oracle OCP AI 튜터", layout="wide", initial_sidebar_state="expanded")
     
     # --- 1. DB 테이블 구조 확인 및 생성 ---
-    add_user_table()
     if 'db_setup_done' not in st.session_state:
         setup_database_tables()
         st.session_state.db_setup_done = True
