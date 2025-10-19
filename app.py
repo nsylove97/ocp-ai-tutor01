@@ -16,7 +16,7 @@ from streamlit_quill import st_quill
 # --- Custom Modules ---
 from gemini_handler import generate_explanation, generate_modified_question
 from db_utils import (
-    setup_database_tables, load_original_questions_from_json,
+    setup_database_tables, load_original_questions_from_json, get_db_connection,
     get_all_question_ids, get_question_by_id,
     add_new_original_question, update_original_question,
     get_wrong_answers, delete_wrong_answer,
@@ -24,7 +24,7 @@ from db_utils import (
     delete_modified_question, clear_all_modified_questions,
     get_stats, get_top_5_missed,
     add_user_table, fetch_all_users, add_new_user,
-    delete_user, get_all_users_for_admin
+    delete_user, get_all_users_for_admin, ensure_master_account
 )
 from ui_components import display_question, display_results
 
@@ -32,7 +32,9 @@ from ui_components import display_question, display_results
 MEDIA_DIR = "media"
 if not os.path.exists(MEDIA_DIR):
     os.makedirs(MEDIA_DIR)
-MASTER_ACCOUNT_USERNAME = "master"
+MASTER_ACCOUNT_USERNAME = "admin"
+MASTER_ACCOUNT_NAME = "admin"
+MASTER_ACCOUNT_PASSWORD = "admin"
 
 # --- Helper Functions ---
 
@@ -430,12 +432,45 @@ def run_main_app(authenticator):
 
 def main():
     st.set_page_config(page_title="Oracle OCP AI 튜터", layout="wide", initial_sidebar_state="expanded")
-    add_user_table()
     
+    # --- 1. DB 테이블 구조 확인 및 생성 ---
+    add_user_table()
+    if 'db_setup_done' not in st.session_state:
+        setup_database_tables()
+        st.session_state.db_setup_done = True
+    
+    # --- 2. 마스터 계정 확인 및 자동 생성 ---
     users = fetch_all_users()
-    authenticator = stauth.Authenticate(users, "ocp_cookie", "auth_key", cookie_expiry_days=30)
+    if MASTER_ACCOUNT_USERNAME not in users['usernames'] or users['usernames'][MASTER_ACCOUNT_USERNAME].get('role') != 'admin':
+        hashed_password = bcrypt.hashpw(MASTER_ACCOUNT_PASSWORD.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT OR REPLACE INTO users (username, name, password, role) VALUES (?, ?, ?, ?)",
+            (MASTER_ACCOUNT_USERNAME, MASTER_ACCOUNT_NAME, hashed_password, 'admin')
+        )
+        conn.commit()
+        conn.close()
+        users = fetch_all_users() # 사용자 정보 다시 로드
+        st.toast(f"관리자 계정 '{MASTER_ACCOUNT_USERNAME}'이(가) 설정되었습니다.", icon="👑")
 
+
+    # --- 3. Authenticator 객체 생성 ---
+    authenticator = stauth.Authenticate(
+        users,
+        "ocp_ai_tutor_cookie",
+        "abcdef",
+        cookie_expiry_days=30
+    )
+
+    # --- 4. 로그인 위젯 렌더링 ---
+    # st.session_state에 자동으로 'authentication_status', 'name', 'username'이 저장됩니다.
+    authenticator.login(location='main')
+
+    # --- 5. 인증 상태에 따라 앱의 흐름을 분기 ---
     if st.session_state.get("authentication_status"):
+        # --- 5a. 로그인 성공 시 ---
+        # 메인 애플리케이션 로직을 실행합니다.
         run_main_app(authenticator)
     else:
         authenticator.login(location='main')
@@ -454,8 +489,8 @@ def main():
                     if st.form_submit_button("가입하기"):
                         if new_name and new_user and new_pwd:
                             if new_user == MASTER_ACCOUNT_USERNAME:
-                                st.error(f"'{MASTER_ACCOUNT_USERNAME}'은 관리자용으로 예약된 아이디입니다. 다른 아이디를 사용해주세요.")
-                                return                               
+                                st.error(f"'{MASTER_ACCOUNT_USERNAME}'은(는) 관리자용으로 예약된 아이디입니다. 다른 아이디를 사용해주세요.")
+                                return
                             hashed_pwd = bcrypt.hashpw(new_pwd.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                             success, msg = add_new_user(new_user, new_name, hashed_pwd)
                             if success: st.success("가입 완료! 로그인해주세요.")

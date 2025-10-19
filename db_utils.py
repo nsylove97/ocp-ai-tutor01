@@ -440,3 +440,18 @@ def get_all_users_for_admin():
         return [] # 오류 발생 시 빈 리스트 반환
     finally:
         conn.close()
+
+def ensure_master_account(username, name, hashed_password):
+    """
+    마스터 계정이 존재하는지 확인하고, 없으면 생성하거나 'admin' 역할로 업데이트합니다.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # INSERT OR REPLACE: username이 없으면 새로 추가하고, 이미 존재하면 내용을 덮어씁니다.
+    # 이를 통해 비밀번호를 변경하거나 역할을 'admin'으로 강제할 수 있습니다.
+    cursor.execute(
+        "INSERT OR REPLACE INTO users (username, name, password, role) VALUES (?, ?, ?, ?)",
+        (username, name, hashed_password, 'admin')
+    )
+    conn.commit()
+    conn.close()
