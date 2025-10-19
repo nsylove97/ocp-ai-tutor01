@@ -160,8 +160,8 @@ def render_notes_page(username):
                 st.markdown("**질문:**")
                 st.markdown(question['question'], unsafe_allow_html=True)
 
-                if question.get('media_url') and os.path.exists(question.get('media_url')):
-                    if question.get('media_type') == 'image': st.image(question['media_url'])
+                if question.get9['media_url'] and os.path.exists(question.get['media_url']):
+                    if question.get['media_type'] == 'image': st.image(question['media_url'])
                     else: st.video(question['media_url'])
                 
                 try:
