@@ -460,6 +460,9 @@ def render_management_page(username):
             st.info("관리할 오답 노트가 없습니다.")
         else:
             st.warning(f"총 {len(wrong_answers)}개의 오답 기록이 있습니다. 완전히 이해한 문제는 삭제할 수 있습니다.")
+            # 삭제 확인 모달 초기화
+            wrong_modal = Modal(title="⚠️ 오답 기록 삭제 확인", key="delete_wrong_modal")
+            if 'delete_wrong_target' not in st.session_state: st.session_state.delete_wrong_target = None
             for question in wrong_answers:
                 if question:
                     with st.expander(f"**ID {question['id']} ({question['question_type']})** | {question['question'].replace('<p>', '').replace('</p>', '')[:50].strip()}..."):
@@ -480,7 +483,40 @@ def render_management_page(username):
                             delete_wrong_answer(username, question['id'], question['question_type'])
                             st.toast("삭제되었습니다.", icon="🗑️")
                             st.rerun()
+                    with st.expander(f"**ID {question['id']} ({question['question_type']})** | {question['question'].replace('<p>', '').replace('</p>', '')[:50].strip()}..."):
+                        st.markdown(question['question'], unsafe_allow_html=True)
+                        try:
+                            options = json.loads(question['options'])
+                            answer = json.loads(question['answer'])
+                            st.write("**선택지:**")
+                            for key, value in options.items():
+                                st.write(f" - **{key}:** {value}")
+                            st.error(f"**정답:** {', '.join(answer)}")
+                        except (json.JSONDecodeError, TypeError):
+                            st.write("선택지 또는 정답 정보를 불러올 수 없습니다.")
 
+                        # 삭제 버튼 -> 모달 열기
+                        if st.button("이 오답 기록 삭제", key=f"del_wrong_manage_{question['id']}_{question['question_type']}", type="secondary"):
+                            st.session_state.delete_wrong_target = (question['id'], question['question_type'])
+                            wrong_modal.open()
+
+            # 모달이 열리면 확인 UI 그림
+            if wrong_modal.is_open():
+                with wrong_modal.container():
+                    target = st.session_state.get('delete_wrong_target')
+                    if target:
+                        st.warning(f"정말로 ID {target[0]} ({target[1]}) 오답 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")
+                        c1, c2 = st.columns(2)
+                        if c1.button("✅ 예, 삭제합니다", type="primary"):
+                            delete_wrong_answer(username, target[0], target[1])
+                            st.toast("오답 기록이 삭제되었습니다.", icon="🗑️")
+                            st.session_state.delete_wrong_target = None
+                            wrong_modal.close()
+                            st.rerun()
+                        if c2.button("❌ 취소", use_container_width=True):
+                            st.session_state.delete_wrong_target = None
+                            wrong_modal.close()
+                            st.rerun()
 
     # --- 탭 5: AI 변형 문제 관리 ---
     with tabs[5]:
@@ -489,15 +525,17 @@ def render_management_page(username):
         if not modified_questions:
             st.info("관리할 AI 변형 문제가 없습니다.")
         else:
+            # 전체 삭제 확인 모달
+            mod_modal = Modal(title="⚠️ 변형 문제 삭제 확인", key="delete_mod_modal")
             if st.button("모든 변형 문제 삭제", type="primary"):
-                clear_all_modified_questions()
-                st.toast("모든 AI 변형 문제가 삭제되었습니다.", icon="🗑️")
-                st.rerun()
+                st.session_state.delete_mod_target = "ALL"
+                mod_modal.open()
 
+            # 각 항목별 삭제 버튼 -> 모달
+            if 'delete_mod_target' not in st.session_state: st.session_state.delete_mod_target = None
+            single_mod_modal = Modal(title="⚠️ 변형 문제 삭제 확인", key="delete_single_mod_modal")
             for mq in modified_questions:
-                # --- st.expander 적용 ---
                 with st.expander(f"**ID {mq['id']}** | {mq['question'].replace('<p>', '').replace('</p>', '')[:50].strip()}..."):
-                    
                     st.markdown(mq['question'], unsafe_allow_html=True)
                     try:
                         options = json.loads(mq['options'])
@@ -508,12 +546,27 @@ def render_management_page(username):
                         st.error(f"**정답:** {', '.join(answer)}")
                     except (json.JSONDecodeError, TypeError):
                         st.write("선택지 또는 정답 정보를 불러올 수 없습니다.")
-                    
-                    # 삭제 버튼
+
                     if st.button("이 변형 문제 삭제", key=f"del_mod_{mq['id']}", type="secondary"):
-                        delete_modified_question(mq['id'])
-                        st.toast("삭제되었습니다.", icon="🗑️")
-                        st.rerun()
+                        st.session_state.delete_mod_target = mq['id']
+                        single_mod_modal.open()
+
+            if single_mod_modal.is_open():
+                with single_mod_modal.container():
+                    target = st.session_state.get('delete_mod_target')
+                    if target:
+                        st.warning(f"정말로 ID {target} 변형 문제를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")
+                        c1, c2 = st.columns(2)
+                        if c1.button("✅ 예, 삭제", type="primary"):
+                            delete_modified_question(target)
+                            st.toast("변형 문제가 삭제되었습니다.", icon="🗑️")
+                            st.session_state.delete_mod_target = None
+                            single_mod_modal.close()
+                            st.rerun()
+                        if c2.button("❌ 취소"):
+                            st.session_state.delete_mod_target = None
+                            single_mod_modal.close()
+                            st.rerun()
 
 def render_analytics_page(username):
     st.header("📈 학습 통계")
@@ -616,52 +669,50 @@ def main():
     credentials, all_user_info = fetch_all_users()
     authenticator = None  # 이전 객체 호환성 위해 변수는 남겨둠
 
-    # --- 3. 로그인 처리 (간단 커스텀 폼) ---
+    # --- 3. 로그인 처리 (세로 레이아웃: 타이틀 -> 로그인 -> 회원가입) ---
     name = st.session_state.get("name")
     authentication_status = st.session_state.get("authentication_status")
     username = st.session_state.get("username")
 
     if not authentication_status:
         st.title("🚀 Oracle OCP AI 튜터")
-        st.info("로그인하거나 아래에서 새 계정을 만들어주세요.")
+        st.markdown("로그인하거나 새 계정을 만들어주세요.")
 
-        left, right = st.columns([2, 1])
-        with left:
-            st.subheader("로그인")
-            login_user = st.text_input("아이디", key="login_username")
-            login_pw = st.text_input("비밀번호", type="password", key="login_password")
-            if st.button("로그인"):
-                user = all_user_info.get(login_user)
-                if user and user.get("password") and bcrypt.checkpw(login_pw.encode(), user["password"].encode()):
-                    st.session_state.authentication_status = True
-                    st.session_state.username = login_user
-                    st.session_state.name = user.get("name", login_user)
-                    st.session_state.is_admin = (user.get("role") == "admin")
-                    st.success("로그인 성공")
-                    st.rerun()
+        st.subheader("로그인")
+        login_user = st.text_input("아이디", key="login_username")
+        login_pw = st.text_input("비밀번호", type="password", key="login_password")
+        if st.button("로그인"):
+            user = all_user_info.get(login_user)
+            if user and user.get("password") and bcrypt.checkpw(login_pw.encode(), user["password"].encode()):
+                st.session_state.authentication_status = True
+                st.session_state.username = login_user
+                st.session_state.name = user.get("name", login_user)
+                st.session_state.is_admin = (user.get("role") == "admin")
+                st.success("로그인 성공")
+                st.rerun()
+            else:
+                st.error("아이디 또는 비밀번호가 일치하지 않습니다.")
+
+        st.write("---")
+        st.subheader("새 계정 만들기 (이름 · 아이디 · 비밀번호)")
+        reg_name = st.text_input("이름", key="reg_name")
+        reg_user = st.text_input("아이디", key="reg_user")
+        reg_pw = st.text_input("비밀번호", type="password", key="reg_pw")
+        if st.button("회원가입"):
+            if not all((reg_name, reg_user, reg_pw)):
+                st.error("모든 필드를 입력해주세요.")
+            elif reg_user == MASTER_ACCOUNT_USERNAME:
+                st.error(f"'{MASTER_ACCOUNT_USERNAME}'은 예약된 아이디입니다.")
+            elif reg_user in all_user_info:
+                st.error("이미 존재하는 아이디입니다.")
+            else:
+                hashed_pw = bcrypt.hashpw(reg_pw.encode(), bcrypt.gensalt()).decode()
+                success, msg = add_new_user(reg_user, reg_name, hashed_pw)
+                if success:
+                    st.success("회원가입 완료! 로그인해주세요.")
                 else:
-                    st.error("아이디 또는 비밀번호가 일치하지 않습니다.")
-
-        with right:
-            with st.expander("새 계정 만들기 (이름, 아이디, 비밀번호만)"):
-                reg_name = st.text_input("이름", key="reg_name")
-                reg_user = st.text_input("아이디", key="reg_user")
-                reg_pw = st.text_input("비밀번호", type="password", key="reg_pw")
-                if st.button("회원가입"):
-                    if not all((reg_name, reg_user, reg_pw)):
-                        st.error("모든 필드를 입력해주세요.")
-                    elif reg_user == MASTER_ACCOUNT_USERNAME:
-                        st.error(f"'{MASTER_ACCOUNT_USERNAME}'은 예약된 아이디입니다.")
-                    elif reg_user in all_user_info:
-                        st.error("이미 존재하는 아이디입니다.")
-                    else:
-                        hashed_pw = bcrypt.hashpw(reg_pw.encode(), bcrypt.gensalt()).decode()
-                        success, msg = add_new_user(reg_user, reg_name, hashed_pw)
-                        if success:
-                            st.success("회원가입 완료! 로그인해주세요.")
-                        else:
-                            st.error(msg)
-        # 로그인되지 않은 상태에서 더 진행하지 않음
+                    st.error(msg)
+        # 로그인되지 않은 상태면 main 흐름 멈춤
         return
 
     # --- 4. 로그인 상태에 따른 분기 (로그인 완료 시) ---
