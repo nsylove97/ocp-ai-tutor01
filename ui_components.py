@@ -29,6 +29,7 @@ div[data-testid="stButton"] > button {
     border: 1px solid #e6e6e6 !important;
     transition: all 0.2s ease-in-out;
     -webkit-transition: all 0.2s ease-in-out;
+    touch-action: manipulation;
 }
 /* 마우스 호버 시 효과 */
 div[data-testid="stButton"] > button:hover {
@@ -47,27 +48,54 @@ div[data-testid="stButton"] > button:focus {
     outline: none !important;
     box-shadow: 0 0 0 2px rgba(28, 131, 225, 0.5) !important;
 }
-/* --- streamlit-modal 중앙 정렬을 위한 CSS --- */
-/* 1. 모달 배경을 화면 전체에 고정 */
+
+/* --- streamlit-modal 중앙 정렬 및 iOS 호환성 개선 CSS --- */
+/* 1. 모달 배경을 화면 전체에 고정: inset 사용, overflow 및 터치 스크롤 허용 */
 div[data-modal-container] {
     position: fixed; /* 화면 스크롤과 상관없이 위치 고정 */
-    top: 0;
-    left: 0;
-    width: 100vw; /* 화면 전체 너비 */
-    height: 100vh; /* 화면 전체 높이 */
+    inset: 0; /* top:0; right:0; bottom:0; left:0; */
+    /* 100vh/100vw 대신 inset/100% 조합을 사용하여 iOS 주소창 이슈 완화 */
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
     background-color: rgba(0, 0, 0, 0.5); /* 반투명 검은색 배경 */
     display: flex;
     justify-content: center; /* 수평 중앙 정렬 */
     align-items: center; /* 수직 중앙 정렬 */
     z-index: 9999; /* 다른 모든 요소들 위에 표시 */
+    overflow: auto; /* 내부 컨텐츠가 클 때 스크롤 가능 */
+    -webkit-overflow-scrolling: touch; /* iOS 부드러운 터치 스크롤 */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
-/* 2. 실제 모달 팝업창 스타일 */
+/* 2. 실제 모달 팝업창 스타일 - 반응형 최대 너비/높이 및 내부 스크롤 허용 */
 div[data-modal-container] > div[data-testid="stVerticalBlock"] {
-    background-color: white;
-    padding: 2rem;
+    background-color: #ffffff;
+    padding: 1.25rem;
     border-radius: 0.5rem;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    max-width: 900px;
+    width: calc(100% - 2rem); /* 화면 여백 확보 */
+    box-sizing: border-box;
+    max-height: calc(100% - 2rem); /* 모바일에서 모달이 화면을 넘지 않도록 */
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: auto;
+}
+
+/* 작은 화면에서 여백을 더 확보 */
+@media (max-width: 480px) {
+    div[data-modal-container] > div[data-testid="stVerticalBlock"] {
+        padding: 1rem;
+        width: calc(100% - 1.5rem);
+        border-radius: 0.5rem;
+    }
+}
+
+/* 안전 영역 보정 (iPhone notch 등) */
+body {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    padding-top: env(safe-area-inset-top, 0);
 }
 </style>
 """, unsafe_allow_html=True)
