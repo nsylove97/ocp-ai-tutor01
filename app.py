@@ -222,7 +222,7 @@ def render_management_page():
     # --- 탭 2: 문제 추가 (원본) ---
     with tab2:
         st.subheader("➕ 새로운 원본 문제 추가")
-        st.info("MS Word처럼 텍스트 서식을 편집하고, 이미지/동영상을 첨부할 수 있습니다.")
+        st.info("새로운 OCP 문제를 직접 추가하여 나만의 문제 은행을 만드세요.")
 
         with st.form(key="add_form"):
             # Quill 에디터 사용 (HTML 형식으로 내용 반환)
@@ -310,7 +310,7 @@ def render_management_page():
                         edited_options[key] = st.text_input(f"선택지 {key}:", value=value, key=f"option_{key}_{edit_id}")
                     
                     # 정답 선택
-                    edited_answer = st.multoselect("정답 선택:", options=list(edited_options.keys()), default=current_answer, key=f"answer_{edit_id}")
+                    edited_answer = st.multiselect("정답 선택:", options=list(edited_options.keys()), default=current_answer, key=f"answer_{edit_id}")
                     
                     submitted = st.form_submit_button("변경사항 저장")
 
