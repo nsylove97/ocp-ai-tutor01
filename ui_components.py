@@ -46,18 +46,27 @@ div[data-testid="stButton"] > button:focus {
     outline: none !important;
     box-shadow: 0 0 0 2px rgba(28, 131, 225, 0.5) !important;
 }
-/* --- 로그인 폼 중앙 정렬을 위한 CSS 추가 --- */
-/* authenticator가 생성하는 폼 컨테이너를 선택합니다. */
-div[data-testid="stForm"] {
-    /* Flexbox를 사용하여 내부 요소를 중앙 정렬 */
+/* --- streamlit-modal 중앙 정렬을 위한 CSS --- */
+/* 1. 모달 배경을 화면 전체에 고정 */
+div[data-modal-container] {
+    position: fixed; /* 화면 스크롤과 상관없이 위치 고정 */
+    top: 0;
+    left: 0;
+    width: 100vw; /* 화면 전체 너비 */
+    height: 100vh; /* 화면 전체 높이 */
+    background-color: rgba(0, 0, 0, 0.5); /* 반투명 검은색 배경 */
     display: flex;
-    flex-direction: column;
-    align-items: center;
+    justify-content: center; /* 수평 중앙 정렬 */
+    align-items: center; /* 수직 중앙 정렬 */
+    z-index: 9999; /* 다른 모든 요소들 위에 표시 */
 }
 
-/* 폼 내부의 컨텐츠를 담는 div를 선택하여 너비를 제한 */
-div[data-testid="stForm"] > div[data-testid="stVerticalBlock"] {
-    width: 400px; /* 로그인 폼의 최대 너비를 400px로 제한 */
+/* 2. 실제 모달 팝업창 스타일 */
+div[data-modal-container] > div[data-testid="stVerticalBlock"] {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 </style>
 """, unsafe_allow_html=True)

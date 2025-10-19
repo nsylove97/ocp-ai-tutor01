@@ -417,7 +417,7 @@ def run_main_app(authenticator, all_user_info):
     view_map.get(st.session_state.current_view, render_home_page)()
 
 def main():
-    """메인 실행 함수 (UI/UX 개선 최종 버전)"""
+    """메인 실행 함수"""
     st.set_page_config(page_title="Oracle OCP AI 튜터", layout="wide", initial_sidebar_state="expanded")
 
     # --- 1. 앱의 공통 헤더를 먼저 렌더링 ---
@@ -444,10 +444,19 @@ def main():
 
     else:
         # --- 4b. 로그인하지 않은 경우 ---
-        # 컬럼을 사용하여 로그인 폼을 감싸고 중앙에 배치
-        _, col2, _ = st.columns([1, 1.5, 1])
-        with col2:
+        st.markdown("""
+            <style>
+                /* 로그인 폼 컨테이너의 최대 너비를 설정 */
+                .login-container {
+                    max-width: 450px;
+                }
+            </style>
+        """, unsafe_allow_html=True)
+
+        with st.container():
+            st.markdown('<div class="login-container">', unsafe_allow_html=True)
             authenticator.login(location='main')
+            st.markdown('</div>', unsafe_allow_html=True)
 
         if st.session_state.get("authentication_status") is False:
             st.error('아이디 또는 비밀번호가 일치하지 않습니다.')
