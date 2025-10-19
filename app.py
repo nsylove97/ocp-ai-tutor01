@@ -393,8 +393,17 @@ def render_analytics_page(username):
                 st.markdown(row['question'], unsafe_allow_html=True)
 
 # --- Main App Logic ---
-def run_main_app(authenticator, name, username):
+def run_main_app(authenticator):
     """로그인 성공 후 실행되는 메인 앱 로직."""
+    name = st.session_state.get("name")
+    username = st.session_state.get("username")
+
+    # 만약의 경우를 대비한 방어 코드
+    if not name or not username:
+        st.error("사용자 정보를 불러오는 데 실패했습니다. 다시 로그인해주세요.")
+        authenticator.logout('로그아웃', location='sidebar', key='error_logout')
+        return # 함수 실행 중단
+    
     st.sidebar.write(f"환영합니다, **{name}** 님!")
     authenticator.logout('로그아웃', 'sidebar')
     
@@ -458,7 +467,7 @@ def main():
     authenticator.login(location='main')
 
     if st.session_state["authentication_status"]:
-        run_main_app(authenticator, st.session_state["name"], st.session_state["username"])
+        run_main_app(authenticator)
 
         # --- 이하 로그인 성공 후의 로직은 이전과 동일 ---
         st.sidebar.write(f"환영합니다, **{name}** 님!")
