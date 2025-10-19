@@ -173,8 +173,8 @@ def render_management_page(username):
     tabs = st.tabs(tab_list)
     
     # --- 조건부 탭 (첫 번째 탭) ---
-    with tabs[0]:
-        if is_admin:
+    if is_admin:
+        with tabs[0]:
             st.subheader("사용자 목록")
             all_users = get_all_users_for_admin()
             st.metric("총 등록된 사용자 수", f"{len(all_users)} 명")
@@ -220,7 +220,8 @@ def render_management_page(username):
                             if c2.button("아니요, 취소합니다", key=f"cancel_delete_{user_key}", use_container_width=True):
                                 st.session_state.delete_user_modal[user_key] = False # 모달 닫기
                                 st.rerun()
-
+    else:
+        with tabs[0]: #회원 탈퇴 탭
             st.subheader("회원 탈퇴")
             st.warning("회원 탈퇴 시 모든 학습 기록(오답 노트, 통계)이 영구적으로 삭제됩니다.")
             if st.checkbox("위 내용에 동의하며 탈퇴를 진행합니다.", key="delete_confirm"):
