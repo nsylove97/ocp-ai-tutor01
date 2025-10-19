@@ -1,55 +1,47 @@
-# ui_components.py 
+# ui_components.py
+"""
+Streamlit UI 컴포넌트를 생성하는 함수들을 모아놓은 모듈.
+문제 표시, 결과 표시 등 재사용 가능한 UI 로직을 담당합니다.
+"""
 import streamlit as st
 import json
 import os
 
 # --- CSS Injection ---
-# ui_components.py
-import streamlit as st
-import json
-import os
-
-# --- CSS Injection (Cross-browser compatible version) ---
+# 앱 전체에 적용될 커스텀 CSS 스타일을 한 번만 주입합니다.
+# 이 코드는 파일이 임포트될 때 한 번만 실행됩니다.
 st.markdown("""
 <style>
-/* 
-  div[data-testid="stButton"]는 Streamlit이 버튼을 감싸는 div에 부여하는
-  고유한 속성으로, 더 안정적인 선택자(selector)입니다. 
-*/
+/* Streamlit 버튼을 감싸는 div 컨테이너의 기본 여백을 줄여 흰 줄을 최소화 */
+div[data-testid="stButton"] {
+    margin-bottom: 10px;
+}
+/* 모든 버튼에 대한 기본 스타일 (카드 모양처럼) */
 div[data-testid="stButton"] > button {
-    /* 기본 레이아웃 및 디자인 */
     width: 100%;
     text-align: left !important;
-    padding: 1rem !important; /* rem 단위가 모바일에서 더 일관적입니다. */
+    padding: 1rem !important;
     border-radius: 0.5rem !important;
-    margin-bottom: 0.5rem; /* 버튼 사이의 간격 */
-    
-    /* 색상 및 테두리 */
+    margin-bottom: 0.5rem;
     color: #31333f !important;
-    background-color: #ffffff !important; /* 기본 배경을 흰색으로 변경 */
+    background-color: #ffffff !important;
     border: 1px solid #e6e6e6 !important;
-    
-    /* 애니메이션 */
     transition: all 0.2s ease-in-out;
-    -webkit-transition: all 0.2s ease-in-out; /* Safari 호환성을 위한 접두사 */
+    -webkit-transition: all 0.2s ease-in-out;
 }
-
 /* 마우스 호버 시 효과 */
 div[data-testid="stButton"] > button:hover {
     border-color: #1c83e1 !important;
     background-color: #f0f2f6 !important;
 }
-
 /* '선택됨' 상태 (type="primary") */
 div[data-testid="stButton"] > button[kind="primary"] {
     border: 2px solid #1c83e1 !important;
     background-color: #e5f1fc !important;
-    /* 선택 시 그림자 효과를 주어 입체감 부여 */
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    -webkit-box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Safari 호환성 */
+    -webkit-box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
-
-/* 버튼 클릭 시 잠시 나타나는 포커스 테두리 제거 (선택 사항) */
+/* 버튼 클릭 시 잠시 나타나는 포커스 테두리 */
 div[data-testid="stButton"] > button:focus {
     outline: none !important;
     box-shadow: 0 0 0 2px rgba(28, 131, 225, 0.5) !important;
@@ -58,30 +50,36 @@ div[data-testid="stButton"] > button:focus {
 """, unsafe_allow_html=True)
 
 
+# --- Helper Functions ---
 def _handle_choice_selection(choice_key, answer_count):
     """선택지 클릭 시 호출되는 콜백. 사용자의 답변을 세션 상태에 업데이트합니다."""
     idx = st.session_state.current_question_index
     user_answers = st.session_state.user_answers.get(idx, [])
 
-    if answer_count > 1:
+    if answer_count > 1: # 다중 선택
         if choice_key in user_answers: user_answers.remove(choice_key)
         else: user_answers.append(choice_key)
-    else:
+    else: # 단일 선택
         user_answers = [choice_key]
     
     st.session_state.user_answers[idx] = user_answers
 
 
+# --- Main UI Functions ---
 def display_question(question_data: dict, current_idx: int, total_questions: int):
-    """클릭 가능한 '카드' 형태의 선택지를 포함한 퀴즈 문제를 표시합니다."""
+    """
+    클릭 가능한 '카드' 형태의 선택지를 포함한 퀴즈 문제를 표시합니다.
+    """
     st.subheader(f"문제 {current_idx + 1}/{total_questions} (ID: {question_data['id']})")
     st.markdown(question_data['question'], unsafe_allow_html=True)
     
     media_url = question_data.get('media_url')
     if media_url and os.path.exists(media_url):
         media_type = question_data.get('media_type')
-        if media_type == 'image': st.image(media_url)
-        elif media_type == 'video': st.video(media_url)
+        if media_type == 'image': 
+            st.image(media_url)
+        elif media_type == 'video': 
+            st.video(media_url)
     
     st.write("---")
    
@@ -107,12 +105,11 @@ def display_question(question_data: dict, current_idx: int, total_questions: int
         )
 
 
-def display_results(username, get_ai_explanation_func):
+def display_results(username: str, get_ai_explanation_func):
     """퀴즈 결과를 요약하고, 각 문제에 대한 상세 정보를 표시합니다."""
     
     # 순환 참조를 피하기 위해, 함수가 실제로 필요할 때 함수 내부에서 임포트합니다.
     from db_utils import get_question_by_id, save_user_answer
-    # --- 여기까지 ---
     
     st.header("📊 퀴즈 결과")
     correct_count = 0
