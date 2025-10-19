@@ -4,57 +4,29 @@ Streamlit UI 컴포넌트를 생성하는 함수들을 모아놓은 모듈.
 문제 표시, 결과 표시 등 재사용 가능한 UI 로직을 담당합니다.
 """
 import streamlit as st
-# iOS Safari가 동적 meta를 무시하는 경우가 있어 앱 시작부에서 우선 삽입
-st.set_page_config(page_title="Oracle OCP AI 튜터", layout="wide", initial_sidebar_state="expanded")
-st.markdown('<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">', unsafe_allow_html=True)
 
-import json
-import os
-from db_utils import get_question_by_id, save_user_answer
-
-# --- CSS Injection ---
-# 앱 전체에 적용될 커스텀 CSS 스타일을 한 번만 주입합니다.
-# 이 코드는 파일이 임포트될 때 한 번만 실행됩니다.
-# --- Minimal, safer CSS for iPhone Safari ---
 try:
     st.markdown(
-        '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">',
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        """
-    <style>
-    /* 최소한의 안전한 CSS: Safari에서 position/flex로 인한 레이아웃 붕괴를 피함 */
-    html, body, .main, .block-container { min-height: 100vh; -webkit-text-size-adjust: 100%; }
-    div[data-testid="stButton"] > button { -webkit-tap-highlight-color: rgba(0,0,0,0); touch-action: manipulation; }
-
-    /* 모달: fixed 대신 화면 중앙에 보이도록 상대적 스타일 + 내부 스크롤 허용 */
-    [data-modal-container], .stModal, .modal {
-        position: relative !important;
-        display: block !important;
-        background: rgba(0,0,0,0.0) !important; /* 배경은 모듈 기본에 맡김 */
-        overflow: visible !important;
-    }
-    [data-modal-container] > div, .stModal > div, .modal > div {
-        max-width: 920px;
-        width: calc(100% - 2rem);
-        max-height: calc(100vh - 4rem);
-        overflow: auto;
-        background: #fff;
-        padding: 1rem;
-        border-radius: 8px;
-        margin: 1rem auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    /* iOS 안전영역 여유분 */
-    body { padding-bottom: env(safe-area-inset-bottom, 0); padding-top: env(safe-area-inset-top, 0); }
-    </style>
-    """,
++        """<style>
++        /* Minimal stable CSS for iOS Safari: avoid transitions/animations and heavy fixed positioning */
++        html, body, .main, .block-container { min-height: 100vh; -webkit-text-size-adjust: 100%; }
++        /* disable tap highlight and avoid transitions that trigger repaints */
++        * { -webkit-tap-highlight-color: rgba(0,0,0,0); -webkit-transition: none !important; transition: none !important; animation: none !important; }
++        /* keep buttons native-like and avoid forcing full repaint */
++        div[data-testid="stButton"] > button { touch-action: manipulation; -webkit-user-select: text; }
++        /* modal containers: avoid full-screen fixed overlays that can conflict with iOS viewport */
++        [data-modal-container], .stModal, .modal { position: relative !important; overflow: visible !important; background: transparent !important; }
++        [data-modal-container] > div, .stModal > div { max-width: 920px; width: calc(100% - 2rem); max-height: calc(100vh - 4rem); overflow: auto; background: #fff; padding: 1rem; border-radius: 8px; margin: 1rem auto; -webkit-overflow-scrolling: touch; }
++        body { padding-bottom: env(safe-area-inset-bottom, 0); padding-top: env(safe-area-inset-top, 0); }
++        </style>""",
         unsafe_allow_html=True,
     )
 except Exception as e:
     print("UI CSS injection failed:", e)
+
+import json
+import os
+from db_utils import get_question_by_id, save_user_answer
 
 # --- Helper Functions ---
 def _handle_choice_selection(choice_key, answer_count):
