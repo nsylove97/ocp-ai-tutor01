@@ -521,7 +521,10 @@ def run_main_app(authenticator, all_user_info):
 
     with st.sidebar:
         st.title(f"환영합니다, {name}님!")
-        authenticator.logout('로그아웃', key='main_logout')
+        if st.button("로그아웃", key="main_logout"):
+            for k in ["authentication_status", "username", "name", "is_admin"]:
+                if k in st.session_state: del st.session_state[k]
+            st.experimental_rerun()
         st.write("---")
         st.title("메뉴")
         
@@ -589,50 +592,59 @@ def main():
 
     # --- 2. 인증 객체 생성 ---
     credentials, all_user_info = fetch_all_users()
-    authenticator = stauth.Authenticate(credentials, "ocp_cookie_v3", "auth_key_v3", 30)
+    authenticator = None  # 이전 객체 호환성 위해 변수는 남겨둠
 
-    # --- 3. 로그인 처리 ---
-    login_result = authenticator.login(location='main')
+    # --- 3. 로그인 처리 (간단 커스텀 폼) ---
+    name = st.session_state.get("name")
+    authentication_status = st.session_state.get("authentication_status")
+    username = st.session_state.get("username")
 
-    name, authentication_status, username = (None, None, None)
+    if not authentication_status:
+        st.title("🚀 Oracle OCP AI 튜터")
+        st.info("로그인하거나 아래에서 새 계정을 만들어주세요.")
 
-    if login_result is not None:
-        name, authentication_status, username = login_result
+        left, right = st.columns([2, 1])
+        with left:
+            st.subheader("로그인")
+            login_user = st.text_input("아이디", key="login_username")
+            login_pw = st.text_input("비밀번호", type="password", key="login_password")
+            if st.button("로그인"):
+                user = all_user_info.get(login_user)
+                if user and user.get("password") and bcrypt.checkpw(login_pw.encode(), user["password"].encode()):
+                    st.session_state.authentication_status = True
+                    st.session_state.username = login_user
+                    st.session_state.name = user.get("name", login_user)
+                    st.session_state.is_admin = (user.get("role") == "admin")
+                    st.success("로그인 성공")
+                    st.experimental_rerun()
+                else:
+                    st.error("아이디 또는 비밀번호가 일치하지 않습니다.")
 
-    # --- 4. 로그인 상태에 따른 분기 ---
+        with right:
+            with st.expander("새 계정 만들기 (이름, 아이디, 비밀번호만)"):
+                reg_name = st.text_input("이름", key="reg_name")
+                reg_user = st.text_input("아이디", key="reg_user")
+                reg_pw = st.text_input("비밀번호", type="password", key="reg_pw")
+                if st.button("회원가입"):
+                    if not all((reg_name, reg_user, reg_pw)):
+                        st.error("모든 필드를 입력해주세요.")
+                    elif reg_user == MASTER_ACCOUNT_USERNAME:
+                        st.error(f"'{MASTER_ACCOUNT_USERNAME}'은 예약된 아이디입니다.")
+                    elif reg_user in all_user_info:
+                        st.error("이미 존재하는 아이디입니다.")
+                    else:
+                        hashed_pw = bcrypt.hashpw(reg_pw.encode(), bcrypt.gensalt()).decode()
+                        success, msg = add_new_user(reg_user, reg_name, hashed_pw)
+                        if success:
+                            st.success("회원가입 완료! 로그인해주세요.")
+                        else:
+                            st.error(msg)
+        # 로그인되지 않은 상태에서 더 진행하지 않음
+        return
+
+    # --- 4. 로그인 상태에 따른 분기 (로그인 완료 시) ---
     if authentication_status:
         run_main_app(authenticator, all_user_info)
-
-    elif authentication_status == False:
-        st.error('아이디 또는 비밀번호가 일치하지 않습니다.')
-
-    else:
-        st.title("🚀 Oracle OCP AI 튜터")
-        st.info('로그인하거나 아래에서 새 계정을 만들어주세요.')
-
-        with st.expander("새 계정 만들기"):
-            try:
-                # ✅ 최신 streamlit-authenticator 문법 (preauthorization 제거)
-                # register_user도 name과 location을 키워드로 전달
-                if authenticator.register_user(location='main'):
-                     reg_username = st.session_state.get("username_register")
-                     reg_name = st.session_state.get("name_register")
-                     reg_password = st.session_state.get("password_register")
-
-                     if all((reg_username, reg_name, reg_password)):
-                        if reg_username == MASTER_ACCOUNT_USERNAME:
-                            st.error(f"'{MASTER_ACCOUNT_USERNAME}'은 예약된 아이디입니다.")
-                        else:
-                            hashed_pw = bcrypt.hashpw(reg_password.encode(), bcrypt.gensalt()).decode()
-                            success, msg = add_new_user(reg_username, reg_name, hashed_pw)
-                            if success:
-                                st.success('회원가입 완료! 로그인해주세요.')
-                            else:
-                                st.error(msg)
-
-            except Exception as e:
-                st.error(e)
-
 
 # --- 8. Script Execution Block ---
 if __name__ == "__main__":
