@@ -647,6 +647,7 @@ def run_main_app(authenticator, all_user_info):
     """
     username = st.session_state.get("username")
     name = st.session_state.get("name")
+    initialize_session_state()
     
     # 앱의 메인 제목을 여기서 렌더링
     st.title("🚀 Oracle OCP AI 튜터")
