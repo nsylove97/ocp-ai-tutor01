@@ -545,8 +545,9 @@ def main():
                     if st.form_submit_button("가입하기"):
                         if new_name and new_username and new_password:
                             # 비밀번호 해싱
-                            hashed_passwords = stauth.Hasher([new_password]).generate()
-                            
+                            hasher = stauth.Hasher()
+                            hashed_passwords = hasher.generate([new_password])
+
                             if hashed_passwords:
                                 hashed_password = hashed_passwords[0]
                             else:
