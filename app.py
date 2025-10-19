@@ -23,7 +23,8 @@ from db_utils import (
     get_all_modified_questions, save_modified_question,
     delete_modified_question, clear_all_modified_questions,
     get_stats, get_top_5_missed,
-    add_user_table, fetch_all_users, add_new_user, delete_user, get_all_users_for_admin
+    add_user_table, fetch_all_users, add_new_user,
+    delete_user, get_all_users_for_admin
 )
 from ui_components import display_question, display_results
 

@@ -265,17 +265,34 @@ def clear_all_modified_questions():
     conn.close()
 
 def add_user_table():
-    """'users' 테이블이 없으면 생성합니다."""
+    """'users' 테이블이 없으면 생성하고, 'role' 컬럼이 없으면 추가합니다."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS users (
-        username TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        password TEXT NOT NULL
-    )''')
+
+    # 테이블 존재 여부 확인
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+    table_exists = cursor.fetchone()
+
+    if table_exists:
+        # 테이블이 존재하면, 'role' 컬럼 존재 여부 확인
+        cursor.execute("PRAGMA table_info(users)")
+        columns = [row['name'] for row in cursor.fetchall()]
+        if 'role' not in columns:
+            # role 컬럼 추가. 기본값은 'user'
+            cursor.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
+    else:
+        # 테이블이 없으면 새로 생성
+        cursor.execute('''
+        CREATE TABLE users (
+            username TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            password TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'user' -- 'user' 또는 'admin'
+        )''')
+        
     conn.commit()
     conn.close()
+    print("사용자(users) 테이블 확인/생성/업그레이드 완료.")
 
 def fetch_all_users():
     """모든 사용자 정보를 가져옵니다."""
@@ -384,3 +401,42 @@ def add_new_user(username, name, hashed_password):
         conn.close()
         
     return success, message
+
+def delete_user(username):
+    """
+    특정 사용자를 'users' 테이블에서 삭제합니다.
+    해당 사용자의 모든 학습 기록('user_answers')도 함께 삭제하여 데이터 정합성을 유지합니다.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # 1. 해당 사용자의 모든 답변 기록 삭제
+        cursor.execute("DELETE FROM user_answers WHERE username = ?", (username,))
+        
+        # 2. 사용자 정보 삭제
+        cursor.execute("DELETE FROM users WHERE username = ?", (username,))
+        
+        conn.commit()
+        print(f"사용자 '{username}' 및 관련 데이터 삭제 완료.")
+    except Exception as e:
+        print(f"사용자 삭제 중 오류 발생: {e}")
+    finally:
+        conn.close()
+
+def get_all_users_for_admin():
+    """
+    관리자 페이지를 위해 모든 사용자 목록을 가져옵니다 (비밀번호 제외).
+    사용자 이름(username)을 기준으로 오름차순 정렬합니다.
+    """
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT username, name, role FROM users ORDER BY username ASC")
+        users = cursor.fetchall()
+        return users
+    except Exception as e:
+        print(f"모든 사용자 목록 조회 중 오류 발생: {e}")
+        return [] # 오류 발생 시 빈 리스트 반환
+    finally:
+        conn.close()
