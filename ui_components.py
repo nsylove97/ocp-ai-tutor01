@@ -6,6 +6,7 @@ Streamlit UI 컴포넌트를 생성하는 함수들을 모아놓은 모듈.
 import streamlit as st
 import json
 import os
+from db_utils import get_question_by_id, save_user_answer
 
 # --- CSS Injection ---
 # 앱 전체에 적용될 커스텀 CSS 스타일을 한 번만 주입합니다.
@@ -129,9 +130,6 @@ def display_question(question_data: dict, current_idx: int, total_questions: int
 
 def display_results(username: str, get_ai_explanation_func):
     """퀴즈 결과를 요약하고, 각 문제에 대한 상세 정보를 표시합니다."""
-    
-    # 순환 참조를 피하기 위해, 함수가 실제로 필요할 때 함수 내부에서 임포트합니다.
-    from db_utils import get_question_by_id, save_user_answer
     
     st.header("📊 퀴즈 결과")
     correct_count = 0

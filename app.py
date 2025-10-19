@@ -3,40 +3,20 @@
 """
 Oracle OCP AI 튜터 메인 애플리케이션 파일
 """
-# --- Python Standard Libraries ---
-import os
-import json
-import random
-
-# --- 3rd Party Libraries ---
 import streamlit as st
 import streamlit_authenticator as stauth
 import bcrypt
-import pandas as pd
+import random
+import json
+import os
+from dotenv import load_dotenv
 from streamlit_quill import st_quill
 from streamlit_modal import Modal
-from dotenv import load_dotenv
 
 # --- Custom Modules ---
-# gemini_handler로부터 필요한 모든 함수를 직접 임포트
+# 순서: 의존성이 없는 모듈부터 임포트
 from gemini_handler import generate_explanation, generate_modified_question, analyze_difficulty
-
-# db_utils로부터 필요한 모든 함수를 직접 임포트
-from db_utils import (
-    setup_database_tables, load_original_questions_from_json, get_db_connection,
-    get_all_question_ids, get_question_by_id,
-    add_new_original_question, update_original_question,
-    get_wrong_answers, delete_wrong_answer,
-    get_all_modified_questions, save_modified_question,
-    delete_modified_question, clear_all_modified_questions,
-    get_stats, get_top_5_missed,
-    fetch_all_users, add_new_user,
-    delete_user, get_all_users_for_admin, ensure_master_account,
-    get_question_ids_by_difficulty,
-    clear_all_original_questions, export_questions_to_json_format
-)
-
-# ui_components로부터 필요한 모든 함수를 직접 임포트
+from db_utils import * 
 from ui_components import display_question, display_results
 
 # --- Constants ---
@@ -582,16 +562,6 @@ def run_main_app(authenticator, all_user_info):
         st.toast("초기화되었습니다.", icon="🔄")
         st.rerun()
 
-    view_map = {
-        "home": render_home_page,
-        "quiz": render_quiz_page,
-        "results": lambda: render_results_page(username),
-        "notes": lambda: render_notes_page(username),
-        "manage": lambda: render_management_page(username),
-        "analytics": lambda: render_analytics_page(username),
-    }
-    view_map.get(st.session_state.current_view, render_home_page)()
-
 def main():
     """메인 실행 함수"""
     st.set_page_config(page_title="Oracle OCP AI 튜터", layout="wide", initial_sidebar_state="expanded")
@@ -612,52 +582,76 @@ def main():
     # --- 3. 인증 객체 생성 ---
     credentials, all_user_info = fetch_all_users()
     authenticator = stauth.Authenticate(credentials, "ocp_cookie", "auth_key", 30)
+    authenticator.login(location='main')
 
-    # --- 4. 인증 상태에 따라 화면 분기 ---
+    # --- 인증 상태에 따른 화면 분기 ---
+    # 로그인 위젯을 메인 영역에 렌더링
+    authenticator.login(location='main')
+
     if st.session_state.get("authentication_status"):
-        # --- 4a. 로그인 성공 시 ---
+        # --- 로그인 성공 시 ---
         run_main_app(authenticator, all_user_info)
 
-    else:
-        # --- 4b. 로그인하지 않은 경우 ---
-        st.markdown("""
-            <style>
-                /* 로그인 폼 컨테이너의 최대 너비를 설정 */
-                .login-container {
-                    max-width: 450px;
-                }
-            </style>
-        """, unsafe_allow_html=True)
+    elif st.session_state.get("authentication_status") is False:
+        st.error('아이디 또는 비밀번호가 일치하지 않습니다.')
 
-        with st.container():
-            st.markdown('<div class="login-container">', unsafe_allow_html=True)
-            authenticator.login(location='main')
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        if st.session_state.get("authentication_status") is False:
-            st.error('아이디 또는 비밀번호가 일치하지 않습니다.')
-        elif st.session_state.get("authentication_status") is None:
-            st.info('로그인하거나 아래에서 새 계정을 만들어주세요.')
+    elif st.session_state.get("authentication_status") is None:
+        st.info('로그인하거나 아래에서 새 계정을 만들어주세요.')
         
         # 회원가입 폼 렌더링
-        st.write("---")
         with st.expander("새 계정 만들기"):
-            with st.form("reg_form"):
-                new_name = st.text_input("이름")
-                new_user = st.text_input("아이디")
-                new_pwd = st.text_input("비밀번호", type="password")
-                if st.form_submit_button("가입하기"):
-                    if new_user == MASTER_ACCOUNT_USERNAME:
-                        st.error("예약된 아이디입니다.")
-                    elif all((new_name, new_user, new_pwd)):
-                        hashed = bcrypt.hashpw(new_pwd.encode(), bcrypt.gensalt()).decode()
-                        success, msg = add_new_user(new_user, new_name, hashed)
-                        if success:
-                            st.success("가입 완료! 로그인해주세요.")
-                        else:
-                            st.error(msg)
+            try:
+                if authenticator.register_user('회원가입', preauthorization=False):
+                    # 회원가입 성공 후 DB에 저장
+                    new_username = st.session_state['username']
+                    new_name = st.session_state['name']
+                    new_password = st.session_state['password'] # register_user는 평문 비밀번호를 반환
+                    
+                    hashed_password = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+                    success, msg = add_new_user(new_username, new_name, hashed_password)
+                    if success:
+                        st.success('회원가입이 완료되었습니다. 이제 로그인해주세요.')
                     else:
-                        st.error("모든 정보를 입력해주세요.")
+                        st.error(msg)
+                        # (선택) 가입 실패 시 authenticator 내부 데이터 롤백 필요 (고급)
+            except Exception as e:
+                st.error(e)
 
+def run_main_app(authenticator, all_user_info):
+    """로그인 성공 후 실행되는 메인 앱 로직."""
+    username = st.session_state.get("username")
+    name = st.session_state.get("name")
+    
+    # 관리자 여부 확인
+    st.session_state.is_admin = (all_user_info.get(username, {}).get('role') == 'admin')
+
+    # 사이드바 렌더링
+    with st.sidebar:
+        st.title(f"환영합니다, {name}님!")
+        authenticator.logout('로그아웃', key='main_logout')
+        st.write("---")
+        st.title("메뉴")
+        # ... (이전 사이드바 버튼 로직)
+        
+    initialize_session_state()
+
+    # 메인 콘텐츠 렌더링
+    view_map = {
+        "home": render_home_page,
+        "quiz": render_quiz_page,
+        "results": lambda: render_results_page(username),
+        "notes": lambda: render_notes_page(username),
+        "manage": lambda: render_management_page(username),
+        "analytics": lambda: render_analytics_page(username),
+    }
+    render_func = view_map.get(st.session_state.current_view, render_home_page)
+    if render_func:
+        # username 인자가 필요한 함수에만 전달
+        if st.session_state.current_view in ['notes', 'manage', 'analytics', 'results']:
+            render_func(username=username)
+        else:
+            render_func()
+
+# --- 스크립트가 직접 실행될 때만 main() 함수를 호출 ---
 if __name__ == "__main__":
     main()
