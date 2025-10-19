@@ -11,13 +11,23 @@ from db_utils import get_question_by_id, save_user_answer
 # --- CSS Injection ---
 # 앱 전체에 적용될 커스텀 CSS 스타일을 한 번만 주입합니다.
 # 이 코드는 파일이 임포트될 때 한 번만 실행됩니다.
-st.markdown("""
+st.markdown(
+    '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">',
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    """
 <style>
-/* Streamlit 버튼을 감싸는 div 컨테이너의 기본 여백을 줄여 흰 줄을 최소화 */
-div[data-testid="stButton"] {
-    margin-bottom: 10px;
+/* 기본 레이아웃 안정화 (iOS 뷰포트/주소창 이슈 대응) */
+html, body, #root, .main, .block-container {
+    height: 100%;
+    min-height: 100%;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior: contain;
 }
-/* 모든 버튼에 대한 기본 스타일 (카드 모양처럼) */
+/* Streamlit 버튼 기본 정리 */
+div[data-testid="stButton"] { margin-bottom: 10px; }
 div[data-testid="stButton"] > button {
     width: 100%;
     text-align: left !important;
@@ -27,78 +37,73 @@ div[data-testid="stButton"] > button {
     color: #31333f !important;
     background-color: #ffffff !important;
     border: 1px solid #e6e6e6 !important;
-    transition: all 0.2s ease-in-out;
-    -webkit-transition: all 0.2s ease-in-out;
+    transition: all 0.18s ease-in-out;
+    -webkit-transition: all 0.18s ease-in-out;
     touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
 }
-/* 마우스 호버 시 효과 */
-div[data-testid="stButton"] > button:hover {
-    border-color: #1c83e1 !important;
-    background-color: #f0f2f6 !important;
-}
-/* '선택됨' 상태 (type="primary") */
+div[data-testid="stButton"] > button:hover { border-color: #1c83e1 !important; background-color: #f0f2f6 !important; }
 div[data-testid="stButton"] > button[kind="primary"] {
     border: 2px solid #1c83e1 !important;
     background-color: #e5f1fc !important;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    -webkit-box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
 }
-/* 버튼 클릭 시 잠시 나타나는 포커스 테두리 */
-div[data-testid="stButton"] > button:focus {
-    outline: none !important;
-    box-shadow: 0 0 0 2px rgba(28, 131, 225, 0.5) !important;
-}
+div[data-testid="stButton"] > button:focus { outline: none !important; box-shadow: 0 0 0 2px rgba(28,131,225,0.28) !important; }
 
-/* --- streamlit-modal 중앙 정렬 및 iOS 호환성 개선 CSS --- */
-/* 1. 모달 배경을 화면 전체에 고정: inset 사용, overflow 및 터치 스크롤 허용 */
-div[data-modal-container] {
-    position: fixed; /* 화면 스크롤과 상관없이 위치 고정 */
-    inset: 0; /* top:0; right:0; bottom:0; left:0; */
-    /* 100vh/100vw 대신 inset/100% 조합을 사용하여 iOS 주소창 이슈 완화 */
-    width: 100%;
-    height: 100%;
-    min-height: 100%;
-    background-color: rgba(0, 0, 0, 0.5); /* 반투명 검은색 배경 */
-    display: flex;
-    justify-content: center; /* 수평 중앙 정렬 */
-    align-items: center; /* 수직 중앙 정렬 */
-    z-index: 9999; /* 다른 모든 요소들 위에 표시 */
-    overflow: auto; /* 내부 컨텐츠가 클 때 스크롤 가능 */
-    -webkit-overflow-scrolling: touch; /* iOS 부드러운 터치 스크롤 */
+
+/* 모달(다양한 구현체 대응): 고정배치, 안전영역, 터치스크롤 보장 */
+/* 대상 선택자를 넓혀 Safari/다른 구현 차이를 커버 */
+[data-modal-container], .stModal, .modal, div[role="dialog"], .modal-container {
+    position: fixed !important;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    background-color: rgba(0,0,0,0.48) !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    z-index: 9999 !important;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch !important;
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-backface-visibility: hidden;
 }
 
-/* 2. 실제 모달 팝업창 스타일 - 반응형 최대 너비/높이 및 내부 스크롤 허용 */
-div[data-modal-container] > div[data-testid="stVerticalBlock"] {
-    background-color: #ffffff;
-    padding: 1.25rem;
-    border-radius: 0.5rem;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-    max-width: 900px;
-    width: calc(100% - 2rem); /* 화면 여백 확보 */
-    box-sizing: border-box;
-    max-height: calc(100% - 2rem); /* 모바일에서 모달이 화면을 넘지 않도록 */
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
-    margin: auto;
+/* 모달 컨텐츠 박스 반응형/스크롤 허용 */
+[data-modal-container] > div, .stModal > div, .modal > div, .modal-container > div, div[role="dialog"] > div {
+    background: #fff !important;
+    padding: 1.1rem !important;
+    border-radius: 0.6rem !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+    max-width: 920px !important;
+    width: calc(100% - 2rem) !important;
+    box-sizing: border-box !important;
+    max-height: calc(100% - 2rem) !important;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    margin: auto !important;
 }
-
-/* 작은 화면에서 여백을 더 확보 */
-@media (max-width: 480px) {
-    div[data-modal-container] > div[data-testid="stVerticalBlock"] {
-        padding: 1rem;
-        width: calc(100% - 1.5rem);
-        border-radius: 0.5rem;
+@media (max-width:480px) {
+    [data-modal-container] > div, .stModal > div, .modal > div, .modal-container > div {
+        padding: 0.9rem !important;
+        width: calc(100% - 1.2rem) !important;
     }
 }
 
-/* 안전 영역 보정 (iPhone notch 등) */
-body {
-    padding-bottom: env(safe-area-inset-bottom, 0);
-    padding-top: env(safe-area-inset-top, 0);
+/* 입력/버튼 터치 관련 안정화 (iOS Safari 특화) */
+input, textarea, button {
+    -webkit-appearance: none !important;
+    -webkit-user-select: text !important;
+    touch-action: manipulation !important;
 }
+
+/* 안전 영역 보정 (iPhone notch 등) */
+body { padding-bottom: env(safe-area-inset-bottom, 0); padding-top: env(safe-area-inset-top, 0); }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 
 # --- Helper Functions ---
