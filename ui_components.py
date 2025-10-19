@@ -4,6 +4,10 @@ Streamlit UI 컴포넌트를 생성하는 함수들을 모아놓은 모듈.
 문제 표시, 결과 표시 등 재사용 가능한 UI 로직을 담당합니다.
 """
 import streamlit as st
+# iOS Safari가 동적 meta를 무시하는 경우가 있어 앱 시작부에서 우선 삽입
+st.set_page_config(page_title="Oracle OCP AI 튜터", layout="wide", initial_sidebar_state="expanded")
+st.markdown('<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">', unsafe_allow_html=True)
+
 import json
 import os
 from db_utils import get_question_by_id, save_user_answer
@@ -21,43 +25,35 @@ try:
     st.markdown(
         """
     <style>
-    /* Safer, minimal CSS: avoid heavy fixed/inset rules that may break Safari */
-    html, body, .main, .block-container {
-        min-height: 100vh;
-        -webkit-text-size-adjust: 100%;
-    }
-    /* 기본 버튼 스타일 최소화 (브라우저별 기본 동작을 많이 건드리지 않음) */
-    div[data-testid="stButton"] > button {
-        -webkit-tap-highlight-color: rgba(0,0,0,0);
-        touch-action: manipulation;
-    }
-    /* 모달 안전 설정: position:fixed는 유지하되 inset/100vh 사용 최소화 */
+    /* 최소한의 안전한 CSS: Safari에서 position/flex로 인한 레이아웃 붕괴를 피함 */
+    html, body, .main, .block-container { min-height: 100vh; -webkit-text-size-adjust: 100%; }
+    div[data-testid="stButton"] > button { -webkit-tap-highlight-color: rgba(0,0,0,0); touch-action: manipulation; }
+
+    /* 모달: fixed 대신 화면 중앙에 보이도록 상대적 스타일 + 내부 스크롤 허용 */
     [data-modal-container], .stModal, .modal {
-        position: fixed !important;
-        left: 0; right: 0; top: 0; bottom: 0;
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-        background: rgba(0,0,0,0.45) !important;
-        overflow: auto !important;
-        -webkit-overflow-scrolling: touch !important;
-        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        position: relative !important;
+        display: block !important;
+        background: rgba(0,0,0,0.0) !important; /* 배경은 모듈 기본에 맡김 */
+        overflow: visible !important;
     }
-    [data-modal-container] > div, .stModal > div {
-        max-width: 900px;
+    [data-modal-container] > div, .stModal > div, .modal > div {
+        max-width: 920px;
         width: calc(100% - 2rem);
-        max-height: calc(100% - 2rem);
+        max-height: calc(100vh - 4rem);
         overflow: auto;
         background: #fff;
         padding: 1rem;
         border-radius: 8px;
+        margin: 1rem auto;
+        -webkit-overflow-scrolling: touch;
     }
+    /* iOS 안전영역 여유분 */
+    body { padding-bottom: env(safe-area-inset-bottom, 0); padding-top: env(safe-area-inset-top, 0); }
     </style>
     """,
         unsafe_allow_html=True,
     )
 except Exception as e:
-    # CSS 주입 실패해도 앱 동작하도록 안전하게 무시하고 콘솔에 로깅
     print("UI CSS injection failed:", e)
 
 # --- Helper Functions ---
