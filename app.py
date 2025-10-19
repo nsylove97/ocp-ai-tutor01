@@ -577,6 +577,7 @@ def main():
     """메인 실행 함수: 앱의 시작점"""
     st.set_page_config(page_title="Oracle OCP AI 튜터", layout="wide", initial_sidebar_state="expanded")
 
+    # --- 1. 데이터베이스 및 마스터 계정 설정 ---
     if 'db_setup_done' not in st.session_state:
         setup_database_tables()
         credentials, _ = fetch_all_users()
@@ -586,30 +587,36 @@ def main():
             st.toast(f"관리자 계정 '{MASTER_ACCOUNT_USERNAME}' 설정 완료!", icon="👑")
         st.session_state.db_setup_done = True
 
+    # --- 2. 인증 객체 생성 ---
     credentials, all_user_info = fetch_all_users()
     authenticator = stauth.Authenticate(credentials, "ocp_cookie_v3", "auth_key_v3", 30)
 
-    # ✅ 안전한 로그인 처리
+    # --- 3. 로그인 처리 ---
     login_result = authenticator.login(location='main')
     name, authentication_status, username = (None, None, None)
 
     if login_result is not None:
         name, authentication_status, username = login_result
 
-    # ✅ 이후 로직
+    # --- 4. 로그인 상태에 따른 분기 ---
     if authentication_status:
         run_main_app(authenticator, all_user_info)
+
     elif authentication_status == False:
         st.error('아이디 또는 비밀번호가 일치하지 않습니다.')
+
     else:
         st.title("🚀 Oracle OCP AI 튜터")
         st.info('로그인하거나 아래에서 새 계정을 만들어주세요.')
+
         with st.expander("새 계정 만들기"):
             try:
-                if authenticator.register_user('회원가입', preauthorization=False):
+                # ✅ 최신 streamlit-authenticator 문법 (preauthorization 제거)
+                if authenticator.register_user('회원가입'):
                     reg_username = st.session_state.get("username_register")
                     reg_name = st.session_state.get("name_register")
                     reg_password = st.session_state.get("password_register")
+
                     if all((reg_username, reg_name, reg_password)):
                         if reg_username == MASTER_ACCOUNT_USERNAME:
                             st.error(f"'{MASTER_ACCOUNT_USERNAME}'은 예약된 아이디입니다.")
@@ -620,6 +627,7 @@ def main():
                                 st.success('회원가입 완료! 로그인해주세요.')
                             else:
                                 st.error(msg)
+
             except Exception as e:
                 st.error(e)
 
