@@ -60,16 +60,27 @@ def setup_database_tables():
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (original_id) REFERENCES original_questions (id)
     )''')
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS user_answers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        question_id INTEGER NOT NULL,
-        question_type TEXT NOT NULL,
-        user_choice TEXT NOT NULL,
-        is_correct BOOLEAN NOT NULL,
-        solved_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )''')
-    
+    # --- user_answers 테이블 스키마 확인 및 업그레이드 (핵심 수정) ---
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='user_answers'")
+    table_exists = cursor.fetchone()
+
+    if table_exists:
+        cursor.execute("PRAGMA table_info(user_answers)")
+        columns = [row['name'] for row in cursor.fetchall()]
+        if 'username' not in columns:
+            cursor.execute("ALTER TABLE user_answers ADD COLUMN username TEXT NOT NULL DEFAULT 'default_user'")
+    else:
+        cursor.execute('''
+        CREATE TABLE user_answers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL, -- 사용자 식별을 위한 컬럼 추가
+            question_id INTEGER NOT NULL,
+            question_type TEXT NOT NULL,
+            user_choice TEXT NOT NULL,
+            is_correct BOOLEAN NOT NULL,
+            solved_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )''')
+
     conn.commit()
     conn.close()
     print("데이터베이스 테이블 확인/생성/업그레이드 완료.")
@@ -150,37 +161,41 @@ def update_original_question(q_id, question_text, options_dict, answer_list, med
     conn.close()
 
 # --- Answer & Analytics ---
-def save_user_answer(q_id, q_type, user_choice, is_correct):
-    """사용자의 답변 기록을 DB에 저장합니다."""
+def save_user_answer(username, q_id, q_type, user_choice, is_correct):
+    """특정 사용자의 답변 기록을 DB에 저장합니다."""
     conn = get_db_connection()
     conn.execute(
-        "INSERT INTO user_answers (question_id, question_type, user_choice, is_correct) VALUES (?, ?, ?, ?)",
-        (q_id, q_type, json.dumps(user_choice), is_correct)
+        "INSERT INTO user_answers (username, question_id, question_type, user_choice, is_correct) VALUES (?, ?, ?, ?, ?)",
+        (username, q_id, q_type, json.dumps(user_choice), is_correct)
     )
     conn.commit()
     conn.close()
 
-def get_wrong_answers():
-    """틀린 문제 목록을 DB에서 가져옵니다."""
+def get_wrong_answers(username):
+    """특정 사용자의 틀린 문제 목록을 DB에서 가져옵니다."""
     conn = get_db_connection()
     wrong_answers = conn.execute(
-        "SELECT DISTINCT question_id, question_type FROM user_answers WHERE is_correct = 0"
+        "SELECT DISTINCT question_id, question_type FROM user_answers WHERE is_correct = 0 AND username = ?",
+        (username,)
     ).fetchall()
     conn.close()
     return wrong_answers
 
-def delete_wrong_answer(question_id, question_type):
-    """특정 오답 기록을 삭제합니다."""
+def delete_wrong_answer(username, question_id, question_type):
+    """특정 사용자의 특정 오답 기록을 삭제합니다."""
     conn = get_db_connection()
-    conn.execute("DELETE FROM user_answers WHERE question_id = ? AND question_type = ?", (question_id, question_type))
+    conn.execute(
+        "DELETE FROM user_answers WHERE question_id = ? AND question_type = ? AND username = ?",
+        (question_id, question_type, username)
+    )
     conn.commit()
     conn.close()
 
-def get_stats():
-    """전체 학습 통계를 계산하여 반환합니다."""
+def get_stats(username):
+    """특정 사용자의 전체 학습 통계를 반환합니다."""
     conn = get_db_connection()
     try:
-        df = pd.read_sql_query("SELECT is_correct FROM user_answers", conn)
+        df = pd.read_sql_query("SELECT is_correct FROM user_answers WHERE username = ?", conn, params=(username,))
         total_attempts = len(df)
         if total_attempts == 0: return 0, 0, 0.0
         correct_answers = int(df['is_correct'].sum())
@@ -199,7 +214,7 @@ def get_top_5_missed():
         SELECT q.id, q.question, COUNT(*) as wrong_count
         FROM user_answers ua
         JOIN original_questions q ON ua.question_id = q.id
-        WHERE ua.is_correct = 0 AND ua.question_type = 'original'
+        WHERE ua.is_correct = 0 AND ua.question_type = 'original' AND ua.username = ?
         GROUP BY q.id, q.question
         ORDER BY wrong_count DESC, q.id ASC
         LIMIT 5
@@ -232,17 +247,140 @@ def save_modified_question(original_id, q_data):
     return new_id
 
 def delete_modified_question(question_id):
-    """특정 AI 변형 문제와 관련 오답 기록을 삭제합니다."""
+    """특정 AI 변형 문제를 삭제할 때, 모든 사용자의 관련 오답 기록도 함께 삭제합니다."""
     conn = get_db_connection()
+    # username 조건 없이 해당 문제를 푼 모든 사용자의 기록을 삭제
     conn.execute("DELETE FROM user_answers WHERE question_id = ? AND question_type = 'modified'", (question_id,))
     conn.execute("DELETE FROM modified_questions WHERE id = ?", (question_id,))
     conn.commit()
     conn.close()
 
 def clear_all_modified_questions():
-    """모든 AI 변형 문제와 관련 오답 기록을 삭제합니다."""
+    """모든 AI 변형 문제를 삭제할 때, 모든 사용자의 관련 오답 기록도 함께 삭제합니다."""
     conn = get_db_connection()
+    # username 조건 없이 모든 사용자의 'modified' 타입 기록을 삭제
     conn.execute("DELETE FROM user_answers WHERE question_type = 'modified'")
     conn.execute("DELETE FROM modified_questions")
     conn.commit()
     conn.close()
+
+def add_user_table():
+    """'users' 테이블이 없으면 생성합니다."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        username TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        password TEXT NOT NULL
+    )''')
+    conn.commit()
+    conn.close()
+
+def fetch_all_users():
+    """모든 사용자 정보를 가져옵니다."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users")
+    users = cursor.fetchall()
+    conn.close()
+    
+    # streamlit-authenticator가 요구하는 형식으로 변환
+    user_credentials = {"usernames": {}}
+    for user in users:
+        user_credentials["usernames"][user['username']] = {
+            "name": user['name'],
+            "password": user['password']
+        }
+    return user_credentials
+
+def add_new_user(username, name, hashed_password):
+    """새로운 사용자를 DB에 추가합니다."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO users (username, name, password) VALUES (?, ?, ?)",
+            (username, name, hashed_password)
+        )
+        conn.commit()
+        conn.close()
+        return True, None # 성공
+    except sqlite3.IntegrityError:
+        conn.close()
+        return False, "이미 존재하는 사용자 이름입니다." # 실패 (중복)
+    
+    # --- User Management Functions ---
+
+def add_user_table():
+    """
+    'users' 테이블이 데이터베이스에 존재하지 않으면 새로 생성합니다.
+    앱 시작 시 호출되어 사용자 관리의 기반을 마련합니다.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        username TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        password TEXT NOT NULL
+    )''')
+    conn.commit()
+    conn.close()
+    print("사용자(users) 테이블 확인/생성 완료.")
+
+
+def fetch_all_users():
+    """
+    'users' 테이블에서 모든 사용자 정보를 가져와 
+    streamlit-authenticator가 요구하는 딕셔너리 형식으로 변환하여 반환합니다.
+    """
+    conn = get_db_connection()
+    # add_user_table()을 여기서 한번 더 호출하여 테이블 존재를 보장할 수 있습니다.
+    add_user_table() 
+    
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM users")
+        users = cursor.fetchall()
+    except sqlite3.OperationalError:
+        # users 테이블이 없는 예외적인 경우
+        users = []
+    conn.close()
+    
+    # streamlit-authenticator 라이브러리가 사용하는 특정 데이터 구조로 변환
+    user_credentials = {"usernames": {}}
+    for user in users:
+        user_credentials["usernames"][user['username']] = {
+            "name": user['name'],
+            "password": user['password']
+        }
+    return user_credentials
+
+
+def add_new_user(username, name, hashed_password):
+    """
+    새로운 사용자 정보를 'users' 테이블에 추가합니다.
+
+    Returns:
+        tuple: (성공 여부(bool), 메시지(str or None))
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # PRIMARY KEY 제약조건 덕분에 username이 중복되면 IntegrityError 발생
+        cursor.execute(
+            "INSERT INTO users (username, name, password) VALUES (?, ?, ?)",
+            (username, name, hashed_password)
+        )
+        conn.commit()
+        success = True
+        message = None
+    except sqlite3.IntegrityError:
+        # 사용자 이름이 중복될 때 발생하는 오류
+        success = False
+        message = "이미 존재하는 사용자 이름입니다. 다른 이름을 사용해주세요."
+    finally:
+        conn.close()
+        
+    return success, message
