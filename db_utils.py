@@ -234,7 +234,7 @@ def get_wrong_answers(username):
     )
     SELECT 
         ua.question_id, 
-        q.type as question_type, -- ★★★ q.type에 'question_type' 별칭 부여 ★★★
+        ua.question_type,
         q.id, 
         q.question, 
         q.options, 
