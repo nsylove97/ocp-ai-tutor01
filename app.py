@@ -585,20 +585,23 @@ def main():
             ensure_master_account(MASTER_ACCOUNT_USERNAME, MASTER_ACCOUNT_NAME, hashed_pw)
             st.toast(f"관리자 계정 '{MASTER_ACCOUNT_USERNAME}' 설정 완료!", icon="👑")
         st.session_state.db_setup_done = True
-    
+
     credentials, all_user_info = fetch_all_users()
     authenticator = stauth.Authenticate(credentials, "ocp_cookie_v3", "auth_key_v3", 30)
+
+    # ✅ 안전한 로그인 처리
     login_result = authenticator.login(location='main')
-    if login_result is None:
-        st.warning("로그인 UI 로딩 중입니다.")
-    else:
+    name, authentication_status, username = (None, None, None)
+
+    if login_result is not None:
         name, authentication_status, username = login_result
 
+    # ✅ 이후 로직
     if authentication_status:
         run_main_app(authenticator, all_user_info)
     elif authentication_status == False:
         st.error('아이디 또는 비밀번호가 일치하지 않습니다.')
-    elif authentication_status is None:
+    else:
         st.title("🚀 Oracle OCP AI 튜터")
         st.info('로그인하거나 아래에서 새 계정을 만들어주세요.')
         with st.expander("새 계정 만들기"):
@@ -613,10 +616,13 @@ def main():
                         else:
                             hashed_pw = bcrypt.hashpw(reg_password.encode(), bcrypt.gensalt()).decode()
                             success, msg = add_new_user(reg_username, reg_name, hashed_pw)
-                            if success: st.success('회원가입 완료! 로그인해주세요.')
-                            else: st.error(msg)
+                            if success:
+                                st.success('회원가입 완료! 로그인해주세요.')
+                            else:
+                                st.error(msg)
             except Exception as e:
                 st.error(e)
+
 
 # --- 8. Script Execution Block ---
 if __name__ == "__main__":
