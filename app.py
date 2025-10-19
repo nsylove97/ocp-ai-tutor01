@@ -258,64 +258,58 @@ def render_management_page(username):
         st.subheader("📚 원본 문제 데이터")
         col1, col2 = st.columns(2)
         with col1:
-            st.info("로컬 JSON 파일의 문제를 데이터베이스로 불러옵니다.")     
+            st.info("JSON 파일의 문제를 DB로 불러오거나, DB의 문제를 초기화합니다.")
             num_q = len(get_all_question_ids('original'))
-            st.metric("현재 저장된 문제 수", f"{num_q} 개")
+            st.metric("현재 DB에 저장된 문제 수", f"{num_q} 개")
             
-            st.write("---")
-
-            # --- AI 난이도 분석 옵션 ---
-            analyze_option = st.checkbox("🤖 AI로 자동 난이도 분석 실행 (시간 소요)", value=False)
-            st.caption("이 옵션을 선택하지 않으면 모든 문제의 난이도는 '보통'으로 설정됩니다.")
-
-            if st.button("JSON 파일에서 원본 문제 불러오기", type="primary"):
+            # AI 난이도 분석 옵션
+            analyze_option = st.checkbox("🤖 AI로 자동 난이도 분석 실행", value=False)
+            
+            if st.button("JSON에서 문제 불러오기", type="primary"):
                 try:
                     with open('questions_final.json', 'r', encoding='utf-8') as f:
                         questions_from_json = json.load(f)
                 except FileNotFoundError:
                     st.error("`questions_final.json` 파일을 찾을 수 없습니다.")
-                    st.stop()
+                    st.stop() # 파일을 못 찾으면 더 이상 진행하지 않음
                 
                 if not questions_from_json:
                     st.warning("JSON 파일에 문제가 없습니다.")
-                    st.stop()
-
-                # --- 로직 분기 ---
-                if analyze_option:
-                    # --- 1. AI 난이도 분석을 선택한 경우 ---
-                    questions_to_load = []
-                    progress_bar = st.progress(0, text="AI 난이도 분석 시작...")
-                    total_questions = len(questions_from_json)
-
-                    for i, q in enumerate(questions_from_json):
-                        difficulty = analyze_difficulty(q['question'])
-                        q['difficulty'] = difficulty
-                        questions_to_load.append(q)
-                        
-                        progress_value = (i + 1) / total_questions
-                        progress_bar.progress(progress_value, text=f"AI 난이도 분석 중... ({i + 1}/{total_questions})")
-                    
-                    st.toast("AI 난이도 분석 완료! DB에 저장합니다.", icon="🤖")
-                    count, error = load_original_questions_from_json(questions_to_load)
-                    progress_bar.empty()
                 else:
-                    # --- 2. AI 난이도 분석을 선택하지 않은 경우 ---
-                    # 모든 문제의 난이도를 '보통'으로 설정하여 전달
-                    for q in questions_from_json:
-                        q['difficulty'] = '보통'
-                    count, error = load_original_questions_from_json(questions_from_json)
-                    
+                    if analyze_option:
+                        # AI 난이도 분석 로직
+                        questions_to_load = []
+                        progress_bar = st.progress(0, text="AI 난이도 분석 시작...")
+                        total_questions = len(questions_from_json)
+                        for i, q in enumerate(questions_from_json):
+                            difficulty = analyze_difficulty(q['question'])
+                            q['difficulty'] = difficulty
+                            questions_to_load.append(q)
+                            progress_value = (i + 1) / total_questions
+                            progress_bar.progress(progress_value, text=f"AI 난이도 분석 중... ({i + 1}/{total_questions})")
+                        
+                        st.toast("AI 분석 완료! DB에 저장합니다.", icon="🤖")
+                        count, error = load_original_questions_from_json(questions_to_load)
+                        progress_bar.empty()
+                    else:
+                        # AI 분석 안 할 때 로직
+                        for q in questions_from_json:
+                            q['difficulty'] = '보통'
+                        count, error = load_original_questions_from_json(questions_from_json)
+
+                    # --- 여기가 핵심 수정 부분 ---
+                    # if error: 블록을 st.button 블록 안으로 이동시켰습니다.
+                    if error:
+                        st.error(f"문제 저장 실패: {error}")
+                    else:
+                        st.success(f"모든 문제({count}개)를 성공적으로 불러왔습니다!")
+                        st.rerun()
+                    # --- 여기까지 ---
+
             with st.expander("⚠️ 문제 초기화 (주의)"):
                 if st.button("모든 원본 문제 삭제", type="secondary"):
                     clear_all_original_questions()
                     st.toast("모든 원본 문제가 삭제되었습니다.", icon="🗑️")
-                    st.rerun()
-
-                # --- 공통 결과 처리 ---
-                if error:
-                    st.error(f"문제 저장 실패: {error}")
-                else:
-                    st.success(f"모든 문제({count}개)를 성공적으로 불러왔습니다!")
                     st.rerun()
         st.write("---")
 
