@@ -4,7 +4,13 @@ Streamlit UI 컴포넌트를 생성하는 함수들을 모아놓은 모듈.
 문제 표시, 결과 표시 등 재사용 가능한 UI 로직을 담당합니다.
 """
 import streamlit as st
-
+# Do NOT call st.set_page_config or inject viewport meta here — keep those only in app.py.
+# ...existing code...
+ 
+# --- CSS Injection ---
+# 앱 전체에 적용될 커스텀 CSS 스타일을 한 번만 주입합니다.
+# 이 코드는 파일이 임포트될 때 한 번만 실행됩니다.
+# --- Minimal, safer CSS for iPhone Safari ---
 try:
     st.markdown(
 +        """<style>
