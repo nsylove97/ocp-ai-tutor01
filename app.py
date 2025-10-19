@@ -219,36 +219,64 @@ def render_management_page():
 
     with tab2:
         st.subheader("➕ 새로운 원본 문제 추가")
-        with st.form(key="add_form"):
-            # Quill 에디터
-            new_question_html = st_quill(placeholder="여기에 질문 내용을 입력하세요...", html=True)
-            # 미디어 파일 업로드
-            uploaded_file = st.file_uploader("이미지 또는 동영상 첨부 (선택 사항)", type=['png', 'jpg', 'jpeg', 'gif', 'mp4', 'mov'])
-            # 1. 선택지 개수를 입력받는 number_input 추가
-            # st.form 밖에서 상태를 관리해야 동적으로 UI가 변경되므로, session_state와 key를 사용합니다.
-            if 'new_option_count' not in st.session_state:
-                st.session_state.new_option_count = 5 # 기본값 설정
-            
-            st.number_input(
-                "선택지 개수:", 
-                min_value=2, 
-                max_value=10, # 최대 10개 (J까지)
-                key="new_option_count"
+        st.info("새로운 OCP 문제를 직접 추가하여 나만의 문제 은행을 만드세요.")
+    
+        # Quill 에디터 (HTML 형식으로 내용 반환)
+        # session_state에 임시로 저장하여 form 제출 시 값을 가져올 수 있도록 함
+        if 'temp_new_question' not in st.session_state:
+            st.session_state.temp_new_question = ""
+        st.session_state.temp_new_question = st_quill(
+            value=st.session_state.temp_new_question,
+            placeholder="여기에 질문 내용을 입력하세요...", 
+            html=True, 
+            key="quill_add"
+        )
+
+        # 미디어 파일 업로드 (form 밖)
+        uploaded_file = st.file_uploader("이미지 또는 동영상 첨부 (선택 사항)", type=['png', 'jpg', 'jpeg', 'gif', 'mp4', 'mov'], key="uploader_add")
+        
+        st.write("---")
+        st.subheader("선택지 및 정답 설정")
+
+        # 선택지 개수 조절 (form 밖)
+        if 'new_option_count' not in st.session_state:
+            st.session_state.new_option_count = 5
+        st.number_input(
+            "선택지 개수:", 
+            min_value=2, 
+            max_value=10,
+            key="new_option_count"
+        )
+
+        # 선택지 내용 입력 (form 밖)
+        # 입력된 내용은 session_state에 임시 저장
+        if 'temp_new_options' not in st.session_state:
+            st.session_state.temp_new_options = {}
+
+        for i in range(st.session_state.new_option_count):
+            letter = chr(ord('A') + i)
+            st.session_state.temp_new_options[letter] = st.text_input(
+                f"선택지 {letter}:", 
+                value=st.session_state.temp_new_options.get(letter, ""),
+                key=f"temp_option_{letter}"
             )
-            # 2. session_state에 저장된 개수만큼 동적으로 text_input 생성
-            new_options = {}
-            # chr(ord('A') + i)를 사용하여 A, B, C... 레이블 생성
-            for i in range(st.session_state.new_option_count):
-                letter = chr(ord('A') + i)
-                new_options[letter] = st.text_input(f"선택지 {letter}:", key=f"new_option_{letter}")
+        
+        with st.form(key="add_form_submit"):
+            st.markdown("**모든 내용을 입력했으면 아래 버튼을 눌러 추가하세요.**")
             
-            # 3. 유효한 선택지만을 대상으로 정답 multiselect 생성
-            valid_options = [letter for letter, text in new_options.items() if text.strip()]
+            # 정답 선택 (form 안)
+            # session_state에 저장된 임시 선택지 값을 가져와서 사용
+            valid_options = [letter for letter, text in st.session_state.temp_new_options.items() if text.strip()]
             new_answer = st.multiselect("정답 선택:", options=valid_options)
-            submitted = st.form_submit_button("새 문제 추가하기")
+            
+            submitted = st.form_submit_button("✅ 새 문제 추가하기")
 
             if submitted:
-                # 유효성 검사 (이전과 동일)
+                # 제출 시, session_state에 저장된 임시 값들을 가져와 처리
+                new_question_html = st.session_state.temp_new_question
+                new_options = st.session_state.temp_new_options
+                
+                # 유효성 검사
                 if not new_question_html or not new_question_html.strip() or new_question_html == '<p><br></p>':
                     st.error("질문 내용을 입력해야 합니다.")
                 elif not valid_options:
@@ -256,6 +284,8 @@ def render_management_page():
                 elif not new_answer:
                     st.error("정답을 하나 이상 선택해야 합니다.")
                 else:
+                    # 미디어 파일 처리
+                    # (uploaded_file은 form 밖에 있으므로, 이 시점에 값을 직접 사용할 수 있음)
                     media_url, media_type = None, None
                     if uploaded_file is not None:
                         file_path = os.path.join(MEDIA_DIR, uploaded_file.name)
@@ -263,10 +293,15 @@ def render_management_page():
                             f.write(uploaded_file.getbuffer())
                         media_url = file_path
                         media_type = 'image' if uploaded_file.type.startswith('image') else 'video'
-                        pass
-
+                    
                     final_options = {key: value for key, value in new_options.items() if key in valid_options}
                     new_id = add_new_original_question(new_question_html, final_options, new_answer, media_url, media_type)
+                    
+                    # 성공 후 임시 상태 초기화
+                    st.session_state.temp_new_question = ""
+                    st.session_state.temp_new_options = {}
+                    # uploaded_file은 직접 초기화 불가, 하지만 다음 rerun 시 초기화됨
+                    
                     st.success(f"성공적으로 새로운 문제(ID: {new_id})를 추가했습니다!")
                     st.balloons()
 
