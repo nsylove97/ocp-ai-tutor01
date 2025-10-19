@@ -562,11 +562,12 @@ def run_main_app(authenticator, all_user_info):
         st.toast("초기화되었습니다.", icon="🔄")
         st.rerun()
 
+# --- Main Application Entry Point ---
 def main():
     """메인 실행 함수"""
     st.set_page_config(page_title="Oracle OCP AI 튜터", layout="wide", initial_sidebar_state="expanded")
 
-    # --- 1. DB 및 마스터 계정 설정 (백그라운드 작업, UI 출력 없음) ---
+    # --- 1. DB 및 마스터 계정 설정 (백그라운드 작업) ---
     if 'db_setup_done' not in st.session_state:
         setup_database_tables()
         credentials, _ = fetch_all_users()
@@ -580,64 +581,63 @@ def main():
     credentials, all_user_info = fetch_all_users()
     authenticator = stauth.Authenticate(
         credentials,
-        "ocp_cookie_v2",
-        "auth_key_v2",
+        "ocp_cookie_v3", # 쿠키 이름/키를 변경하여 이전 로그인 정보 초기화
+        "auth_key_v3",
         30
     )
 
-    # --- 3. 로그인 상태 확인 ---
-    # 페이지가 다시 로드될 때마다 로그인 상태를 먼저 확인합니다.
-    # 이 부분은 UI를 그리지 않고, 내부 상태만 업데이트합니다.
-    authenticator.login()
+    # --- 3. 로그인 위젯을 먼저 렌더링하고 상태를 받음 ---
+    # authenticator.login()은 이제 튜플을 반환합니다.
+    name, authentication_status, username = authenticator.login(location='main')
 
-    # --- 4. 인증 상태에 따라 화면 분기 ---
-    if st.session_state.get("authentication_status"):
+    # --- 4. 인증 상태에 따라 화면을 완벽하게 분기 ---
+    if authentication_status:
         # --- 4a. 로그인 성공 시 ---
-        # 로그인 폼을 더 이상 그릴 필요가 없으므로, 메인 앱 로직을 바로 실행합니다.
+        # 로그인 성공 후에는 run_main_app만 실행하고 main 함수를 종료합니다.
         run_main_app(authenticator, all_user_info)
+        return # ★★★★★ 이 return 문이 핵심입니다 ★★★★★
 
-    else:
-        # --- 4b. 로그인하지 않은 경우 ---
-        st.title("🚀 Oracle OCP AI 튜터") # 로그인 페이지에도 제목 표시
-        st.markdown("---")
-        
-        # 로그인 폼을 그릴 자리를 만듭니다.
-        login_placeholder = st.empty()
-        
-        with login_placeholder.container():
-            # 이전에 authenticator.login()이 반환하던 값을 직접 session_state에서 확인합니다.
-            if st.session_state.get("authentication_status") is False:
-                st.error('아이디 또는 비밀번호가 일치하지 않습니다.')
-            elif st.session_state.get("authentication_status") is None:
-                st.info('로그인하거나 아래에서 새 계정을 만들어주세요.')
+    elif authentication_status == False:
+        # --- 4b. 로그인 실패 시 ---
+        st.error('아이디 또는 비밀번호가 일치하지 않습니다.')
 
-        # 회원가입 폼 렌더링
-        st.write("---")
-        with st.expander("새 계정 만들기"):
-            try:
-                # register_user 위젯은 고유한 form key를 사용하므로 login과 충돌하지 않습니다.
-                if authenticator.register_user('회원가입', preauthorization=False):
-                    username = st.session_state.get("username")
-                    name = st.session_state.get("name")
-                    password = st.session_state.get("password")
+    elif authentication_status == None:
+        # --- 4c. 로그인하지 않은 상태 (초기 화면) ---
+        st.info('로그인하거나 아래에서 새 계정을 만들어주세요.')
 
-                    if all((username, name, password)):
-                        hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-                        success, msg = add_new_user(username, name, hashed_password)
-                        if success:
-                            st.success('회원가입이 완료되었습니다. 위에서 로그인해주세요.')
-                            st.rerun() # 회원가입 성공 후 상태 갱신
-                        else:
-                            st.error(msg)
-            except Exception as e:
-                st.error(e)
+    # --- 5. 로그인하지 않았을 때만 회원가입 폼을 표시 ---
+    st.write("---")
+    with st.expander("새 계정 만들기"):
+        try:
+            if authenticator.register_user('회원가입', preauthorization=False):
+                # 성공 메시지는 라이브러리가 기본으로 보여줄 수 있으므로,
+                # 여기서는 DB 저장 로직만 확실히 처리합니다.
+                new_username = st.session_state.get("username_register")
+                new_name = st.session_state.get("name_register")
+                new_password = st.session_state.get("password_register")
+                
+                if all((new_username, new_name, new_password)):
+                    hashed_password = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+                    success, msg = add_new_user(new_username, new_name, hashed_password)
+                    if success:
+                        st.success('회원가입이 완료되었습니다. 위에서 로그인해주세요.')
+                    else:
+                        st.error(msg)
+        except Exception as e:
+            st.error(e)
 
 def run_main_app(authenticator, all_user_info):
-    """로그인 성공 후 실행되는 메인 앱 로직."""
+    """
+    로그인 성공 후 실행되는 메인 앱 로직.
+    사이드바 메뉴와 현재 선택된 뷰에 따른 메인 콘텐츠를 렌더링합니다.
+    """
     username = st.session_state.get("username")
     name = st.session_state.get("name")
     
-    # 관리자 여부 확인
+    # 앱의 메인 제목을 여기서 렌더링
+    st.title("🚀 Oracle OCP AI 튜터")
+    
+    # 관리자 여부 확인 및 세션 상태에 저장
     st.session_state.is_admin = (all_user_info.get(username, {}).get('role') == 'admin')
 
     # 사이드바 렌더링
@@ -646,25 +646,87 @@ def run_main_app(authenticator, all_user_info):
         authenticator.logout('로그아웃', key='main_logout')
         st.write("---")
         st.title("메뉴")
-        # ... (이전 사이드바 버튼 로직)
         
+        # --- 사이드바 메뉴 버튼 로직 ---
+        menu_items = {
+            "home": "📝 퀴즈 풀기", 
+            "notes": "📒 오답 노트", 
+            "analytics": "📈 학습 통계", 
+            "manage": "⚙️ 설정 및 관리"
+        }
+        for view_key, label in menu_items.items():
+            # 현재 뷰와 일치하는 버튼은 'primary' 타입으로 강조 표시
+            button_type = "primary" if st.session_state.current_view == view_key else "secondary"
+            if st.button(label, use_container_width=True, type=button_type):
+                # 다른 메뉴를 클릭했을 때만 상태 변경 및 rerun
+                if st.session_state.current_view != view_key:
+                    st.session_state.current_view = view_key
+                    # '퀴즈 풀기' 메뉴를 누르면 퀴즈 관련 상태를 초기화
+                    if view_key == 'home':
+                        st.session_state.questions_to_solve = []
+                        st.session_state.user_answers = {}
+                        st.session_state.current_question_index = 0
+                    st.rerun()
+
+        # --- 앱 관리 버튼 로직  ---
+        st.write("---")
+        st.subheader("앱 관리")
+
+        if st.button("현재 학습 초기화", use_container_width=True):
+            # 로그인 상태와 DB 설정 상태를 제외한 모든 세션 상태를 초기화
+            keys_to_keep = ['authentication_status', 'name', 'username', 'logout', 'db_setup_done']
+            for key in list(st.session_state.keys()):
+                if key not in keys_to_keep:
+                    del st.session_state[key]
+            st.toast("현재 학습 상태가 초기화되었습니다.", icon="🔄")
+            st.rerun()
+
+        with st.expander("⚠️ 전체 데이터 초기화"):
+            st.warning("모든 오답 기록과 AI 생성 문제를 영구적으로 삭제합니다.")
+            if st.button("모든 학습 기록 삭제", type="primary", use_container_width=True):
+                from db_utils import clear_all_modified_questions, get_db_connection
+                conn = get_db_connection()
+                # 현재 사용자의 오답 기록만 삭제 (개인화 반영)
+                conn.execute("DELETE FROM user_answers WHERE username = ?", (username,))
+                conn.commit()
+                conn.close()
+                # AI 변형 문제는 모든 사용자가 공유하므로 그대로 전체 삭제
+                if st.session_state.is_admin: # 관리자만 AI 문제 전체 삭제 가능
+                    clear_all_modified_questions()
+                    st.toast("모든 AI 변형 문제가 삭제되었습니다.", icon="💥")
+                
+                st.toast(f"{name}님의 모든 학습 기록이 삭제되었습니다.", icon="🗑️")
+                st.session_state.clear() # 세션 완전 초기화 후 재로그인 유도
+                st.rerun()
+        
+    # --- initialize_session_state 호출 ---
+    # 이 함수는 필요한 모든 세션 상태 변수가 존재하는지 확인하고 없으면 생성합니다.
     initialize_session_state()
 
-    # 메인 콘텐츠 렌더링
+    # --- 메인 콘텐츠 렌더링 ---
+    # 뷰 이름과 렌더링 함수를 매핑하는 딕셔너리
     view_map = {
         "home": render_home_page,
         "quiz": render_quiz_page,
-        "results": lambda: render_results_page(username),
-        "notes": lambda: render_notes_page(username),
-        "manage": lambda: render_management_page(username),
-        "analytics": lambda: render_analytics_page(username),
+        "results": render_results_page,
+        "notes": render_notes_page,
+        "manage": render_management_page,
+        "analytics": render_analytics_page,
     }
+    
+    # 현재 뷰에 맞는 렌더링 함수를 가져옴. 없으면 홈으로.
     render_func = view_map.get(st.session_state.current_view, render_home_page)
+    
+    # 렌더링 함수를 호출. username 인자가 필요한 경우와 아닌 경우를 구분.
     if render_func:
-        # username 인자가 필요한 함수에만 전달
-        if st.session_state.current_view in ['notes', 'manage', 'analytics', 'results']:
+        # username 인자가 필요한 함수들의 목록
+        views_requiring_username = ['notes', 'manage', 'analytics', 'results']
+        
+        if st.session_state.current_view in views_requiring_username:
+            # 해당 뷰일 경우 username을 인자로 전달하여 호출
             render_func(username=username)
         else:
+            # 그 외의 뷰는 인자 없이 호출
             render_func()
 
 # --- 스크립트가 직접 실행될 때만 main() 함수를 호출 ---
