@@ -1,8 +1,6 @@
 # app.py
 
-"""
-Oracle OCP AI 튜터 메인 애플리케이션 파일
-"""
+# --- 1. Standard & 3rd Party Libraries ---
 import streamlit as st
 import streamlit_authenticator as stauth
 import bcrypt
@@ -13,10 +11,17 @@ from dotenv import load_dotenv
 from streamlit_quill import st_quill
 from streamlit_modal import Modal
 
-# --- Custom Modules ---
-# 순서: 의존성이 없는 모듈부터 임포트
+# --- 2. Custom Modules ---
 from gemini_handler import generate_explanation, generate_modified_question, analyze_difficulty
-from db_utils import * 
+# db_utils는 함수 단위로 명시적으로 임포트하여 가독성 및 안정성 향상
+from db_utils import (
+    setup_database_tables, load_original_questions_from_json, get_db_connection,
+    get_all_question_ids, get_question_by_id, add_new_original_question, update_original_question,
+    get_wrong_answers, delete_wrong_answer, get_all_modified_questions, save_modified_question,
+    delete_modified_question, clear_all_modified_questions, get_stats, get_top_5_missed,
+    fetch_all_users, add_new_user, delete_user, get_all_users_for_admin, ensure_master_account,
+    get_question_ids_by_difficulty, clear_all_original_questions, export_questions_to_json_format
+)
 from ui_components import display_question, display_results
 
 # --- Constants ---
@@ -26,7 +31,6 @@ if not os.path.exists(MEDIA_DIR):
     os.makedirs(MEDIA_DIR)
 MASTER_ACCOUNT_USERNAME = "admin"
 MASTER_ACCOUNT_NAME = "Master Admin"
-# 코드에서 비밀번호를 직접 적는 대신, os.environ.get()으로 환경 변수를 읽어옵니다.
 MASTER_ACCOUNT_PASSWORD = os.environ.get("MASTER_PASSWORD")
 
 # 만약 .env 파일에 MASTER_PASSWORD가 설정되지 않았을 경우를 대비한 방어 코드
@@ -190,19 +194,13 @@ def render_results_page(username):
 def render_management_page(username):
     """
     문제 추가/편집, 오답 노트, 사용자 관리 등 앱의 설정 및 데이터 관리 화면을 렌더링합니다.
-    관리자와 일반 사용자에 따라 다른 탭을 표시합니다.
     """
     st.header("⚙️ 설정 및 관리")
     is_admin = st.session_state.get('is_admin', False)
 
-    # 공통 탭과 조건부 탭 목록 정의
-    common_tab_list = ["원본 문제 데이터", "문제 추가", "문제 편집", "오답 노트 관리", "AI 변형 문제 관리"]
-    if is_admin:
-        tab_list = ["👑 사용자 관리"] + common_tab_list
-    else:
-        tab_list = ["👋 회원 탈퇴"] + common_tab_list
-    
-    # st.tabs를 한 번만 호출하여 모든 탭 객체를 리스트로 받음
+    # 탭 목록 정의
+    common_tabs = ["원본 문제 데이터", "문제 추가", "문제 편집", "오답 노트 관리", "AI 변형 문제 관리"]
+    tab_list = ["👑 사용자 관리"] + common_tabs if is_admin else ["👋 회원 탈퇴"] + common_tabs
     tabs = st.tabs(tab_list)
     
     # --- 조건부 탭 (첫 번째 탭) ---
@@ -263,87 +261,73 @@ def render_management_page(username):
 
     # --- 공통 탭 (두 번째 탭부터) ---
     with tabs[1]: # 원본 문제 데이터
-        st.subheader("📚 원본 문제 데이터")
+        st.subheader("📚 원본 문제 데이터 관리")
+        
+        # --- UI 레이아웃 구성 ---
         col1, col2 = st.columns(2)
-        with col1:
+        with col1: # 불러오기 및 초기화
             st.info("JSON 파일의 문제를 DB로 불러오거나, DB의 문제를 초기화합니다.")
             num_q = len(get_all_question_ids('original'))
             st.metric("현재 DB에 저장된 문제 수", f"{num_q} 개")
             
-            # AI 난이도 분석 옵션
-            analyze_option = st.checkbox("🤖 AI로 자동 난이도 분석 실행", value=False)
+            analyze_option = st.checkbox("🤖 AI로 자동 난이도 분석 실행 (시간 소요)", value=False)
             
-            if st.button("JSON에서 문제 불러오기", type="primary"):
+            if st.button("JSON에서 문제 불러오기", type="primary", use_container_width=True):
                 try:
                     with open('questions_final.json', 'r', encoding='utf-8') as f:
                         questions_from_json = json.load(f)
                 except FileNotFoundError:
                     st.error("`questions_final.json` 파일을 찾을 수 없습니다.")
-                    st.stop() # 파일을 못 찾으면 더 이상 진행하지 않음
+                    st.stop()
                 
                 if not questions_from_json:
                     st.warning("JSON 파일에 문제가 없습니다.")
                 else:
+                    questions_to_load = []
                     if analyze_option:
-                        # AI 난이도 분석 로직
-                        questions_to_load = []
                         progress_bar = st.progress(0, text="AI 난이도 분석 시작...")
-                        total_questions = len(questions_from_json)
+                        total = len(questions_from_json)
                         for i, q in enumerate(questions_from_json):
-                            difficulty = analyze_difficulty(q['question'])
-                            q['difficulty'] = difficulty
+                            q['difficulty'] = analyze_difficulty(q['question'])
                             questions_to_load.append(q)
-                            progress_value = (i + 1) / total_questions
-                            progress_bar.progress(progress_value, text=f"AI 난이도 분석 중... ({i + 1}/{total_questions})")
-                        
-                        st.toast("AI 분석 완료! DB에 저장합니다.", icon="🤖")
-                        count, error = load_original_questions_from_json(questions_to_load)
+                            progress_bar.progress((i + 1) / total, text=f"AI 분석 중... ({i+1}/{total})")
                         progress_bar.empty()
+                        st.toast("AI 분석 완료! DB에 저장합니다.", icon="🤖")
                     else:
-                        # AI 분석 안 할 때 로직
                         for q in questions_from_json:
                             q['difficulty'] = '보통'
-                        count, error = load_original_questions_from_json(questions_from_json)
+                        questions_to_load = questions_from_json
 
-                    # --- 여기가 핵심 수정 부분 ---
-                    # if error: 블록을 st.button 블록 안으로 이동시켰습니다.
+                    count, error = load_original_questions_from_json(questions_to_load)
                     if error:
                         st.error(f"문제 저장 실패: {error}")
                     else:
                         st.success(f"모든 문제({count}개)를 성공적으로 불러왔습니다!")
                         st.rerun()
-                    # --- 여기까지 ---
 
             with st.expander("⚠️ 문제 초기화 (주의)"):
-                if st.button("모든 원본 문제 삭제", type="secondary"):
+                if st.button("모든 원본 문제 삭제", type="secondary", use_container_width=True):
                     clear_all_original_questions()
                     st.toast("모든 원본 문제가 삭제되었습니다.", icon="🗑️")
                     st.rerun()
-        st.write("---")
-
-        with col2:
+        
+        with col2: # 내보내기
             st.info("현재 DB 데이터를 JSON 파일로 저장(내보내기)합니다.")
-            
-            # 1. DB에서 데이터를 가져와 JSON 문자열로 변환
             questions_to_export = export_questions_to_json_format()
-            # json.dumps를 사용하여 예쁘게 포맷팅된 문자열로 만듦 (indent=4)
-            json_string_to_export = json.dumps(questions_to_export, indent=4, ensure_ascii=False)
+            json_string = json.dumps(questions_to_export, indent=4, ensure_ascii=False)
             
             st.metric("내보낼 문제 수", f"{len(questions_to_export)} 개")
-
-            # 2. st.download_button을 사용하여 파일 다운로드 기능 제공
+            
             st.download_button(
-               label="📥 JSON 파일로 다운로드",
-               data=json_string_to_export,
-               file_name="questions_updated.json", # 다운로드될 파일 이름
-               mime="application/json",
+               label="📥 JSON 파일로 다운로드", data=json_string,
+               file_name="questions_updated.json", mime="application/json"
             )
-
+            
             st.warning("아래 버튼은 서버의 `questions_final.json` 파일을 직접 덮어씁니다.")
             if st.button("서버 파일에 덮어쓰기"):
                 try:
                     with open("questions_final.json", "w", encoding="utf-8") as f:
-                        f.write(json_string_to_export)
+                        f.write(json_string)
                     st.success("`questions_final.json` 파일이 업데이트되었습니다!")
                 except Exception as e:
                     st.error(f"파일 쓰기 중 오류 발생: {e}")
@@ -531,43 +515,68 @@ def run_main_app(authenticator, all_user_info):
     """로그인 성공 후 실행되는 메인 앱 로직."""
     username = st.session_state.get("username")
     name = st.session_state.get("name")
-    
-    # 관리자 여부 확인
+    initialize_session_state()
+    st.title("🚀 Oracle OCP AI 튜터")
     st.session_state.is_admin = (all_user_info.get(username, {}).get('role') == 'admin')
 
-    # 사이드바 렌더링
-    st.sidebar.title(f"환영합니다, {name}님!")
-    authenticator.logout('로그아웃', 'sidebar', key='main_logout')
-    
-    initialize_session_state()
+    with st.sidebar:
+        st.title(f"환영합니다, {name}님!")
+        authenticator.logout('로그아웃', key='main_logout')
+        st.write("---")
+        st.title("메뉴")
+        
+        menu_items = { "home": "📝 퀴즈 풀기", "notes": "📒 오답 노트", "analytics": "📈 학습 통계", "manage": "⚙️ 설정 및 관리" }
+        for view_key, label in menu_items.items():
+            button_type = "primary" if st.session_state.current_view == view_key else "secondary"
+            if st.button(label, use_container_width=True, type=button_type):
+                if st.session_state.current_view != view_key:
+                    st.session_state.current_view = view_key
+                    if view_key == 'home':
+                        st.session_state.questions_to_solve = []
+                        st.session_state.user_answers = {}
+                        st.session_state.current_question_index = 0
+                    st.rerun()
 
-    st.sidebar.write("---")
-    st.sidebar.title("메뉴")
-    menu = {"home": "📝 퀴즈 풀기", "notes": "📒 오답 노트", "analytics": "📈 학습 통계", "manage": "⚙️ 설정 및 관리"}
-    for view, label in menu.items():
-        if st.sidebar.button(label, use_container_width=True, type="primary" if st.session_state.current_view == view else "secondary"):
-            if st.session_state.current_view != view:
-                st.session_state.current_view = view
-                if view == 'home':
-                    st.session_state.questions_to_solve = []
-                    st.session_state.user_answers = {}
-                    st.session_state.current_question_index = 0
+        st.write("---")
+        st.subheader("앱 관리")
+        if st.button("현재 학습 초기화", use_container_width=True):
+            keys_to_keep = ['authentication_status', 'name', 'username', 'logout', 'db_setup_done', 'current_view']
+            for key in list(st.session_state.keys()):
+                if key not in keys_to_keep: del st.session_state[key]
+            st.toast("현재 학습 상태가 초기화되었습니다.", icon="🔄")
+            st.rerun()
+        with st.expander("⚠️ 전체 데이터 초기화"):
+            st.warning("로그인한 사용자의 모든 오답 기록과 (관리자인 경우) AI 변형 문제를 영구적으로 삭제합니다.")
+            if st.button("모든 학습 기록 삭제", type="primary", use_container_width=True):
+                conn = get_db_connection()
+                conn.execute("DELETE FROM user_answers WHERE username = ?", (username,))
+                conn.commit()
+                conn.close()
+                if st.session_state.is_admin:
+                    clear_all_modified_questions()
+                    st.toast("모든 AI 변형 문제가 삭제되었습니다.", icon="💥")
+                st.toast(f"{name}님의 모든 학습 기록이 삭제되었습니다.", icon="🗑️")
+                st.session_state.clear()
                 st.rerun()
+        
+    view_map = {
+        "home": render_home_page, "quiz": render_quiz_page, "results": render_results_page,
+        "notes": render_notes_page, "manage": render_management_page, "analytics": render_analytics_page,
+    }
+    render_func = view_map.get(st.session_state.current_view, render_home_page)
+    
+    if render_func:
+        views_requiring_username = ['notes', 'manage', 'analytics', 'results']
+        if st.session_state.current_view in views_requiring_username:
+            render_func(username=username)
+        else:
+            render_func()
 
-    st.sidebar.write("---")
-    if st.sidebar.button("학습 초기화", use_container_width=True):
-        for k in list(st.session_state.keys()):
-            if k not in ['authentication_status', 'name', 'username', 'logout', 'current_view', 'db_setup_done']:
-                del st.session_state[k]
-        st.toast("초기화되었습니다.", icon="🔄")
-        st.rerun()
-
-# --- Main Application Entry Point ---
+# --- 7. Main Application Entry Point ---
 def main():
-    """메인 실행 함수"""
+    """메인 실행 함수: 앱의 시작점"""
     st.set_page_config(page_title="Oracle OCP AI 튜터", layout="wide", initial_sidebar_state="expanded")
 
-    # --- 1. DB 및 마스터 계정 설정 (백그라운드 작업) ---
     if 'db_setup_done' not in st.session_state:
         setup_database_tables()
         credentials, _ = fetch_all_users()
@@ -577,173 +586,35 @@ def main():
             st.toast(f"관리자 계정 '{MASTER_ACCOUNT_USERNAME}' 설정 완료!", icon="👑")
         st.session_state.db_setup_done = True
     
-    # --- 2. 인증 객체 생성 ---
     credentials, all_user_info = fetch_all_users()
-    authenticator = stauth.Authenticate(
-        credentials,
-        "ocp_cookie_v3",
-        "auth_key_v3",
-        30
-    )
+    authenticator = stauth.Authenticate(credentials, "ocp_cookie_v3", "auth_key_v3", 30)
 
-    # --- 3. 로그인 위젯 렌더링 및 상태 값 받기 ---
-    login_result = authenticator.login(location='main')
+    name, authentication_status, username = authenticator.login('로그인', 'main')
 
-    # login_result가 None일 경우를 대비하여 기본값 설정
-    if login_result:
-        name, authentication_status, username = login_result
-    else:
-        # st.session_state에 저장된 값을 사용하거나, 기본값으로 설정
-        name = st.session_state.get("name")
-        authentication_status = st.session_state.get("authentication_status")
-        username = st.session_state.get("username")
-    # --- 여기까지 수정 ---
-
-    # --- 4. 인증 상태에 따라 화면을 완벽하게 분기 ---
     if authentication_status:
-        # --- 4a. 로그인 성공 시 ---
         run_main_app(authenticator, all_user_info)
-        return
-
-    # --- 5. 로그인하지 않았을 때의 UI ---
-    # 로그인 실패 또는 초기 상태 메시지
-    st.title("🚀 Oracle OCP AI 튜터") # 로그인 페이지에도 제목 표시
-    st.markdown("---")
-    
-    if authentication_status == False:
+    elif authentication_status == False:
         st.error('아이디 또는 비밀번호가 일치하지 않습니다.')
-    elif authentication_status == None:
+    elif authentication_status is None:
+        st.title("🚀 Oracle OCP AI 튜터")
         st.info('로그인하거나 아래에서 새 계정을 만들어주세요.')
-    
-    # 회원가입 폼 렌더링
-    st.write("---")
-    with st.expander("새 계정 만들기"):
-        try:
-            # register_user 위젯 사용
-            if authenticator.register_user('회원가입', preauthorization=False):
-                # 최신 라이브러리에서는 register_user 성공 시 st.session_state에 값이 저장됨
-                reg_username = st.session_state.get("username_register")
-                reg_name = st.session_state.get("name_register")
-                reg_password = st.session_state.get("password_register")
-
-                if all((reg_username, reg_name, reg_password)):
-                    # 관리자 ID로 가입 시도 방지
-                    if reg_username == MASTER_ACCOUNT_USERNAME:
-                        st.error(f"'{MASTER_ACCOUNT_USERNAME}'은 예약된 아이디입니다.")
-                    else:
-                        hashed_password = bcrypt.hashpw(reg_password.encode(), bcrypt.gensalt()).decode()
-                        success, msg = add_new_user(reg_username, reg_name, hashed_password)
-                        if success:
-                            st.success('회원가입이 완료되었습니다. 위에서 로그인해주세요.')
+        with st.expander("새 계정 만들기"):
+            try:
+                if authenticator.register_user('회원가입', preauthorization=False):
+                    reg_username = st.session_state.get("username_register")
+                    reg_name = st.session_state.get("name_register")
+                    reg_password = st.session_state.get("password_register")
+                    if all((reg_username, reg_name, reg_password)):
+                        if reg_username == MASTER_ACCOUNT_USERNAME:
+                            st.error(f"'{MASTER_ACCOUNT_USERNAME}'은 예약된 아이디입니다.")
                         else:
-                            st.error(msg)
-        except Exception as e:
-            st.error(f"회원가입 처리 중 오류 발생: {e}")
+                            hashed_pw = bcrypt.hashpw(reg_password.encode(), bcrypt.gensalt()).decode()
+                            success, msg = add_new_user(reg_username, reg_name, hashed_pw)
+                            if success: st.success('회원가입 완료! 로그인해주세요.')
+                            else: st.error(msg)
+            except Exception as e:
+                st.error(e)
 
-def run_main_app(authenticator, all_user_info):
-    """
-    로그인 성공 후 실행되는 메인 앱 로직.
-    사이드바 메뉴와 현재 선택된 뷰에 따른 메인 콘텐츠를 렌더링합니다.
-    """
-    username = st.session_state.get("username")
-    name = st.session_state.get("name")
-    initialize_session_state()
-    
-    # 앱의 메인 제목을 여기서 렌더링
-    st.title("🚀 Oracle OCP AI 튜터")
-    
-    # 관리자 여부 확인 및 세션 상태에 저장
-    st.session_state.is_admin = (all_user_info.get(username, {}).get('role') == 'admin')
-
-    # 사이드바 렌더링
-    with st.sidebar:
-        st.title(f"환영합니다, {name}님!")
-        authenticator.logout('로그아웃', key='main_logout')
-        st.write("---")
-        st.title("메뉴")
-        
-        # --- 사이드바 메뉴 버튼 로직 ---
-        menu_items = {
-            "home": "📝 퀴즈 풀기", 
-            "notes": "📒 오답 노트", 
-            "analytics": "📈 학습 통계", 
-            "manage": "⚙️ 설정 및 관리"
-        }
-        for view_key, label in menu_items.items():
-            # 현재 뷰와 일치하는 버튼은 'primary' 타입으로 강조 표시
-            button_type = "primary" if st.session_state.current_view == view_key else "secondary"
-            if st.button(label, use_container_width=True, type=button_type):
-                # 다른 메뉴를 클릭했을 때만 상태 변경 및 rerun
-                if st.session_state.current_view != view_key:
-                    st.session_state.current_view = view_key
-                    # '퀴즈 풀기' 메뉴를 누르면 퀴즈 관련 상태를 초기화
-                    if view_key == 'home':
-                        st.session_state.questions_to_solve = []
-                        st.session_state.user_answers = {}
-                        st.session_state.current_question_index = 0
-                    st.rerun()
-
-        # --- 앱 관리 버튼 로직  ---
-        st.write("---")
-        st.subheader("앱 관리")
-
-        if st.button("현재 학습 초기화", use_container_width=True):
-            # 로그인 상태와 DB 설정 상태를 제외한 모든 세션 상태를 초기화
-            keys_to_keep = ['authentication_status', 'name', 'username', 'logout', 'db_setup_done']
-            for key in list(st.session_state.keys()):
-                if key not in keys_to_keep:
-                    del st.session_state[key]
-            st.toast("현재 학습 상태가 초기화되었습니다.", icon="🔄")
-            st.rerun()
-
-        with st.expander("⚠️ 전체 데이터 초기화"):
-            st.warning("모든 오답 기록과 AI 생성 문제를 영구적으로 삭제합니다.")
-            if st.button("모든 학습 기록 삭제", type="primary", use_container_width=True):
-                from db_utils import clear_all_modified_questions, get_db_connection
-                conn = get_db_connection()
-                # 현재 사용자의 오답 기록만 삭제 (개인화 반영)
-                conn.execute("DELETE FROM user_answers WHERE username = ?", (username,))
-                conn.commit()
-                conn.close()
-                # AI 변형 문제는 모든 사용자가 공유하므로 그대로 전체 삭제
-                if st.session_state.is_admin: # 관리자만 AI 문제 전체 삭제 가능
-                    clear_all_modified_questions()
-                    st.toast("모든 AI 변형 문제가 삭제되었습니다.", icon="💥")
-                
-                st.toast(f"{name}님의 모든 학습 기록이 삭제되었습니다.", icon="🗑️")
-                st.session_state.clear() # 세션 완전 초기화 후 재로그인 유도
-                st.rerun()
-        
-    # --- initialize_session_state 호출 ---
-    # 이 함수는 필요한 모든 세션 상태 변수가 존재하는지 확인하고 없으면 생성합니다.
-    initialize_session_state()
-
-    # --- 메인 콘텐츠 렌더링 ---
-    # 뷰 이름과 렌더링 함수를 매핑하는 딕셔너리
-    view_map = {
-        "home": render_home_page,
-        "quiz": render_quiz_page,
-        "results": render_results_page,
-        "notes": render_notes_page,
-        "manage": render_management_page,
-        "analytics": render_analytics_page,
-    }
-    
-    # 현재 뷰에 맞는 렌더링 함수를 가져옴. 없으면 홈으로.
-    render_func = view_map.get(st.session_state.current_view, render_home_page)
-    
-    # 렌더링 함수를 호출. username 인자가 필요한 경우와 아닌 경우를 구분.
-    if render_func:
-        # username 인자가 필요한 함수들의 목록
-        views_requiring_username = ['notes', 'manage', 'analytics', 'results']
-        
-        if st.session_state.current_view in views_requiring_username:
-            # 해당 뷰일 경우 username을 인자로 전달하여 호출
-            render_func(username=username)
-        else:
-            # 그 외의 뷰는 인자 없이 호출
-            render_func()
-
-# --- 스크립트가 직접 실행될 때만 main() 함수를 호출 ---
+# --- 8. Script Execution Block ---
 if __name__ == "__main__":
     main()

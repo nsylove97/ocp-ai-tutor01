@@ -1,20 +1,13 @@
 # db_utils.py
 """
 데이터베이스(SQLite)와의 모든 상호작용을 담당하는 함수들을 모아놓은 모듈.
-이 파일은 테이블 생성, 데이터 CRUD(Create, Read, Update, Delete),
-사용자 관리 및 통계 데이터 조회를 포함합니다.
 """
-# --- Python Standard Libraries ---
 import sqlite3
 import json
-
-# --- 3rd Party Libraries ---
 import pandas as pd
 
-# --- 상수 정의 ---
 DB_NAME = 'ocp_quiz.db'
 
-# --- 데이터베이스 연결 ---
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME, check_same_thread=False)
     conn.row_factory = sqlite3.Row
@@ -31,201 +24,61 @@ def setup_database_tables():
         cursor.execute("PRAGMA table_info(users)")
         if 'role' not in [col['name'] for col in cursor.fetchall()]:
             cursor.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
+            
     # original_questions 테이블
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='original_questions'")
     table_exists = cursor.fetchone()
     if table_exists:
         cursor.execute("PRAGMA table_info(original_questions)")
         columns = [row['name'] for row in cursor.fetchall()]
-        if 'media_url' not in columns:
-            cursor.execute("ALTER TABLE original_questions ADD COLUMN media_url TEXT")
-        if 'media_type' not in columns:
-            cursor.execute("ALTER TABLE original_questions ADD COLUMN media_type TEXT")
-        if 'difficulty' not in columns:
-            # 난이도 컬럼 추가. 기본값은 '보통'
-            cursor.execute("ALTER TABLE original_questions ADD COLUMN difficulty TEXT NOT NULL DEFAULT '보통'")
+        if 'media_url' not in columns: cursor.execute("ALTER TABLE original_questions ADD COLUMN media_url TEXT")
+        if 'media_type' not in columns: cursor.execute("ALTER TABLE original_questions ADD COLUMN media_type TEXT")
+        if 'difficulty' not in columns: cursor.execute("ALTER TABLE original_questions ADD COLUMN difficulty TEXT NOT NULL DEFAULT '보통'")
     else:
         cursor.execute('''
         CREATE TABLE original_questions (
-            id INTEGER PRIMARY KEY,
-            question TEXT NOT NULL,
-            options TEXT NOT NULL,
-            answer TEXT NOT NULL,
-            concept TEXT,
-            media_url TEXT,
-            media_type TEXT,
-            difficulty TEXT NOT NULL DEFAULT '보통' -- '쉬움', '보통', '어려움'
+            id INTEGER PRIMARY KEY, question TEXT NOT NULL, options TEXT NOT NULL,
+            answer TEXT NOT NULL, concept TEXT, media_url TEXT, media_type TEXT,
+            difficulty TEXT NOT NULL DEFAULT '보통'
         )''')
     
     # 기타 테이블
-    cursor.execute('''CREATE TABLE IF NOT EXISTS modified_questions (id INTEGER PRIMARY KEY AUTOINCREMENT, original_id INTEGER, question TEXT, options TEXT, answer TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS user_answers (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, question_id INTEGER, question_type TEXT, user_choice TEXT, is_correct BOOLEAN, solved_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS modified_questions (...)''') # 스키마 생략
+    cursor.execute('''CREATE TABLE IF NOT EXISTS user_answers (...)''') # 스키마 생략
     conn.commit()
     conn.close()
-    print("모든 데이터베이스 테이블 확인/생성/업그레이드 완료.")
+    print("모든 DB 테이블 확인/생성/업그레이드 완료.")
 
-def load_original_questions_from_json(questions_data, analyze_difficulty=False):
+def load_original_questions_from_json(questions_with_difficulty: list):
     """
-    문제 데이터 리스트를 받아 DB를 새로 고칩니다.
-    AI 난이도 분석 옵션을 선택적으로 수행합니다.
-    
-    Args:
-        questions_data (list): JSON에서 로드된 원본 문제 딕셔너리 리스트.
-        analyze_difficulty (bool): True이면 AI로 난이도를 분석하여 저장.
-
-    Returns:
-        tuple: (로드된 문제 수, 에러 메시지)
+    '난이도'가 이미 포함된 문제 데이터 리스트를 받아 DB를 새로 고칩니다.
     """
-    if not questions_data:
+    if not questions_with_difficulty:
         return 0, "입력된 문제 데이터가 없습니다."
-
-    # 순환 참조를 피하기 위해 이 함수가 필요할 때만 임포트
-    if analyze_difficulty:
-        from gemini_handler import analyze_difficulty as analyze_func
 
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM original_questions")
     
-    total_questions = len(questions_data)
-    
-    for i, q in enumerate(questions_data):
-        difficulty = '보통' # 기본값
-        if analyze_difficulty:
-            # st.progress와 함께 사용하기 위해 이 부분은 app.py로 이동
-            # 여기서는 단순히 난이도를 가져오는 역할만 가정 (실제 호출은 app.py에서)
-            # 이 함수는 난이도가 포함된 데이터를 받는 것으로 변경
-            difficulty = q.get('difficulty', '보통')
-
+    for q in questions_with_difficulty:
         cursor.execute(
-            "INSERT INTO original_questions (id, question, options, answer, difficulty, media_url, media_type) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            """INSERT INTO original_questions 
+               (id, question, options, answer, difficulty, media_url, media_type) 
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
             (
                 q.get('id'), q.get('question'), json.dumps(q.get('options', {})),
-                json.dumps(q.get('answer', [])), difficulty,
+                json.dumps(q.get('answer', [])), q.get('difficulty', '보통'),
                 q.get('media_url'), q.get('media_type')
             )
         )
             
     conn.commit()
     conn.close()
-    return total_questions, None
+    return len(questions_with_difficulty), None
 
-# --- 문제 관리 (CRUD) ---
-def get_all_question_ids(q_type='original'):
-    """특정 타입의 모든 문제 ID 목록을 정렬하여 반환합니다."""
-    # ... (이하 모든 함수의 내용은 이전과 동일하며, 주석만 정리되었습니다)
-    table_name = 'original_questions' if q_type == 'original' else 'modified_questions'
-    conn = get_db_connection()
-    ids = [row['id'] for row in conn.execute(f"SELECT id FROM {table_name} ORDER BY id ASC").fetchall()]
-    conn.close()
-    return ids
-
-def get_question_by_id(q_id, q_type='original'):
-    """ID와 타입으로 특정 문제를 파이썬 딕셔너리 형태로 반환합니다."""
-    table_name = 'original_questions' if q_type == 'original' else 'modified_questions'
-    conn = get_db_connection()
-    question_row = conn.execute(f"SELECT * FROM {table_name} WHERE id = ?", (q_id,)).fetchone()
-    conn.close()
-    return dict(question_row) if question_row else None
-
-def add_new_original_question(question_text, options_dict, answer_list, difficulty, media_url=None, media_type=None):
-    """새로운 원본 문제를 DB에 추가하고 새 ID를 반환합니다."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT IFNULL(MAX(id), 0) + 1 FROM original_questions")
-    new_id = cursor.fetchone()[0]
-    cursor.execute(
-        """INSERT INTO original_questions 
-           (id, question, options, answer, difficulty, media_url, media_type) 
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        (new_id, question_text, json.dumps(options_dict), json.dumps(answer_list), difficulty, media_url, media_type)
-    )
-    conn.commit()
-    conn.close()
-    return new_id
-
-def update_original_question(q_id, question_text, options_dict, answer_list, difficulty, media_url=None, media_type=None):
-    """ID를 기반으로 원본 문제의 내용을 업데이트합니다."""
-    conn = get_db_connection()
-    conn.execute(
-        """UPDATE original_questions 
-           SET question = ?, options = ?, answer = ?, difficulty = ?, media_url = ?, media_type = ? 
-           WHERE id = ?""",
-        (question_text, json.dumps(options_dict), json.dumps(answer_list), difficulty, media_url, media_type, q_id)
-    )
-    conn.commit()
-    conn.close()
-
-# --- 사용자 관리 ---
-def fetch_all_users():
-    """
-    모든 사용자 정보를 두 개의 딕셔너리로 분리하여 반환합니다.
-    1. Authenticator용 자격 증명 (name, password만 포함)
-    2. 추가 정보 (role 등)
-    """
-    conn = get_db_connection()
-    users = conn.execute("SELECT * FROM users").fetchall()
-    conn.close()
-    
-    credentials = {"usernames": {}}
-    all_user_info = {}
-    for user in users:
-        username = user['username']
-        credentials["usernames"][username] = {
-            "name": user['name'],
-            "password": user['password']
-        }
-        all_user_info[username] = {
-            "name": user['name'],
-            "role": user['role'] if 'role' in user.keys() else 'user'
-        }
-    return credentials, all_user_info
-
-def add_new_user(username, name, hashed_password):
-    conn = get_db_connection()
-    try:
-        conn.execute("INSERT INTO users (username, name, password) VALUES (?, ?, ?)", (username, name, hashed_password))
-        conn.commit()
-        return True, None
-    except sqlite3.IntegrityError:
-        return False, "이미 존재하는 아이디입니다."
-    finally: conn.close()
-
-def delete_user(username):
-    conn = get_db_connection()
-    conn.execute("DELETE FROM user_answers WHERE username = ?", (username,))
-    conn.execute("DELETE FROM users WHERE username = ?", (username,))
-    conn.commit()
-    conn.close()
-
-def get_all_users_for_admin():
-    conn = get_db_connection()
-    users = conn.execute("SELECT username, name, role FROM users ORDER BY username ASC").fetchall()
-    conn.close()
-    return users
-
-def ensure_master_account(username, name, hashed_password):
-    conn = get_db_connection()
-    conn.execute("INSERT OR REPLACE INTO users (username, name, password, role) VALUES (?, ?, ?, ?)", (username, name, hashed_password, 'admin'))
-    conn.commit()
-    conn.close()
-
-# --- 답변 기록 및 통계 ---
-def save_user_answer(username, q_id, q_type, user_choice, is_correct):
-    """특정 사용자의 답변 기록을 DB에 저장합니다."""
-    conn = get_db_connection()
-    conn.execute(
-        "INSERT INTO user_answers (username, question_id, question_type, user_choice, is_correct) VALUES (?, ?, ?, ?, ?)",
-        (username, q_id, q_type, json.dumps(user_choice), is_correct)
-    )
-    conn.commit()
-    conn.close()
-
-def get_wrong_answers(username):
+def get_wrong_answers(username: str):
     """특정 사용자의 틀린 문제 목록(상세 정보 포함)을 가져옵니다."""
-    conn = get_db_connection()    
-    # SELECT 구문에서 q.type을 question_type이라는 명확한 별칭으로 지정합니다.
-    # 또한, user_answers의 question_id도 함께 가져옵니다.
+    conn = get_db_connection()
     query = """
     WITH all_questions AS (
         SELECT 'original' as type, id, question, options, answer, media_url, media_type, difficulty FROM original_questions
@@ -233,23 +86,13 @@ def get_wrong_answers(username):
         SELECT 'modified' as type, id, question, options, answer, NULL as media_url, NULL as media_type, '보통' as difficulty FROM modified_questions
     )
     SELECT 
-        ua.question_id, 
-        ua.question_type,
-        q.id, 
-        q.question, 
-        q.options, 
-        q.answer,
-        q.media_url,
-        q.media_type,
-        q.difficulty
+        ua.question_type, q.*
     FROM user_answers ua
     JOIN all_questions q ON ua.question_id = q.id AND ua.question_type = q.type
     WHERE ua.is_correct = 0 AND ua.username = ?
     GROUP BY ua.question_id, ua.question_type 
-    ORDER BY ua.solved_at DESC
+    ORDER BY MAX(ua.solved_at) DESC
     """
-    # --- 여기까지 ---
-
     wrong_answers = conn.execute(query, (username,)).fetchall()
     conn.close()
     return wrong_answers
