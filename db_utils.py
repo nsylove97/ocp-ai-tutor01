@@ -312,3 +312,33 @@ def clear_all_original_questions():
     conn.execute("DELETE FROM original_questions")
     conn.commit()
     conn.close()
+
+def export_questions_to_json_format():
+    """
+    데이터베이스의 'original_questions' 테이블에 있는 모든 데이터를
+    JSON 파일 형식(딕셔너리 리스트)으로 변환하여 반환합니다.
+    """
+    conn = get_db_connection()
+    # "SELECT * ..."를 사용하여 모든 컬럼을 가져옵니다.
+    all_questions_rows = conn.execute("SELECT * FROM original_questions ORDER BY id ASC").fetchall()
+    conn.close()
+    
+    questions_list = []
+    for row in all_questions_rows:
+        # DB row 객체를 파이썬 딕셔너리로 변환
+        question_dict = dict(row)
+        
+        # JSON으로 저장된 'options'와 'answer'를 다시 파이썬 객체로 파싱
+        try:
+            question_dict['options'] = json.loads(question_dict['options'])
+        except (json.JSONDecodeError, TypeError):
+            question_dict['options'] = {} # 파싱 실패 시 빈 딕셔너리
+            
+        try:
+            question_dict['answer'] = json.loads(question_dict['answer'])
+        except (json.JSONDecodeError, TypeError):
+            question_dict['answer'] = [] # 파싱 실패 시 빈 리스트
+            
+        questions_list.append(question_dict)
+        
+    return questions_list

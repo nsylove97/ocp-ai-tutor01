@@ -33,7 +33,7 @@ from db_utils import (
     fetch_all_users, add_new_user,
     delete_user, get_all_users_for_admin, ensure_master_account,
     get_question_ids_by_difficulty,
-    clear_all_original_questions # 이전에 추가했던 함수도 포함
+    clear_all_original_questions, export_questions_to_json_format
 )
 
 # ui_components로부터 필요한 모든 함수를 직접 임포트
@@ -256,66 +256,77 @@ def render_management_page(username):
     # --- 공통 탭 (두 번째 탭부터) ---
     with tabs[1]: # 원본 문제 데이터
         st.subheader("📚 원본 문제 데이터")
-        st.info("JSON 파일의 모든 문제를 불러와 AI가 자동으로 난이도를 분석하여 저장합니다. (시간이 다소 소요될 수 있습니다)")
+        col1, col2 = st.columns(2)
+        # --- 왼쪽 컬럼: 불러오기 및 초기화 ---
+        with col1:        
+            st.info("JSON 파일의 문제를 DB로 불러오거나, DB의 문제를 초기화합니다.")
         
-        num_q = len(get_all_question_ids('original'))
-        st.metric("현재 저장된 문제 수", f"{num_q} 개")
-        
-        st.write("---")
-
-        if st.button("AI 자동 난이도 부여 및 문제 불러오기", type="primary"):
-            try:
-                # 1. 먼저 JSON 파일에서 문제 목록을 읽어옴
-                with open('questions_final.json', 'r', encoding='utf-8') as f:
-                    questions = json.load(f)
-            except FileNotFoundError:
-                st.error("`questions_final.json` 파일을 찾을 수 없습니다.")
-                st.stop()
+            num_q = len(get_all_question_ids('original'))
+            st.metric("현재 DB에 저장된 문제 수", f"{num_q} 개")
             
-            if not questions:
-                st.warning("JSON 파일에 문제가 없습니다.")
-                st.stop()
+            st.write("---")
 
-            # 2. 각 문제에 대해 AI로 난이도를 분석하고, 결과를 리스트에 저장
-            questions_with_difficulty = []
-            progress_bar = st.progress(0, text="AI 난이도 분석 시작...")
-            total_questions = len(questions)
-
-            for i, q in enumerate(questions):
-                # gemini_handler에 있는 함수를 직접 호출!
-                difficulty = analyze_difficulty(q['question']) 
+            if st.button("AI 자동 난이도 부여 및 문제 불러오기", type="primary"):
+                try:
+                    # 1. 먼저 JSON 파일에서 문제 목록을 읽어옴
+                    with open('questions_final.json', 'r', encoding='utf-8') as f:
+                        questions = json.load(f)
+                except FileNotFoundError:
+                    st.error("`questions_final.json` 파일을 찾을 수 없습니다.")
+                    st.stop()
                 
-                # 원본 문제 데이터에 'difficulty' 키를 추가
-                q['difficulty'] = difficulty
-                questions_with_difficulty.append(q)
+                if not questions:
+                    st.warning("JSON 파일에 문제가 없습니다.")
+                    st.stop()
+
+                questions_with_difficulty = []
+                progress_bar = st.progress(0, text="AI 난이도 분석 시작...")
+                total_questions = len(questions)
+
+                for i, q in enumerate(questions):
+                    # gemini_handler에 있는 함수를 직접 호출!
+                    difficulty = analyze_difficulty(q['question']) 
+                    
+                    # 원본 문제 데이터에 'difficulty' 키를 추가
+                    q['difficulty'] = difficulty
+                    questions_with_difficulty.append(q)
+                    
+                    # 진행률 업데이트
+                    progress_value = (i + 1) / total_questions
+                    progress_bar.progress(progress_value, text=f"AI 난이도 분석 중... ({i + 1}/{total_questions})")
                 
-                # 진행률 업데이트
-                progress_value = (i + 1) / total_questions
-                progress_bar.progress(progress_value, text=f"AI 난이도 분석 중... ({i + 1}/{total_questions})")
-            
-            st.toast("AI 난이도 분석 완료! 이제 데이터베이스에 저장합니다.", icon="🤖")
+                st.toast("AI 난이도 분석 완료! 이제 데이터베이스에 저장합니다.", icon="🤖")
 
-            # 3. 난이도가 부여된 전체 문제 목록을 db_utils 함수에 전달하여 DB에 저장
-            count, error = load_original_questions_from_json(questions_with_difficulty)
-            
-            progress_bar.empty()
+                # 3. 난이도가 부여된 전체 문제 목록을 db_utils 함수에 전달하여 DB에 저장
+                count, error = load_original_questions_from_json(questions_with_difficulty)
+                
+                progress_bar.empty()
 
-            if error:
-                st.error(f"문제 저장 실패: {error}")
-            else:
-                st.success(f"모든 문제({count}개)에 대한 AI 난이도 분석 및 저장이 완료되었습니다!")
-                st.rerun()
+                if error:
+                    st.error(f"문제 저장 실패: {error}")
+                else:
+                    st.success(f"모든 문제({count}개)에 대한 AI 난이도 분석 및 저장이 완료되었습니다!")
+                    st.rerun()
+
+        with col2:
+            st.info("현재 DB에 저장된 모든 문제(수정된 내용, AI 분석 난이도 포함)를 JSON 파일로 저장합니다.")
+            
+            # 1. DB에서 데이터를 가져와 JSON 문자열로 변환
+            questions_to_export = export_questions_to_json_format()
+            # json.dumps를 사용하여 예쁘게 포맷팅된 문자열로 만듦 (indent=4)
+            json_string_to_export = json.dumps(questions_to_export, indent=4, ensure_ascii=False)
+            
+            st.metric("내보낼 문제 수", f"{len(questions_to_export)} 개")
+
+            # 2. st.download_button을 사용하여 파일 다운로드 기능 제공
+            st.download_button(
+               label="📥 JSON 파일로 다운로드",
+               data=json_string_to_export,
+               file_name="questions_updated.json", # 다운로드될 파일 이름
+               mime="application/json",
+            )
 
         st.write("---")
-
-        # --- 문제 초기화 버튼 (새로운 기능) ---
-        st.subheader("⚠️ 문제 초기화")
-        with st.container(border=True):
-            st.warning("아래 버튼은 데이터베이스에 저장된 **모든 원본 문제**를 영구적으로 삭제합니다. 신중하게 사용하세요.")
-            if st.button("모든 원본 문제 삭제 (초기화)", type="secondary"):
-                clear_all_original_questions()
-                st.toast("모든 원본 문제가 성공적으로 삭제되었습니다.", icon="🗑️")
-                st.rerun()
 
 # --- 공통 탭 (두 번째 탭부터) ---
     with tabs[2]: #문제 추가
