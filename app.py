@@ -256,57 +256,62 @@ def render_management_page(username):
     # --- 공통 탭 (두 번째 탭부터) ---
     with tabs[1]: # 원본 문제 데이터
         st.subheader("📚 원본 문제 데이터")
-        col1, col2 = st.columns(2)
-        # --- 왼쪽 컬럼: 불러오기 및 초기화 ---
-        with col1:        
-            st.info("JSON 파일의 문제를 DB로 불러오거나, DB의 문제를 초기화합니다.")
+        st.info("로컬 JSON 파일의 문제를 데이터베이스로 불러옵니다.")
         
-            num_q = len(get_all_question_ids('original'))
-            st.metric("현재 DB에 저장된 문제 수", f"{num_q} 개")
+        num_q = len(get_all_question_ids('original'))
+        st.metric("현재 저장된 문제 수", f"{num_q} 개")
+        
+        st.write("---")
+
+        # --- AI 난이도 분석 옵션 ---
+        analyze_option = st.checkbox("🤖 AI로 자동 난이도 분석 실행 (시간 소요)", value=False)
+        st.caption("이 옵션을 선택하지 않으면 모든 문제의 난이도는 '보통'으로 설정됩니다.")
+
+        if st.button("JSON 파일에서 원본 문제 불러오기", type="primary"):
+            try:
+                with open('questions_final.json', 'r', encoding='utf-8') as f:
+                    questions_from_json = json.load(f)
+            except FileNotFoundError:
+                st.error("`questions_final.json` 파일을 찾을 수 없습니다.")
+                st.stop()
             
-            st.write("---")
+            if not questions_from_json:
+                st.warning("JSON 파일에 문제가 없습니다.")
+                st.stop()
 
-            if st.button("AI 자동 난이도 부여 및 문제 불러오기", type="primary"):
-                try:
-                    # 1. 먼저 JSON 파일에서 문제 목록을 읽어옴
-                    with open('questions_final.json', 'r', encoding='utf-8') as f:
-                        questions = json.load(f)
-                except FileNotFoundError:
-                    st.error("`questions_final.json` 파일을 찾을 수 없습니다.")
-                    st.stop()
-                
-                if not questions:
-                    st.warning("JSON 파일에 문제가 없습니다.")
-                    st.stop()
-
-                questions_with_difficulty = []
+            # --- 로직 분기 ---
+            if analyze_option:
+                # --- 1. AI 난이도 분석을 선택한 경우 ---
+                questions_to_load = []
                 progress_bar = st.progress(0, text="AI 난이도 분석 시작...")
-                total_questions = len(questions)
+                total_questions = len(questions_from_json)
 
-                for i, q in enumerate(questions):
-                    # gemini_handler에 있는 함수를 직접 호출!
-                    difficulty = analyze_difficulty(q['question']) 
-                    
-                    # 원본 문제 데이터에 'difficulty' 키를 추가
+                for i, q in enumerate(questions_from_json):
+                    difficulty = analyze_difficulty(q['question'])
                     q['difficulty'] = difficulty
-                    questions_with_difficulty.append(q)
+                    questions_to_load.append(q)
                     
-                    # 진행률 업데이트
                     progress_value = (i + 1) / total_questions
                     progress_bar.progress(progress_value, text=f"AI 난이도 분석 중... ({i + 1}/{total_questions})")
                 
-                st.toast("AI 난이도 분석 완료! 이제 데이터베이스에 저장합니다.", icon="🤖")
-
-                # 3. 난이도가 부여된 전체 문제 목록을 db_utils 함수에 전달하여 DB에 저장
-                count, error = load_original_questions_from_json(questions_with_difficulty)
-                
+                st.toast("AI 난이도 분석 완료! DB에 저장합니다.", icon="🤖")
+                count, error = load_original_questions_from_json(questions_to_load)
                 progress_bar.empty()
+            else:
+                # --- 2. AI 난이도 분석을 선택하지 않은 경우 ---
+                # 모든 문제의 난이도를 '보통'으로 설정하여 전달
+                for q in questions_from_json:
+                    q['difficulty'] = '보통'
+                count, error = load_original_questions_from_json(questions_from_json)
 
-                if error:
-                    st.error(f"문제 저장 실패: {error}")
-                else:
-                    st.success(f"모든 문제({count}개)에 대한 AI 난이도 분석 및 저장이 완료되었습니다!")
-                    st.rerun()
+            # --- 공통 결과 처리 ---
+            if error:
+                st.error(f"문제 저장 실패: {error}")
+            else:
+                st.success(f"모든 문제({count}개)를 성공적으로 불러왔습니다!")
+                st.rerun()
+
+        st.write("---")
 
         with col2:
             st.info("현재 DB에 저장된 모든 문제(수정된 내용, AI 분석 난이도 포함)를 JSON 파일로 저장합니다.")

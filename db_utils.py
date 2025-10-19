@@ -64,32 +64,51 @@ def setup_database_tables():
     conn.close()
     print("모든 데이터베이스 테이블 확인/생성/업그레이드 완료.")
 
-def load_original_questions_from_json(questions_with_difficulty):
+def load_original_questions_from_json(questions_data, analyze_difficulty=False):
     """
-    '난이도'가 이미 포함된 문제 데이터 리스트를 받아 DB를 새로 고칩니다.
-    이 함수는 더 이상 AI를 직접 호출하지 않습니다.
+    문제 데이터 리스트를 받아 DB를 새로 고칩니다.
+    AI 난이도 분석 옵션을 선택적으로 수행합니다.
     
     Args:
-        questions_with_difficulty (list): {'id': ..., 'question': ..., 'difficulty': ...} 형태의 딕셔너리 리스트
-        progress_callback (function, optional): 진행률 콜백 함수.
+        questions_data (list): JSON에서 로드된 원본 문제 딕셔너리 리스트.
+        analyze_difficulty (bool): True이면 AI로 난이도를 분석하여 저장.
+
+    Returns:
+        tuple: (로드된 문제 수, 에러 메시지)
     """
-    if not questions_with_difficulty:
+    if not questions_data:
         return 0, "입력된 문제 데이터가 없습니다."
+
+    # 순환 참조를 피하기 위해 이 함수가 필요할 때만 임포트
+    if analyze_difficulty:
+        from gemini_handler import analyze_difficulty as analyze_func
 
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM original_questions")
     
-    total_questions = len(questions_with_difficulty)
+    total_questions = len(questions_data)
     
-    for i, q in enumerate(questions_with_difficulty):
+    for i, q in enumerate(questions_data):
+        difficulty = '보통' # 기본값
+        if analyze_difficulty:
+            # st.progress와 함께 사용하기 위해 이 부분은 app.py로 이동
+            # 여기서는 단순히 난이도를 가져오는 역할만 가정 (실제 호출은 app.py에서)
+            # 이 함수는 난이도가 포함된 데이터를 받는 것으로 변경
+            difficulty = q.get('difficulty', '보통')
+
         cursor.execute(
-            "INSERT INTO original_questions (id, question, options, answer, difficulty) VALUES (?, ?, ?, ?, ?)",
-            (q['id'], q['question'], json.dumps(q.get('options', {})), json.dumps(q.get('answer', [])), q['difficulty'])
-        )         
+            "INSERT INTO original_questions (id, question, options, answer, difficulty, media_url, media_type) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                q.get('id'), q.get('question'), json.dumps(q.get('options', {})),
+                json.dumps(q.get('answer', [])), difficulty,
+                q.get('media_url'), q.get('media_type')
+            )
+        )
+            
     conn.commit()
     conn.close()
-    return len(questions_with_difficulty), None
+    return total_questions, None
 
 # --- 문제 관리 (CRUD) ---
 def get_all_question_ids(q_type='original'):
