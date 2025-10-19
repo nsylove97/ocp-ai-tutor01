@@ -566,54 +566,69 @@ def main():
     """메인 실행 함수"""
     st.set_page_config(page_title="Oracle OCP AI 튜터", layout="wide", initial_sidebar_state="expanded")
 
-    # --- 1. 앱의 공통 헤더를 먼저 렌더링 ---
-    st.title("🚀 Oracle OCP AI 튜터")
-    
-    # --- 2. DB 및 마스터 계정 설정 (백그라운드 작업) ---
+    # --- 1. DB 및 마스터 계정 설정 (백그라운드 작업, UI 출력 없음) ---
     if 'db_setup_done' not in st.session_state:
         setup_database_tables()
         credentials, _ = fetch_all_users()
-        if MASTER_ACCOUNT_USERNAME not in credentials['usernames']:
+        if MASTER_ACCOUNT_USERNAME not in credentials.get('usernames', {}):
             hashed_pw = bcrypt.hashpw(MASTER_ACCOUNT_PASSWORD.encode(), bcrypt.gensalt()).decode()
             ensure_master_account(MASTER_ACCOUNT_USERNAME, MASTER_ACCOUNT_NAME, hashed_pw)
             st.toast(f"관리자 계정 '{MASTER_ACCOUNT_USERNAME}' 설정 완료!", icon="👑")
         st.session_state.db_setup_done = True
     
-    # --- 3. 인증 객체 생성 ---
+    # --- 2. 인증 객체 생성 ---
     credentials, all_user_info = fetch_all_users()
-    authenticator = stauth.Authenticate(credentials, "ocp_cookie", "auth_key", 30)
-    authenticator.login(location='main')
+    authenticator = stauth.Authenticate(
+        credentials,
+        "ocp_cookie_v2",
+        "auth_key_v2",
+        30
+    )
 
-    # --- 인증 상태에 따른 화면 분기 ---
-    # 로그인 위젯을 메인 영역에 렌더링
-    authenticator.login(location='main')
+    # --- 3. 로그인 상태 확인 ---
+    # 페이지가 다시 로드될 때마다 로그인 상태를 먼저 확인합니다.
+    # 이 부분은 UI를 그리지 않고, 내부 상태만 업데이트합니다.
+    authenticator.login()
 
+    # --- 4. 인증 상태에 따라 화면 분기 ---
     if st.session_state.get("authentication_status"):
-        # --- 로그인 성공 시 ---
+        # --- 4a. 로그인 성공 시 ---
+        # 로그인 폼을 더 이상 그릴 필요가 없으므로, 메인 앱 로직을 바로 실행합니다.
         run_main_app(authenticator, all_user_info)
 
-    elif st.session_state.get("authentication_status") is False:
-        st.error('아이디 또는 비밀번호가 일치하지 않습니다.')
-
-    elif st.session_state.get("authentication_status") is None:
-        st.info('로그인하거나 아래에서 새 계정을 만들어주세요.')
+    else:
+        # --- 4b. 로그인하지 않은 경우 ---
+        st.title("🚀 Oracle OCP AI 튜터") # 로그인 페이지에도 제목 표시
+        st.markdown("---")
         
+        # 로그인 폼을 그릴 자리를 만듭니다.
+        login_placeholder = st.empty()
+        
+        with login_placeholder.container():
+            # 이전에 authenticator.login()이 반환하던 값을 직접 session_state에서 확인합니다.
+            if st.session_state.get("authentication_status") is False:
+                st.error('아이디 또는 비밀번호가 일치하지 않습니다.')
+            elif st.session_state.get("authentication_status") is None:
+                st.info('로그인하거나 아래에서 새 계정을 만들어주세요.')
+
         # 회원가입 폼 렌더링
+        st.write("---")
         with st.expander("새 계정 만들기"):
             try:
+                # register_user 위젯은 고유한 form key를 사용하므로 login과 충돌하지 않습니다.
                 if authenticator.register_user('회원가입', preauthorization=False):
-                    # 회원가입 성공 후 DB에 저장
-                    new_username = st.session_state['username']
-                    new_name = st.session_state['name']
-                    new_password = st.session_state['password'] # register_user는 평문 비밀번호를 반환
-                    
-                    hashed_password = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
-                    success, msg = add_new_user(new_username, new_name, hashed_password)
-                    if success:
-                        st.success('회원가입이 완료되었습니다. 이제 로그인해주세요.')
-                    else:
-                        st.error(msg)
-                        # (선택) 가입 실패 시 authenticator 내부 데이터 롤백 필요 (고급)
+                    username = st.session_state.get("username")
+                    name = st.session_state.get("name")
+                    password = st.session_state.get("password")
+
+                    if all((username, name, password)):
+                        hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+                        success, msg = add_new_user(username, name, hashed_password)
+                        if success:
+                            st.success('회원가입이 완료되었습니다. 위에서 로그인해주세요.')
+                            st.rerun() # 회원가입 성공 후 상태 갱신
+                        else:
+                            st.error(msg)
             except Exception as e:
                 st.error(e)
 
