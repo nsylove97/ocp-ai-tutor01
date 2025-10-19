@@ -220,21 +220,55 @@ def render_management_page():
     with tab2:
         st.subheader("➕ 새로운 원본 문제 추가")
         with st.form(key="add_form"):
+            # Quill 에디터
             new_question_html = st_quill(placeholder="여기에 질문 내용을 입력하세요...", html=True)
+            # 미디어 파일 업로드
             uploaded_file = st.file_uploader("이미지 또는 동영상 첨부 (선택 사항)", type=['png', 'jpg', 'jpeg', 'gif', 'mp4', 'mov'])
-            new_options = {letter: st.text_input(f"선택지 {letter}:", key=f"new_option_{letter}") for letter in ["A", "B", "C", "D", "E"]}
+            # 1. 선택지 개수를 입력받는 number_input 추가
+            # st.form 밖에서 상태를 관리해야 동적으로 UI가 변경되므로, session_state와 key를 사용합니다.
+            if 'new_option_count' not in st.session_state:
+                st.session_state.new_option_count = 5 # 기본값 설정
+            
+            st.number_input(
+                "선택지 개수:", 
+                min_value=2, 
+                max_value=10, # 최대 10개 (J까지)
+                key="new_option_count"
+            )
+            # 2. session_state에 저장된 개수만큼 동적으로 text_input 생성
+            new_options = {}
+            # chr(ord('A') + i)를 사용하여 A, B, C... 레이블 생성
+            for i in range(st.session_state.new_option_count):
+                letter = chr(ord('A') + i)
+                new_options[letter] = st.text_input(f"선택지 {letter}:", key=f"new_option_{letter}")
+            
+            # 3. 유효한 선택지만을 대상으로 정답 multiselect 생성
             valid_options = [letter for letter, text in new_options.items() if text.strip()]
             new_answer = st.multiselect("정답 선택:", options=valid_options)
-            if st.form_submit_button("새 문제 추가하기"):
-                media_url, media_type = None, None
-                if uploaded_file is not None:
-                    file_path = os.path.join(MEDIA_DIR, uploaded_file.name)
-                    with open(file_path, "wb") as f:
-                        f.write(uploaded_file.getbuffer())
-                    media_url = file_path
-                    media_type = 'image' if uploaded_file.type.startswith('image') else 'video'
-                new_id = add_new_original_question(new_question_html, new_options, new_answer, media_url, media_type)
-                st.toast(f"성공! 새 문제(ID: {new_id})가 추가되었습니다.")
+            submitted = st.form_submit_button("새 문제 추가하기")
+
+            if submitted:
+                # 유효성 검사 (이전과 동일)
+                if not new_question_html or not new_question_html.strip() or new_question_html == '<p><br></p>':
+                    st.error("질문 내용을 입력해야 합니다.")
+                elif not valid_options:
+                    st.error("선택지 내용을 하나 이상 입력해야 합니다.")
+                elif not new_answer:
+                    st.error("정답을 하나 이상 선택해야 합니다.")
+                else:
+                    media_url, media_type = None, None
+                    if uploaded_file is not None:
+                        file_path = os.path.join(MEDIA_DIR, uploaded_file.name)
+                        with open(file_path, "wb") as f:
+                            f.write(uploaded_file.getbuffer())
+                        media_url = file_path
+                        media_type = 'image' if uploaded_file.type.startswith('image') else 'video'
+                        pass
+
+                    final_options = {key: value for key, value in new_options.items() if key in valid_options}
+                    new_id = add_new_original_question(new_question_html, final_options, new_answer, media_url, media_type)
+                    st.success(f"성공적으로 새로운 문제(ID: {new_id})를 추가했습니다!")
+                    st.balloons()
 
     with tab3:
         st.subheader("✏️ 원본 문제 편집")
