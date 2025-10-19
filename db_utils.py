@@ -162,8 +162,15 @@ def fetch_all_users():
     all_user_info = {}
     for user in users:
         username = user['username']
-        credentials["usernames"][username] = {"name": user['name'], "password": user['password']}
-        all_user_info[username] = {"name": user['name'], "role": user.get('role', 'user')}
+        credentials["usernames"][username] = {
+            "name": user['name'],
+            "password": user['password']
+        }              
+        role = user['role'] if 'role' in user.keys() else 'user'     
+        all_user_info[username] = {
+            "name": user['name'],
+            "role": role
+        }
     return credentials, all_user_info
 
 def add_new_user(username, name, hashed_password):
@@ -300,4 +307,4 @@ def clear_all_modified_questions():
     conn.execute("DELETE FROM user_answers WHERE question_type = 'modified'")
     conn.execute("DELETE FROM modified_questions")
     conn.commit()
-    conn.close()
+    conn.close() 
