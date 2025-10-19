@@ -22,10 +22,15 @@ def get_question_by_id(q_id, q_type='original'):
     """ID와 타입으로 특정 문제를 가져옵니다."""
     table_name = 'original_questions' if q_type == 'original' else 'modified_questions'
     conn = get_db_connection()
-    question_data = conn.execute(f"SELECT * FROM {table_name} WHERE id = ?", (q_id,)).fetchone()
+    question_row = conn.execute(f"SELECT * FROM {table_name} WHERE id = ?", (q_id,)).fetchone()
     conn.close()
-    return question_data
-
+    # sqlite3.Row 객체를 반환하기 전에 파이썬 딕셔너리로 변환합니다.
+    # 만약 결과가 없으면 (question_row is None), None을 그대로 반환합니다.
+    if question_row:
+        return dict(question_row)
+    else:
+        return None
+    
 def save_user_answer(q_id, q_type, user_choice, is_correct):
     """사용자의 오답 기록을 DB에 저장합니다."""
     conn = get_db_connection()
