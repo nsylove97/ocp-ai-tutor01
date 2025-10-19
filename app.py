@@ -454,7 +454,7 @@ def main():
         "abcdef",  # 서명 키 (아무거나 복잡하게)
         cookie_expiry_days=30
     )
-    authenticator.login('로그인', 'main')
+    authenticator.login(location='main')
 
     if st.session_state["authentication_status"]:
         # --- 로그인 성공 시 ---
