@@ -13,71 +13,33 @@ DB_NAME = 'ocp_quiz.db'
 
 # --- 데이터베이스 연결 ---
 def get_db_connection():
-    """
-    데이터베이스 연결 객체를 생성하고 반환합니다.
-    - check_same_thread=False: Streamlit의 멀티스레딩 환경에서 SQLite를 안전하게 사용하기 위한 설정.
-    - row_factory=sqlite3.Row: 결과를 딕셔너리처럼 컬럼 이름으로 접근할 수 있게 해주는 설정.
-    """
     conn = sqlite3.connect(DB_NAME, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
-# --- 스키마 설정 ---
 def setup_database_tables():
-    """
-    앱에 필요한 모든 테이블(users, questions 등)을 생성하고,
-    필요한 경우 기존 테이블의 스키마를 안전하게 업그레이드(ALTER)합니다.
-    앱 시작 시 단 한 번만 호출되어야 합니다.
-    """
     conn = get_db_connection()
     cursor = conn.cursor()
-
-    # --- users 테이블 스키마 ---
+    # users 테이블
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
-    if cursor.fetchone():
+    if not cursor.fetchone():
+        cursor.execute('''CREATE TABLE users (username TEXT PRIMARY KEY, name TEXT NOT NULL, password TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user')''')
+    else:
         cursor.execute("PRAGMA table_info(users)")
-        columns = [row['name'] for row in cursor.fetchall()]
-        if 'role' not in columns:
+        if 'role' not in [col['name'] for col in cursor.fetchall()]:
             cursor.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
-    else:
-        cursor.execute('''
-        CREATE TABLE users (
-            username TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            password TEXT NOT NULL,
-            role TEXT NOT NULL DEFAULT 'user'
-        )''')
-
-    # --- original_questions 테이블 스키마 ---
+    # original_questions 테이블
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='original_questions'")
-    if cursor.fetchone():
-        cursor.execute("PRAGMA table_info(original_questions)")
-        columns = [row['name'] for row in cursor.fetchall()]
-        if 'media_url' not in columns:
-            cursor.execute("ALTER TABLE original_questions ADD COLUMN media_url TEXT")
-        if 'media_type' not in columns:
-            cursor.execute("ALTER TABLE original_questions ADD COLUMN media_type TEXT")
+    if not cursor.fetchone():
+        cursor.execute('''CREATE TABLE original_questions (id INTEGER PRIMARY KEY, question TEXT, options TEXT, answer TEXT, concept TEXT, media_url TEXT, media_type TEXT)''')
     else:
-        cursor.execute('''
-        CREATE TABLE original_questions (
-            id INTEGER PRIMARY KEY, question TEXT NOT NULL, options TEXT NOT NULL,
-            answer TEXT NOT NULL, concept TEXT, media_url TEXT, media_type TEXT
-        )''')
-
-    # --- 기타 테이블 (IF NOT EXISTS로 간단히 생성) ---
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS modified_questions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, original_id INTEGER, question TEXT NOT NULL,
-        options TEXT NOT NULL, answer TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (original_id) REFERENCES original_questions (id)
-    )''')
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS user_answers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, question_id INTEGER NOT NULL,
-        question_type TEXT NOT NULL, user_choice TEXT NOT NULL, is_correct BOOLEAN NOT NULL,
-        solved_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )''')
-    
+        cursor.execute("PRAGMA table_info(original_questions)")
+        cols = [col['name'] for col in cursor.fetchall()]
+        if 'media_url' not in cols: cursor.execute("ALTER TABLE original_questions ADD COLUMN media_url TEXT")
+        if 'media_type' not in cols: cursor.execute("ALTER TABLE original_questions ADD COLUMN media_type TEXT")
+    # 기타 테이블
+    cursor.execute('''CREATE TABLE IF NOT EXISTS modified_questions (id INTEGER PRIMARY KEY AUTOINCREMENT, original_id INTEGER, question TEXT, options TEXT, answer TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS user_answers (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, question_id INTEGER, question_type TEXT, user_choice TEXT, is_correct BOOLEAN, solved_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     conn.commit()
     conn.close()
     print("모든 데이터베이스 테이블 확인/생성/업그레이드 완료.")
@@ -149,66 +111,55 @@ def update_original_question(q_id, question_text, options_dict, answer_list, med
 
 # --- 사용자 관리 ---
 def fetch_all_users():
-    """모든 사용자 정보를 streamlit-authenticator 형식으로 변환하여 반환합니다."""
+    """
+    모든 사용자 정보를 두 개의 딕셔너리로 분리하여 반환합니다.
+    1. Authenticator용 자격 증명 (name, password만 포함)
+    2. 추가 정보 (role 등)
+    """
     conn = get_db_connection()
-    try:
-        users = conn.execute("SELECT * FROM users").fetchall()
-    except sqlite3.OperationalError:
-        users = []
+    users = conn.execute("SELECT * FROM users").fetchall()
     conn.close()
     
-    user_credentials = {"usernames": {}}
+    credentials = {"usernames": {}}
+    all_user_info = {}
     for user in users:
-        role = user['role'] if 'role' in user else 'user'
-        user_credentials["usernames"][user['username']] = {
+        username = user['username']
+        credentials["usernames"][username] = {
             "name": user['name'],
-            "password": user['password'],
-            "role": role
+            "password": user['password']
         }
-    return user_credentials
+        all_user_info[username] = {
+            "name": user['name'],
+            "role": user['role'] if 'role' in user.keys() else 'user'
+        }
+    return credentials, all_user_info
 
 def add_new_user(username, name, hashed_password):
-    """새로운 사용자를 'users' 테이블에 추가합니다. 역할(role)은 기본값 'user'로 설정됩니다."""
     conn = get_db_connection()
     try:
         conn.execute("INSERT INTO users (username, name, password) VALUES (?, ?, ?)", (username, name, hashed_password))
         conn.commit()
         return True, None
     except sqlite3.IntegrityError:
-        return False, "이미 존재하는 사용자 이름입니다."
-    finally:
-        conn.close()
+        return False, "이미 존재하는 아이디입니다."
+    finally: conn.close()
 
 def delete_user(username):
-    """특정 사용자와 해당 사용자의 모든 학습 기록을 삭제합니다."""
     conn = get_db_connection()
-    try:
-        conn.execute("DELETE FROM user_answers WHERE username = ?", (username,))
-        conn.execute("DELETE FROM users WHERE username = ?", (username,))
-        conn.commit()
-    except Exception as e:
-        print(f"사용자 삭제 중 오류 발생: {e}")
-    finally:
-        conn.close()
+    conn.execute("DELETE FROM user_answers WHERE username = ?", (username,))
+    conn.execute("DELETE FROM users WHERE username = ?", (username,))
+    conn.commit()
+    conn.close()
 
 def get_all_users_for_admin():
-    """관리자 페이지를 위해 모든 사용자 목록을 반환합니다 (비밀번호 제외)."""
     conn = get_db_connection()
-    try:
-        return conn.execute("SELECT username, name, role FROM users ORDER BY username ASC").fetchall()
-    except Exception as e:
-        print(f"모든 사용자 목록 조회 중 오류 발생: {e}")
-        return []
-    finally:
-        conn.close()
+    users = conn.execute("SELECT username, name, role FROM users ORDER BY username ASC").fetchall()
+    conn.close()
+    return users
 
 def ensure_master_account(username, name, hashed_password):
-    """마스터 계정을 생성하거나 'admin' 역할로 업데이트합니다."""
     conn = get_db_connection()
-    conn.execute(
-        "INSERT OR REPLACE INTO users (username, name, password, role) VALUES (?, ?, ?, ?)",
-        (username, name, hashed_password, 'admin')
-    )
+    conn.execute("INSERT OR REPLACE INTO users (username, name, password, role) VALUES (?, ?, ?, ?)", (username, name, hashed_password, 'admin'))
     conn.commit()
     conn.close()
 
