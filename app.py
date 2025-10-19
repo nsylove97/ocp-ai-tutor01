@@ -1,17 +1,23 @@
-# app.py (최종 검토 및 정리 버전)
+# app.py
+"""
+Oracle OCP AI 튜터 메인 애플리케이션 파일
+Streamlit을 사용하여 UI를 구성하고, 앱의 전체적인 흐름을 제어합니다.
+"""
 import streamlit as st
 import streamlit_authenticator as stauth
 import bcrypt
 import random
-import os
 import json
+import os
+
+# --- 3rd Party Libraries ---
 from streamlit_quill import st_quill
 
 # --- Custom Modules ---
 from gemini_handler import generate_explanation, generate_modified_question
 from db_utils import (
     setup_database_tables, load_original_questions_from_json,
-    get_all_question_ids, get_question_by_id, get_db_connection,
+    get_all_question_ids, get_question_by_id,
     add_new_original_question, update_original_question,
     get_wrong_answers, delete_wrong_answer,
     get_all_modified_questions, save_modified_question,
@@ -21,7 +27,7 @@ from db_utils import (
 )
 from ui_components import display_question, display_results
 
-# --- Constants & Helper Functions ---
+# --- Constants ---
 MEDIA_DIR = "media"
 if not os.path.exists(MEDIA_DIR):
     os.makedirs(MEDIA_DIR)
@@ -30,27 +36,14 @@ if not os.path.exists(MEDIA_DIR):
 
 @st.cache_data
 def get_ai_explanation(_q_id, _q_type):
-    """
-    문제 ID와 타입을 기반으로 AI 해설을 가져옵니다.
-    Streamlit의 캐싱 기능을 사용하여 API 중복 호출을 방지합니다.
-
-    Args:
-        _q_id (int): 문제 ID.
-        _q_type (str): 문제 타입 ('original' 또는 'modified').
-
-    Returns:
-        dict: AI가 생성한 해설 데이터 또는 에러 메시지.
-    """
+    """문제 ID와 타입을 기반으로 AI 해설을 가져옵니다."""
     question_data = get_question_by_id(_q_id, _q_type)
     if question_data:
         return generate_explanation(question_data)
     return {"error": f"DB에서 문제(ID: {_q_id}, Type: {_q_type})를 찾을 수 없습니다."}
 
 def initialize_session_state():
-    """
-    앱의 세션 상태 변수를 초기화합니다.
-    페이지가 재실행되어도 유지되어야 하는 값들을 관리합니다.
-    """
+    """앱의 세션 상태 변수를 초기화합니다."""
     defaults = {
         'current_view': 'home',
         'questions_to_solve': [],
@@ -70,7 +63,6 @@ def start_quiz_session(quiz_mode, quiz_type=None, num_questions=None, question_i
     st.session_state.questions_to_solve = []
     st.session_state.user_answers = {}
     st.session_state.current_question_index = 0
-    
     questions_loaded = False
     
     if quiz_mode == "랜덤 퀴즈":
@@ -82,7 +74,6 @@ def start_quiz_session(quiz_mode, quiz_type=None, num_questions=None, question_i
                 questions_loaded = True
             else:
                 st.error("데이터베이스에 원본 문제가 없습니다.")
-        
         elif quiz_type == '✨ AI 변형 문제':
             with st.spinner(f"{num_questions}개의 변형 문제를 생성 중입니다..."):
                 original_ids = get_all_question_ids('original')
@@ -96,7 +87,6 @@ def start_quiz_session(quiz_mode, quiz_type=None, num_questions=None, question_i
                         if modified_q_data and "error" not in modified_q_data:
                             new_id = save_modified_question(original_id, modified_q_data)
                             newly_generated_q_ids.append(new_id)
-                    
                     if newly_generated_q_ids:
                         st.session_state.questions_to_solve = [{'id': q_id, 'type': 'modified'} for q_id in newly_generated_q_ids]
                         questions_loaded = True
@@ -104,7 +94,6 @@ def start_quiz_session(quiz_mode, quiz_type=None, num_questions=None, question_i
                         st.error("AI 변형 문제 생성에 실패했습니다.")
                 else:
                     st.error("변형할 원본 문제가 없습니다.")
-    
     elif quiz_mode == "ID로 문제 풀기":
         target_question = get_question_by_id(question_id, 'original')
         if target_question:
@@ -117,11 +106,9 @@ def start_quiz_session(quiz_mode, quiz_type=None, num_questions=None, question_i
         st.session_state.current_view = 'quiz'
         st.rerun()
 
-
 # --- UI Rendering Functions ---
 
 def render_home_page():
-    """'퀴즈 풀기' 메뉴의 메인 화면을 렌더링합니다."""
     st.header("📝 퀴즈 설정")
     quiz_mode = st.radio("퀴즈 모드를 선택하세요:", ("랜덤 퀴즈", "ID로 문제 풀기"), key="quiz_mode_selector", horizontal=True)
 
@@ -130,8 +117,7 @@ def render_home_page():
         quiz_type = st.radio("어떤 문제를 풀어볼까요?", ('기존 문제', '✨ AI 변형 문제'), key="quiz_type_selector")
         if st.button("랜덤 퀴즈 시작하기", type="primary"):
             start_quiz_session(quiz_mode, quiz_type=quiz_type, num_questions=num_questions)
-    
-    else: # "ID로 문제 풀기"
+    else:
         question_id = st.number_input("풀고 싶은 원본 문제의 ID를 입력하세요:", min_value=1, step=1, key="target_question_id")
         if question_id:
             preview_question = get_question_by_id(question_id, 'original')
@@ -147,27 +133,20 @@ def render_home_page():
         if st.button(f"ID {question_id} 문제 풀기", type="primary"):
             start_quiz_session(quiz_mode, question_id=question_id)
 
-
 def render_quiz_page():
-    """퀴즈가 진행되는 화면을 렌더링합니다."""
     if not st.session_state.questions_to_solve:
         st.warning("풀 문제가 없습니다. 홈 화면으로 돌아가 퀴즈를 다시 시작해주세요.")
         if st.button("홈으로 돌아가기"):
             st.session_state.current_view = 'home'
             st.rerun()
         return
-
     idx = st.session_state.current_question_index
     total_questions = len(st.session_state.questions_to_solve)
-
     st.progress((idx + 1) / total_questions, text=f"{idx + 1}/{total_questions} 문제 진행 중...")
-
     if idx not in st.session_state.user_answers:
         st.session_state.user_answers[idx] = []
-
     q_info = st.session_state.questions_to_solve[idx]
     question = get_question_by_id(q_info['id'], q_info['type'])
-
     if question:
         display_question(question, idx, total_questions)
         col1, _, col2 = st.columns([1, 3, 1])
@@ -187,16 +166,12 @@ def render_quiz_page():
     else:
         st.error(f"문제(ID: {q_info['id']}, Type: {q_info['type']})를 불러오는 데 실패했습니다.")
 
-
 def render_notes_page(username):
     st.header("📒 오답 노트")
-    # 1. username 인자 전달
     wrong_answers = get_wrong_answers(username)
-
     if not wrong_answers:
         st.success("🎉 축하합니다! 틀린 문제가 없습니다.")
         return
-
     st.info(f"총 {len(wrong_answers)}개의 틀린 문제가 있습니다.")
     if st.button("틀린 문제 다시 풀기", type="primary"):
         st.session_state.questions_to_solve = [{'id': q['question_id'], 'type': q['question_type']} for q in wrong_answers]
@@ -204,7 +179,6 @@ def render_notes_page(username):
         st.session_state.user_answers = {}
         st.session_state.current_view = 'quiz'
         st.rerun()
-
     st.write("---")
     for i, q_info in enumerate(wrong_answers):
         question = get_question_by_id(q_info['question_id'], q_info['question_type'])
@@ -215,13 +189,12 @@ def render_notes_page(username):
                 if st.button("🤖 AI 해설 보기", key=f"note_exp_{q_info['question_id']}_{i}"):
                     with st.spinner("AI가 열심히 해설을 만들고 있어요..."):
                         explanation = get_ai_explanation(q_info['question_id'], q_info['question_type'])
-                        if "error" in explanation:
-                            st.error(explanation["error"])
+                        error_msg = explanation.get('error') if explanation else "해설을 가져오지 못했습니다."
+                        if error_msg: st.error(error_msg)
                         else:
                             st.info(f"**💡 쉬운 비유:**\n\n{explanation.get('analogy', 'N/A')}")
                             st.info(f"**🖼️ 텍스트 시각화:**\n\n```\n{explanation.get('visualization', 'N/A')}\n```")
                             st.info(f"**🔑 핵심 개념:**\n\n{explanation.get('core_concepts', 'N/A')}")
-
 
 def render_results_page(username):
     display_results(username, get_ai_explanation)
@@ -236,190 +209,175 @@ def render_management_page(username):
 
     with tab1:
         st.subheader("📚 원본 문제 데이터")
-        st.info("배포된 환경에서 처음 사용하거나, 원본 문제를 초기화할 때 사용하세요.")
         num_questions = len(get_all_question_ids('original'))
         st.metric("현재 저장된 원본 문제 수", f"{num_questions} 개")
         if st.button("JSON에서 원본 문제 불러오기", type="primary"):
             with st.spinner("데이터베이스를 설정하는 중입니다..."):
                 count, error = load_original_questions_from_json()
-                if error:
-                    st.error(f"문제 로딩 실패: {error}")
+                if error: st.error(f"문제 로딩 실패: {error}")
                 else:
                     st.toast(f"성공적으로 {count}개의 문제를 불러왔습니다!")
                     st.rerun()
 
     with tab2:
         st.subheader("➕ 새로운 문제 추가")
-        with st.form(key="add_form"):
-            new_question_html = st_quill(placeholder="질문 내용을 입력하세요...", html=True, key="quill_add")
-            uploaded_file = st.file_uploader("이미지/동영상 첨부", type=['png', 'jpg', 'jpeg', 'mp4'], key="uploader_add")
-            st.number_input("선택지 개수:", min_value=2, max_value=10, key="new_option_count")
-            
-            new_options = {}
-            for i in range(st.session_state.new_option_count):
-                letter = chr(ord('A') + i)
-                new_options[letter] = st.text_input(f"선택지 {letter}:", key=f"new_option_{letter}")
-            
-            valid_options = [k for k, v in new_options.items() if v.strip()]
+        if 'temp_new_question' not in st.session_state: st.session_state.temp_new_question = ""
+        st.session_state.temp_new_question = st_quill(value=st.session_state.temp_new_question, placeholder="질문 내용을 입력하세요...", html=True, key="quill_add")
+        uploaded_file = st.file_uploader("미디어 첨부", type=['png', 'jpg', 'jpeg', 'mp4'], key="uploader_add")
+        if 'new_option_count' not in st.session_state: st.session_state.new_option_count = 5
+        st.number_input("선택지 개수:", min_value=2, max_value=10, key="new_option_count")
+        if 'temp_new_options' not in st.session_state: st.session_state.temp_new_options = {}
+        for i in range(st.session_state.new_option_count):
+            letter = chr(ord('A') + i)
+            st.session_state.temp_new_options[letter] = st.text_input(f"선택지 {letter}:", value=st.session_state.temp_new_options.get(letter, ""), key=f"temp_new_option_{letter}")
+        with st.form(key="add_form_submit"):
+            valid_options = [l for l, t in st.session_state.temp_new_options.items() if t.strip()]
             new_answer = st.multiselect("정답 선택:", options=valid_options)
-            
             if st.form_submit_button("✅ 새 문제 추가하기"):
-                if not new_question_html.strip() or new_question_html == '<p><br></p>':
-                    st.error("질문 내용을 입력해야 합니다.")
+                new_q_html = st.session_state.temp_new_question
+                if not new_q_html or not new_q_html.strip() or new_q_html == '<p><br></p>': st.error("질문 내용을 입력해야 합니다.")
+                elif not valid_options: st.error("선택지 내용을 입력해야 합니다.")
+                elif not new_answer: st.error("정답을 선택해야 합니다.")
                 else:
                     media_url, media_type = None, None
                     if uploaded_file:
                         file_path = os.path.join(MEDIA_DIR, uploaded_file.name)
                         with open(file_path, "wb") as f: f.write(uploaded_file.getbuffer())
-                        media_url = file_path
-                        media_type = 'image' if uploaded_file.type.startswith('image') else 'video'
-                    
-                    final_options = {k: v for k, v in new_options.items() if k in valid_options}
-                    new_id = add_new_original_question(new_question_html, final_options, new_answer, media_url, media_type)
+                        media_url, media_type = file_path, 'image' if uploaded_file.type.startswith('image') else 'video'
+                    final_options = {k: v for k, v in st.session_state.temp_new_options.items() if k in valid_options}
+                    new_id = add_new_original_question(new_q_html, final_options, new_answer, media_url, media_type)
+                    st.session_state.temp_new_question = ""
+                    st.session_state.temp_new_options = {}
                     st.toast(f"성공! 새 문제(ID: {new_id})가 추가되었습니다.", icon="🎉")
-                    st.balloons()
+                    st.rerun()
 
     with tab3:
         st.subheader("✏️ 문제 편집")
         all_ids = get_all_question_ids('original')
-        if not all_ids:
-            st.info("편집할 원본 문제가 없습니다.")
+        if not all_ids: st.info("편집할 문제가 없습니다.")
         else:
+            if 'current_edit_id' not in st.session_state: st.session_state.current_edit_id = all_ids[0]
             def change_id(amount):
                 try:
-                    current_index = all_ids.index(st.session_state.current_edit_id)
-                    new_index = (current_index + amount) % len(all_ids) # 순환 구조
-                    st.session_state.current_edit_id = all_ids[new_index]
-                except ValueError:
-                    st.session_state.current_edit_id = all_ids[0]
-
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col1: st.button("◀️ 이전", on_click=change_id, args=(-1,), use_container_width=True)
-            with col2: st.selectbox("편집할 문제 ID 선택", options=all_ids, key="current_edit_id", label_visibility="collapsed")
-            with col3: st.button("다음 ▶️", on_click=change_id, args=(1,), use_container_width=True)
-
+                    curr_idx = all_ids.index(st.session_state.current_edit_id)
+                    st.session_state.current_edit_id = all_ids[(curr_idx + amount) % len(all_ids)]
+                except ValueError: st.session_state.current_edit_id = all_ids[0]
+            c1, c2, c3 = st.columns([1, 2, 1])
+            c1.button("◀️ 이전", on_click=change_id, args=(-1,), use_container_width=True)
+            c2.selectbox("문제 ID 선택", options=all_ids, key="current_edit_id", label_visibility="collapsed")
+            c3.button("다음 ▶️", on_click=change_id, args=(1,), use_container_width=True)
             edit_id = st.session_state.current_edit_id
-            question_to_edit = get_question_by_id(edit_id, 'original')
-            if question_to_edit:
+            q_data = get_question_by_id(edit_id, 'original')
+            if q_data:
                 with st.form(key=f"edit_form_{edit_id}"):
-                    st.markdown(f"**ID {edit_id} 문제 수정:**")
-                    current_options = json.loads(question_to_edit['options'])
-                    current_answer = json.loads(question_to_edit['answer'])
-                    
-                    edited_question_html = st_quill(value=question_to_edit['question'] or "", html=True, key=f"quill_{edit_id}")
-                    
-                    if question_to_edit.get('media_url'):
-                        st.write("**현재 첨부 파일:**", os.path.basename(question_to_edit['media_url']))
-                    edited_file = st.file_uploader("새 파일로 교체", key=f"uploader_{edit_id}")
-                    
-                    edited_options = {k: st.text_input(f"선택지 {k}:", value=v, key=f"opt_{k}_{edit_id}") for k, v in current_options.items()}
-                    edited_answer = st.multiselect("정답:", options=list(edited_options.keys()), default=current_answer, key=f"ans_{edit_id}")
-                    
-                    if st.form_submit_button("변경사항 저장"):
-                        # 2. 미디어 파일 처리 로직 수정 및 완성
-                        media_url, media_type = question_to_edit.get('media_url'), question_to_edit.get('media_type')
+                    st.markdown(f"**ID {edit_id} 수정:**")
+                    curr_opts = json.loads(q_data['options'])
+                    curr_ans = json.loads(q_data['answer'])
+                    edited_q = st_quill(value=q_data['question'] or "", html=True, key=f"q_{edit_id}")
+                    if q_data.get('media_url'): st.write(f"현재 미디어: {os.path.basename(q_data['media_url'])}")
+                    edited_file = st.file_uploader("미디어 교체", key=f"f_{edit_id}")
+                    edited_opts = {k: st.text_input(f"선택지 {k}:", value=v, key=f"o_{k}_{edit_id}") for k, v in curr_opts.items()}
+                    edited_ans = st.multiselect("정답:", options=list(edited_opts.keys()), default=curr_ans, key=f"a_{edit_id}")
+                    if st.form_submit_button("저장"):
+                        m_url, m_type = q_data.get('media_url'), q_data.get('media_type')
                         if edited_file:
-                            file_path = os.path.join(MEDIA_DIR, edited_file.name)
-                            with open(file_path, "wb") as f: f.write(edited_file.getbuffer())
-                            media_url = file_path
-                            media_type = 'image' if edited_file.type.startswith('image') else 'video'
-                        
-                        # update_original_question 호출 시 media 인자 추가
-                        update_original_question(edit_id, edited_question_html, edited_options, edited_answer, media_url, media_type)
-                        st.toast(f"ID {edit_id} 문제가 업데이트되었습니다!", icon="✅")
+                            fp = os.path.join(MEDIA_DIR, edited_file.name)
+                            with open(fp, "wb") as f: f.write(edited_file.getbuffer())
+                            m_url, m_type = fp, 'image' if edited_file.type.startswith('image') else 'video'
+                        update_original_question(edit_id, edited_q, edited_opts, edited_ans, m_url, m_type)
+                        st.toast("업데이트 완료!", icon="✅")
                         st.cache_data.clear()
                         st.rerun()
 
     with tab4:
         st.subheader("📒 오답 노트 관리")
         wrong_answers = get_wrong_answers(username)
-        if not wrong_answers:
-            st.info("관리할 오답 노트가 없습니다.")
+        if not wrong_answers: st.info("오답 노트가 비어있습니다.")
         else:
-            st.warning(f"총 {len(wrong_answers)}개의 오답 기록이 있습니다.")
             for q_info in wrong_answers:
-                question = get_question_by_id(q_info['question_id'], q_info['question_type'])
-                if question:
-                    col1, col2 = st.columns([4, 1])
-                    with col1:
-                        q_text = question['question'].replace('<p>', '').replace('</p>', '')
-                        st.text(f"ID {question['id']} ({q_info['question_type']}): {q_text[:70]}...")
-                    with col2:
-                        if st.button("삭제", key=f"del_wrong_{q_info['question_id']}_{q_info['question_type']}", type="secondary"):
-                            # 1. username 인자 전달
-                            delete_wrong_answer(username, q_info['question_id'], q_info['question_type'])
-                            st.toast(f"ID {question['id']} 오답 기록이 삭제되었습니다.", icon="🗑️")
-                            st.rerun()
-                            
-    with tab5:
-        st.subheader("✨ AI 변형 문제 관리")
-        modified_questions = get_all_modified_questions()
-        if not modified_questions:
-            st.info("관리할 AI 변형 문제가 없습니다.")
-        else:
-            if st.button("모든 변형 문제 삭제", type="primary"):
-                clear_all_modified_questions()
-                st.toast("모든 AI 변형 문제가 삭제되었습니다.", icon="🗑️")
-                st.rerun()
-            for mq in modified_questions:
-                col1, col2 = st.columns([4, 1])
-                with col1:
-                    q_text = mq['question'].replace('<p>', '').replace('</p>', '')
-                    st.text(f"ID {mq['id']}: {q_text[:80]}...")
-                with col2:
-                    if st.button("삭제", key=f"del_mod_{mq['id']}", type="secondary"):
-                        delete_modified_question(mq['id'])
-                        st.toast(f"ID {mq['id']} 변형 문제가 삭제되었습니다.", icon="🗑️")
+                q = get_question_by_id(q_info['question_id'], q_info['question_type'])
+                if q:
+                    c1, c2 = st.columns([4, 1])
+                    c1.text(f"ID {q['id']} ({q_info['question_type']}): {q['question'].replace('<p>', '')[:50]}...")
+                    if c2.button("삭제", key=f"dw_{q_info['question_id']}_{q_info['question_type']}", type="secondary"):
+                        delete_wrong_answer(username, q_info['question_id'], q_info['question_type'])
+                        st.toast("삭제되었습니다.", icon="🗑️")
                         st.rerun()
 
+    with tab5:
+        st.subheader("✨ AI 변형 문제 관리")
+        mod_qs = get_all_modified_questions()
+        if not mod_qs: st.info("변형 문제가 없습니다.")
+        else:
+            if st.button("모두 삭제", type="primary"):
+                clear_all_modified_questions()
+                st.toast("모두 삭제되었습니다.", icon="🗑️")
+                st.rerun()
+            for mq in mod_qs:
+                c1, c2 = st.columns([4, 1])
+                c1.text(f"ID {mq['id']}: {mq['question'][:50]}...")
+                if c2.button("삭제", key=f"dm_{mq['id']}", type="secondary"):
+                    delete_modified_question(mq['id'])
+                    st.toast("삭제되었습니다.", icon="🗑️")
+                    st.rerun()
+
 def render_analytics_page(username):
-    """'학습 통계' 화면을 렌더링합니다."""
     st.header("📈 학습 통계")
     total, correct, accuracy = get_stats(username)
-    col1, col2, col3 = st.columns(3)
-    col1.metric("총 풀이 문제 수", f"{total} 개")
-    col2.metric("총 정답 수", f"{correct} 개")
-    col3.metric("전체 정답률", f"{accuracy:.2f} %")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("총 풀이", f"{total}")
+    c2.metric("정답", f"{correct}")
+    c3.metric("정답률", f"{accuracy:.1f}%")
     st.write("---")
-    st.subheader("가장 많이 틀린 문제 Top 5 (원본 문제 기준)")
-    df_missed = get_top_5_missed(username)
-    if df_missed.empty:
-        st.info("틀린 문제 기록이 충분하지 않습니다.")
+    st.subheader("자주 틀리는 문제 Top 5")
+    df = get_top_5_missed(username)
+    if df.empty: st.info("데이터가 부족합니다.")
     else:
-        for _, row in df_missed.iterrows():
+        for _, row in df.iterrows():
             with st.container(border=True):
-                st.write(f"**오답 횟수: {row['wrong_count']}회**")
-                st.caption(f"문제 ID: {row['id']}")
+                st.write(f"**{row['wrong_count']}회 오답** (ID: {row['id']})")
                 st.markdown(row['question'], unsafe_allow_html=True)
 
-# --- Main App Logic ---
+# --- Main App Entry Point ---
 def run_main_app(authenticator):
-    """로그인 성공 후 실행되는 메인 앱 로직."""
+    """로그인 성공 후의 메인 앱 로직"""
+    # session_state에서 직접 사용자 정보 가져오기 (가장 안정적인 방법)
     name = st.session_state.get("name")
     username = st.session_state.get("username")
-
-    # 만약의 경우를 대비한 방어 코드
+    
     if not name or not username:
-        st.error("사용자 정보를 불러오는 데 실패했습니다. 다시 로그인해주세요.")
-        authenticator.logout('로그아웃', location='sidebar', key='error_logout')
-        return # 함수 실행 중단
-    
+        st.error("사용자 정보를 불러올 수 없습니다. 다시 로그인해주세요.")
+        authenticator.logout('로그아웃', location='sidebar', key='err_logout')
+        return
+
     st.sidebar.write(f"환영합니다, **{name}** 님!")
-    authenticator.logout('로그아웃', 'sidebar')
+    authenticator.logout('로그아웃', location='sidebar', key='main_logout')
     
-    # DB 테이블 구조 확인 (최초 1회)
     if 'db_setup_done' not in st.session_state:
         setup_database_tables()
         st.session_state.db_setup_done = True
-    
-    st.title("🚀 Oracle OCP AI 튜터")
+
     initialize_session_state()
 
-    # --- Sidebar Navigation ---
     st.sidebar.title("메뉴")
-    # ... (사이드바 버튼 로직은 동일)
+    menu = {"home": "📝 퀴즈 풀기", "notes": "📒 오답 노트", "analytics": "📈 학습 통계", "manage": "⚙️ 설정 및 관리"}
+    for view, label in menu.items():
+        if st.sidebar.button(label, use_container_width=True, type="primary" if st.session_state.current_view == view else "secondary"):
+            st.session_state.current_view = view
+            if view == 'home':
+                st.session_state.questions_to_solve = []
+                st.session_state.user_answers = {}
+                st.session_state.current_question_index = 0
+            st.rerun()
 
-    # --- Main Content Area ---
+    st.sidebar.write("---")
+    if st.sidebar.button("학습 초기화", use_container_width=True):
+        for k in list(st.session_state.keys()):
+            if k not in ['authentication_status', 'name', 'username', 'logout', 'current_view', 'db_setup_done']:
+                del st.session_state[k]
+        st.toast("초기화되었습니다.", icon="🔄")
+        st.rerun()
+
     view_map = {
         "home": render_home_page,
         "quiz": render_quiz_page,
@@ -428,143 +386,38 @@ def run_main_app(authenticator):
         "manage": lambda: render_management_page(username),
         "analytics": lambda: render_analytics_page(username),
     }
-    render_func = view_map.get(st.session_state.current_view)
-    if render_func:
-        render_func()
-    else:
-        st.session_state.current_view = 'home'
-        st.rerun()
+    view_map.get(st.session_state.current_view, render_home_page)()
 
-def show_register_form():
-    """회원가입 폼을 표시하는 함수."""
-    try:
-        if st.button('아직 계정이 없으신가요? 회원가입'):
-            st.session_state.show_register_form = not st.session_state.get('show_register_form', False)
-
-        if st.session_state.get('show_register_form'):
-            with st.form("회원가입"):
-                # ... (회원가입 폼 로직은 동일)
-                pass
-    except Exception as e:
-        st.error(f"회원가입 처리 중 오류 발생: {e}")
-        
 def main():
-    """메인 실행 함수"""
     st.set_page_config(page_title="Oracle OCP AI 튜터", layout="wide", initial_sidebar_state="expanded")
-
-    # --- 사용자 DB 테이블 확인/생성 ---
-    # 기존 setup_database_tables() 호출 전에 사용자 테이블부터 확인
     add_user_table()
-
-    # --- Authenticator 설정 ---
+    
     users = fetch_all_users()
-    authenticator = stauth.Authenticate(
-        users,
-        "ocp_ai_tutor_cookie",  # 쿠키 이름 (고유하게)
-        "abcdef",  # 서명 키 (아무거나 복잡하게)
-        cookie_expiry_days=30
-    )
-    authenticator.login(location='main')
+    authenticator = stauth.Authenticate(users, "ocp_cookie", "auth_key", cookie_expiry_days=30)
 
-    if st.session_state["authentication_status"]:
+    if st.session_state.get("authentication_status"):
         run_main_app(authenticator)
-
-        # --- 이하 로그인 성공 후의 로직은 이전과 동일 ---
-        st.sidebar.write(f"환영합니다, **{name}** 님!")
-        authenticator.logout('로그아웃', location='sidebar', key='main_logout')
+    else:
+        authenticator.login(location='main')
+        if st.session_state["authentication_status"] is False:
+            st.error('아이디 또는 비밀번호가 일치하지 않습니다.')
+        elif st.session_state["authentication_status"] is None:
+            st.info('로그인하거나 새 계정을 만들어주세요.')
         
-        st.title("🚀 Oracle OCP AI 튜터")
-        initialize_session_state()
-
-        # 사이드바 메뉴 렌더링
-        st.sidebar.title("메뉴")
-        view_options = {
-            "home": "📝 퀴즈 풀기", "notes": "📒 오답 노트",
-            "analytics": "📈 학습 통계", "manage": "⚙️ 설정 및 관리"
-        }
-        for view, label in view_options.items():
-            if st.sidebar.button(label, use_container_width=True, type="primary" if st.session_state.current_view == view else "secondary"):
-                st.session_state.current_view = view
-                if view == 'home':
-                    st.session_state.questions_to_solve = []
-                    st.session_state.user_answers = {}
-                    st.session_state.current_question_index = 0
-                st.rerun()
-        # --- App Management in Sidebar ---
-        st.sidebar.write("---")
-        st.sidebar.subheader("앱 관리")
-        if st.sidebar.button("현재 학습 초기화", use_container_width=True):
-            keys_to_keep = ['current_view', 'db_setup_done']
-            for key in list(st.session_state.keys()):
-                if key not in keys_to_keep:
-                    del st.session_state[key]
-            st.toast("현재 학습 상태가 초기화되었습니다.", icon="🔄")
-            st.rerun()
-
-        with st.sidebar.expander("⚠️ 전체 데이터 초기화"):
-            st.warning("모든 오답 기록과 AI 생성 문제를 영구적으로 삭제합니다.")
-            if st.button("모든 기록 삭제", type="primary", use_container_width=True):
-                conn = get_db_connection()
-                conn.execute("DELETE FROM user_answers")
-                conn.commit()
-                conn.close()
-                clear_all_modified_questions()
-                st.toast("모든 학습 기록이 영구적으로 삭제되었습니다.", icon="💥")
-                st.session_state.clear()
-                st.rerun()
-
-        # --- Main Content Area ---
-        view_map = {
-            "home": render_home_page,
-            "quiz": render_quiz_page,
-            "results": lambda: render_results_page(username), 
-            "notes": lambda: render_notes_page(username),
-            "manage": lambda: render_management_page(username),
-            "analytics": lambda: render_analytics_page(username),
-        }
-        render_func = view_map.get(st.session_state.current_view)
-        if render_func:
-            render_func()
-        else:
-            st.error("알 수 없는 페이지입니다. 홈으로 돌아갑니다.")
-            st.session_state.current_view = 'home'
-            st.rerun()
-
-    elif st.session_state["authentication_status"] == False:
-        # --- 로그인 실패 시 ---
-        st.error('사용자 이름 또는 비밀번호가 잘못되었습니다.')
-        show_register_form()
-
-    elif st.session_state["authentication_status"] == None:
-        st.info('로그인하거나 새 계정을 만들어주세요.')
-        show_register_form()
-
-        # --- 회원가입 기능 (추가) ---
-    if not st.session_state["authentication_status"]:
-        st.write("---")
-        with st.expander("아직 계정이 없으신가요? 새 계정 만들기"):
-            try:
-                with st.form("회원가입 폼"):
-                    st.subheader("회원가입")
-                    new_name = st.text_input("이름").strip()
-                    new_username = st.text_input("사용자 이름 (ID)").strip()
-                    new_password = st.text_input("비밀번호", type="password")
-                    
+        if not st.session_state.get("authentication_status"):
+            st.write("---")
+            with st.expander("새 계정 만들기"):
+                with st.form("reg_form"):
+                    new_name = st.text_input("이름")
+                    new_user = st.text_input("아이디")
+                    new_pwd = st.text_input("비밀번호", type="password")
                     if st.form_submit_button("가입하기"):
-                        if new_name and new_username and new_password:
-                            password_bytes = new_password.encode('utf-8')
-                            salt = bcrypt.gensalt()
-                            hashed_password_bytes = bcrypt.hashpw(password_bytes, salt)
-                            hashed_password = hashed_password_bytes.decode('utf-8')
-                            
-                            success, message = add_new_user(new_username, new_name, hashed_password)
-                            if success:
-                                st.success("회원가입이 완료되었습니다. 이제 위에서 로그인해주세요.")
-                            else:
-                                st.error(message)
-                        else:
-                            st.error("모든 항목을 입력해주세요.")
-            except Exception as e:
-                st.error(f"회원가입 처리 중 오류 발생: {e}")
+                        if new_name and new_user and new_pwd:
+                            hashed_pwd = bcrypt.hashpw(new_pwd.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                            success, msg = add_new_user(new_user, new_name, hashed_pwd)
+                            if success: st.success("가입 완료! 로그인해주세요.")
+                            else: st.error(msg)
+                        else: st.error("모든 정보를 입력해주세요.")
+
 if __name__ == "__main__":
     main()
