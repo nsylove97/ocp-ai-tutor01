@@ -19,7 +19,6 @@ DEFAULT_CHOICE_STYLE = """
     padding: 15px;
     margin-bottom: 10px;
 """
-
 def handle_choice_selection(choice_key, answer_count):
     """선택지 클릭을 처리하는 콜백 함수"""
     # 현재 문제의 인덱스와 사용자 답변 상태를 가져옴
@@ -42,17 +41,31 @@ def handle_choice_selection(choice_key, answer_count):
 def display_question(question_data, current_idx, total_questions):
     """
     클릭 가능한 선택지를 포함한 퀴즈 문제 하나를 화면에 표시합니다.
-    (기존 Radio/Multiselect 로직을 완전히 대체)
     """
-    # ... (상단부는 이전과 동일: ID 표시, 질문/미디어 렌더링)
     question_id_text = f" (문제 ID: {question_data['id']})"
     st.subheader(f"문제 {current_idx + 1}/{total_questions}{question_id_text}")
     st.markdown(question_data['question'], unsafe_allow_html=True)
+    
+    # --- 여기가 수정된 부분입니다 ---
+    # if 문 다음에 실행될 코드 블록을 올바르게 들여쓰기 합니다.
     if question_data.get('media_url'):
-        # ... (미디어 표시 로직)
+        media_type = question_data.get('media_type')
+        media_url = question_data.get('media_url')
+        if media_type == 'image':
+            # st.image가 존재하지 않는 파일을 열려고 시도할 때 발생하는 오류 방지
+            try:
+                st.image(media_url)
+            except Exception as e:
+                st.warning(f"이미지 파일을 불러오는 데 실패했습니다: {media_url} ({e})")
+        elif media_type == 'video':
+            try:
+                st.video(media_url)
+            except Exception as e:
+                st.warning(f"비디오 파일을 불러오는 데 실패했습니다: {media_url} ({e})")
+    # --- 여기까지 ---
+
     st.write("---")
 
-    # --- 여기가 핵심 변경 부분 ---
     options = json.loads(question_data['options'])
     try:
         answer_count = len(json.loads(question_data['answer']))
@@ -65,29 +78,17 @@ def display_question(question_data, current_idx, total_questions):
     else:
         st.info("**정답 1개를 고르세요.**")
     
-    # 현재 문제에 대한 사용자의 선택을 가져옴
     user_selection = st.session_state.user_answers.get(current_idx, [])
 
-    # 각 선택지를 순회하며 클릭 가능한 컨테이너 생성
     for key, value in options.items():
-        # 현재 선택지가 사용자에 의해 선택되었는지 확인
         is_selected = key in user_selection
-        
-        # 선택 상태에 따라 다른 스타일 적용
         style = SELECTED_CHOICE_STYLE if is_selected else DEFAULT_CHOICE_STYLE
         
-        # 각 선택지를 고유한 컨테이너에 담음
         with st.container():
-            # st.markdown을 사용하여 컨테이너에 직접 스타일 적용 (약간의 해킹)
             st.markdown(f'<div style="{style}">', unsafe_allow_html=True)
-            
-            # 버튼을 만들어 클릭 이벤트를 감지
             if st.button(f"{key}. {value}", key=f"choice_{key}_{current_idx}", use_container_width=True):
-                # 버튼이 클릭되면 콜백 함수를 직접 호출하여 상태 변경
-                # (on_click은 rerun을 유발하므로, 여기서는 직접 호출)
                 handle_choice_selection(key, answer_count)
-                st.rerun() # 선택 상태를 즉시 UI에 반영하기 위해 rerun
-
+                st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
 def display_results(get_ai_explanation_func):
