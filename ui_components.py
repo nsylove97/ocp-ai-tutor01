@@ -107,7 +107,7 @@ def display_question(question_data: dict, current_idx: int, total_questions: int
         )
 
 
-def display_results(get_ai_explanation_func):
+def display_results(username, get_ai_explanation_func):
     """퀴즈 결과를 요약하고, 각 문제에 대한 상세 정보를 표시합니다."""
     
     # 순환 참조를 피하기 위해, 함수가 실제로 필요할 때 함수 내부에서 임포트합니다.
@@ -151,7 +151,7 @@ def display_results(get_ai_explanation_func):
         if is_correct:
             correct_count += 1
         else:
-            save_user_answer(q_info['id'], q_info['type'], user_answer, is_correct=False)
+            save_user_answer(username, q_info['id'], q_info['type'], user_answer, is_correct=False)
     
     total_questions = len(st.session_state.questions_to_solve)
     if total_questions > 0:

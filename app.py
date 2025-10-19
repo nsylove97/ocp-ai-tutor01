@@ -1,31 +1,29 @@
-# app.py
-"""
-Oracle OCP AI 튜터 메인 애플리케이션 파일
-Streamlit을 사용하여 UI를 구성하고, 앱의 전체적인 흐름을 제어합니다.
-"""
+# app.py (최종 검토 및 정리 버전)
 import streamlit as st
+import streamlit_authenticator as stauth
 import random
-import json
 import os
-
-# --- 3rd Party Libraries ---
+import json
 from streamlit_quill import st_quill
 
 # --- Custom Modules ---
 from gemini_handler import generate_explanation, generate_modified_question
 from db_utils import (
     setup_database_tables, load_original_questions_from_json,
-    get_all_question_ids, get_question_by_id,
+    get_all_question_ids, get_question_by_id, get_db_connection,
     add_new_original_question, update_original_question,
     get_wrong_answers, delete_wrong_answer,
     get_all_modified_questions, save_modified_question,
     delete_modified_question, clear_all_modified_questions,
     get_stats, get_top_5_missed,
+    add_user_table, fetch_all_users, add_new_user
 )
 from ui_components import display_question, display_results
 
-# --- Constants ---
+# --- Constants & Helper Functions ---
 MEDIA_DIR = "media"
+if not os.path.exists(MEDIA_DIR):
+    os.makedirs(MEDIA_DIR)
 
 # --- Helper Functions ---
 
@@ -189,10 +187,10 @@ def render_quiz_page():
         st.error(f"문제(ID: {q_info['id']}, Type: {q_info['type']})를 불러오는 데 실패했습니다.")
 
 
-def render_notes_page():
-    """'오답 노트' 화면을 렌더링합니다."""
+def render_notes_page(username):
     st.header("📒 오답 노트")
-    wrong_answers = get_wrong_answers()
+    # 1. username 인자 전달
+    wrong_answers = get_wrong_answers(username)
 
     if not wrong_answers:
         st.success("🎉 축하합니다! 틀린 문제가 없습니다.")
@@ -224,16 +222,13 @@ def render_notes_page():
                             st.info(f"**🔑 핵심 개념:**\n\n{explanation.get('core_concepts', 'N/A')}")
 
 
-def render_results_page():
-    """'퀴즈 결과' 화면을 렌더링합니다."""
-    display_results(get_ai_explanation)
+def render_results_page(username):
+    display_results(username, get_ai_explanation)
     if st.button("새 퀴즈 시작하기"):
         st.session_state.current_view = 'home'
         st.rerun()
 
-
-def render_management_page():
-    """'설정 및 관리' 화면을 렌더링합니다."""
+def render_management_page(username):
     st.header("⚙️ 설정 및 관리")
     tabs = ["원본 문제 데이터", "문제 추가", "문제 편집", "오답 노트 관리", "AI 변형 문제 관리"]
     tab1, tab2, tab3, tab4, tab5 = st.tabs(tabs)
@@ -320,13 +315,15 @@ def render_management_page():
                     edited_answer = st.multiselect("정답:", options=list(edited_options.keys()), default=current_answer, key=f"ans_{edit_id}")
                     
                     if st.form_submit_button("변경사항 저장"):
+                        # 2. 미디어 파일 처리 로직 수정 및 완성
                         media_url, media_type = question_to_edit.get('media_url'), question_to_edit.get('media_type')
                         if edited_file:
                             file_path = os.path.join(MEDIA_DIR, edited_file.name)
                             with open(file_path, "wb") as f: f.write(edited_file.getbuffer())
                             media_url = file_path
                             media_type = 'image' if edited_file.type.startswith('image') else 'video'
-
+                        
+                        # update_original_question 호출 시 media 인자 추가
                         update_original_question(edit_id, edited_question_html, edited_options, edited_answer, media_url, media_type)
                         st.toast(f"ID {edit_id} 문제가 업데이트되었습니다!", icon="✅")
                         st.cache_data.clear()
@@ -334,7 +331,7 @@ def render_management_page():
 
     with tab4:
         st.subheader("📒 오답 노트 관리")
-        wrong_answers = get_wrong_answers()
+        wrong_answers = get_wrong_answers(username)
         if not wrong_answers:
             st.info("관리할 오답 노트가 없습니다.")
         else:
@@ -348,7 +345,8 @@ def render_management_page():
                         st.text(f"ID {question['id']} ({q_info['question_type']}): {q_text[:70]}...")
                     with col2:
                         if st.button("삭제", key=f"del_wrong_{q_info['question_id']}_{q_info['question_type']}", type="secondary"):
-                            delete_wrong_answer(q_info['question_id'], q_info['question_type'])
+                            # 1. username 인자 전달
+                            delete_wrong_answer(username, q_info['question_id'], q_info['question_type'])
                             st.toast(f"ID {question['id']} 오답 기록이 삭제되었습니다.", icon="🗑️")
                             st.rerun()
                             
@@ -373,17 +371,17 @@ def render_management_page():
                         st.toast(f"ID {mq['id']} 변형 문제가 삭제되었습니다.", icon="🗑️")
                         st.rerun()
 
-def render_analytics_page():
+def render_analytics_page(username):
     """'학습 통계' 화면을 렌더링합니다."""
     st.header("📈 학습 통계")
-    total, correct, accuracy = get_stats()
+    total, correct, accuracy = get_stats(username)
     col1, col2, col3 = st.columns(3)
     col1.metric("총 풀이 문제 수", f"{total} 개")
     col2.metric("총 정답 수", f"{correct} 개")
     col3.metric("전체 정답률", f"{accuracy:.2f} %")
     st.write("---")
     st.subheader("가장 많이 틀린 문제 Top 5 (원본 문제 기준)")
-    df_missed = get_top_5_missed()
+    df_missed = get_top_5_missed(username)
     if df_missed.empty:
         st.info("틀린 문제 기록이 충분하지 않습니다.")
     else:
@@ -394,11 +392,12 @@ def render_analytics_page():
                 st.markdown(row['question'], unsafe_allow_html=True)
 
 # --- Main App Logic ---
-def main():
-    """메인 실행 함수"""
-    st.set_page_config(page_title="Oracle OCP AI 튜터", layout="wide", initial_sidebar_state="expanded")
+def run_main_app(authenticator, name, username):
+    """로그인 성공 후 실행되는 메인 앱 로직."""
+    st.sidebar.write(f"환영합니다, **{name}** 님!")
+    authenticator.logout('로그아웃', 'sidebar')
     
-    # 앱 시작 시 DB 테이블 구조 확인 및 생성
+    # DB 테이블 구조 확인 (최초 1회)
     if 'db_setup_done' not in st.session_state:
         setup_database_tables()
         st.session_state.db_setup_done = True
@@ -408,60 +407,173 @@ def main():
 
     # --- Sidebar Navigation ---
     st.sidebar.title("메뉴")
-    view_options = {
-        "home": "📝 퀴즈 풀기",
-        "notes": "📒 오답 노트",
-        "analytics": "📈 학습 통계",
-        "manage": "⚙️ 설정 및 관리"
-    }
-    for view, label in view_options.items():
-        if st.sidebar.button(label, use_container_width=True, type="primary" if st.session_state.current_view == view else "secondary"):
-            st.session_state.current_view = view
-            if view == 'home': # 퀴즈 풀기 메뉴를 누르면 퀴즈 상태 초기화
-                st.session_state.questions_to_solve = []
-                st.session_state.user_answers = {}
-                st.session_state.current_question_index = 0
-            st.rerun()
-
-    # --- App Management in Sidebar ---
-    st.sidebar.write("---")
-    st.sidebar.subheader("앱 관리")
-    if st.sidebar.button("현재 학습 초기화", use_container_width=True):
-        keys_to_keep = ['current_view', 'db_setup_done']
-        for key in list(st.session_state.keys()):
-            if key not in keys_to_keep:
-                del st.session_state[key]
-        st.toast("현재 학습 상태가 초기화되었습니다.", icon="🔄")
-        st.rerun()
-
-    with st.sidebar.expander("⚠️ 전체 데이터 초기화"):
-        st.warning("모든 오답 기록과 AI 생성 문제를 영구적으로 삭제합니다.")
-        if st.button("모든 기록 삭제", type="primary", use_container_width=True):
-            conn = get_db_connection()
-            conn.execute("DELETE FROM user_answers")
-            conn.commit()
-            conn.close()
-            clear_all_modified_questions()
-            st.toast("모든 학습 기록이 영구적으로 삭제되었습니다.", icon="💥")
-            st.session_state.clear()
-            st.rerun()
+    # ... (사이드바 버튼 로직은 동일)
 
     # --- Main Content Area ---
     view_map = {
         "home": render_home_page,
         "quiz": render_quiz_page,
-        "results": render_results_page,
-        "notes": render_notes_page,
-        "manage": render_management_page,
-        "analytics": render_analytics_page,
+        "results": lambda: render_results_page(username),
+        "notes": lambda: render_notes_page(username),
+        "manage": lambda: render_management_page(username),
+        "analytics": lambda: render_analytics_page(username),
     }
     render_func = view_map.get(st.session_state.current_view)
     if render_func:
         render_func()
     else:
-        st.error("알 수 없는 페이지입니다. 홈으로 돌아갑니다.")
         st.session_state.current_view = 'home'
         st.rerun()
+
+def show_register_form():
+    """회원가입 폼을 표시하는 함수."""
+    try:
+        if st.button('아직 계정이 없으신가요? 회원가입'):
+            st.session_state.show_register_form = not st.session_state.get('show_register_form', False)
+
+        if st.session_state.get('show_register_form'):
+            with st.form("회원가입"):
+                # ... (회원가입 폼 로직은 동일)
+                pass
+    except Exception as e:
+        st.error(f"회원가입 처리 중 오류 발생: {e}")
+        
+def main():
+    """메인 실행 함수"""
+    st.set_page_config(page_title="Oracle OCP AI 튜터", layout="wide", initial_sidebar_state="expanded")
+
+    # --- 사용자 DB 테이블 확인/생성 ---
+    # 기존 setup_database_tables() 호출 전에 사용자 테이블부터 확인
+    add_user_table()
+
+    # --- Authenticator 설정 ---
+    users = fetch_all_users()
+    authenticator = stauth.Authenticate(
+        users,
+        "ocp_ai_tutor_cookie",  # 쿠키 이름 (고유하게)
+        "abcdef",  # 서명 키 (아무거나 복잡하게)
+        cookie_expiry_days=30
+    )
+
+    # --- 로그인/회원가입 위젯 렌더링 ---
+    # name, authentication_status, username을 authenticator.login()의 반환 값으로 받음
+    name, authentication_status, username = authenticator.login('로그인', 'main')
+    
+    # --- 로그인 상태에 따른 분기 처리 (추가/수정) ---
+    if authentication_status:
+        # --- 로그인 성공 시 ---
+        st.sidebar.write(f"환영합니다, **{name}** 님!")
+        authenticator.logout('로그아웃', 'sidebar') # 사이드바에 로그아웃 버튼 추가
+        
+        # --- 기존 main 로직을 로그인 성공 블록 안으로 이동 ---
+        if 'db_setup_done' not in st.session_state:
+            setup_database_tables()
+            st.session_state.db_setup_done = True
+        
+        st.title("🚀 Oracle OCP AI 튜터")
+        initialize_session_state()
+
+        # 앱 시작 시 DB 테이블 구조 확인 및 생성
+        if 'db_setup_done' not in st.session_state:
+            setup_database_tables()
+            st.session_state.db_setup_done = True
+    
+        st.title("🚀 Oracle OCP AI 튜터")
+        initialize_session_state()
+
+        # --- Sidebar Navigation ---
+        st.sidebar.title("메뉴")
+        view_options = {
+            "home": "📝 퀴즈 풀기",
+            "notes": "📒 오답 노트",
+            "analytics": "📈 학습 통계",
+            "manage": "⚙️ 설정 및 관리"
+    }
+        for view, label in view_options.items():
+            if st.sidebar.button(label, use_container_width=True, type="primary" if st.session_state.current_view == view else "secondary"):
+                st.session_state.current_view = view
+                if view == 'home': # 퀴즈 풀기 메뉴를 누르면 퀴즈 상태 초기화
+                    st.session_state.questions_to_solve = []
+                    st.session_state.user_answers = {}
+                    st.session_state.current_question_index = 0
+                st.rerun()
+
+        # --- App Management in Sidebar ---
+        st.sidebar.write("---")
+        st.sidebar.subheader("앱 관리")
+        if st.sidebar.button("현재 학습 초기화", use_container_width=True):
+            keys_to_keep = ['current_view', 'db_setup_done']
+            for key in list(st.session_state.keys()):
+                if key not in keys_to_keep:
+                    del st.session_state[key]
+            st.toast("현재 학습 상태가 초기화되었습니다.", icon="🔄")
+            st.rerun()
+
+        with st.sidebar.expander("⚠️ 전체 데이터 초기화"):
+            st.warning("모든 오답 기록과 AI 생성 문제를 영구적으로 삭제합니다.")
+            if st.button("모든 기록 삭제", type="primary", use_container_width=True):
+                conn = get_db_connection()
+                conn.execute("DELETE FROM user_answers")
+                conn.commit()
+                conn.close()
+                clear_all_modified_questions()
+                st.toast("모든 학습 기록이 영구적으로 삭제되었습니다.", icon="💥")
+                st.session_state.clear()
+                st.rerun()
+
+        # --- Main Content Area ---
+        view_map = {
+            "home": render_home_page,
+            "quiz": render_quiz_page,
+            "results": lambda: render_results_page(username), 
+            "notes": lambda: render_notes_page(username),
+            "manage": lambda: render_management_page(username),
+            "analytics": lambda: render_analytics_page(username),
+        }
+        render_func = view_map.get(st.session_state.current_view)
+        if render_func:
+            render_func()
+        else:
+            st.error("알 수 없는 페이지입니다. 홈으로 돌아갑니다.")
+            st.session_state.current_view = 'home'
+            st.rerun()
+    elif authentication_status == False:
+        # --- 로그인 실패 시 ---
+        st.error('사용자 이름 또는 비밀번호가 잘못되었습니다.')
+
+    elif authentication_status == None:
+        # --- 로그인하지 않은 상태 (초기 화면) ---
+        st.warning('로그인 후 이용해주세요.')
+
+        # --- 회원가입 기능 (추가) ---
+        try:
+            if st.button('회원가입'):
+                st.session_state.show_register_form = True
+
+            if st.session_state.get('show_register_form'):
+                with st.form("회원가입"):
+                    st.subheader("새 계정 만들기")
+                    new_name = st.text_input("이름", key="new_name")
+                    new_username = st.text_input("사용자 이름 (ID)", key="new_username")
+                    new_password = st.text_input("비밀번호", type="password", key="new_password")
+                    
+                    if st.form_submit_button("가입하기"):
+                        if new_name and new_username and new_password:
+                            # 비밀번호 해싱
+                            hashed_password = stauth.Hasher([new_password]).generate()[0]
+                            # DB에 사용자 추가
+                            success, message = add_new_user(new_username, new_name, hashed_password)
+                            
+                            if success:
+                                st.success("회원가입이 완료되었습니다. 이제 로그인해주세요.")
+                                st.session_state.show_register_form = False # 폼 숨기기
+                                st.rerun()
+                            else:
+                                st.error(message) # "이미 존재하는 사용자 이름입니다."
+                        else:
+                            st.error("모든 항목을 입력해주세요.")
+        except Exception as e:
+            st.error(f"회원가입 처리 중 오류 발생: {e}")
 
 if __name__ == "__main__":
     main()
