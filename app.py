@@ -454,80 +454,35 @@ def main():
         "abcdef",  # 서명 키 (아무거나 복잡하게)
         cookie_expiry_days=30
     )
-    # 탭을 사용하여 로그인과 회원가입 UI를 분리
-    login_tab, register_tab = st.tabs(["로그인", "회원가입"])
+    authenticator.login('로그인', 'main')
 
-    # --- 로그인/회원가입 위젯 렌더링 ---
-    with login_tab:
-        authenticator.login()
-    
-        with register_tab:
-            try:
-                if authenticator.register_user(preauthorization=False):
-                    # 회원가입 성공 시, DB에 직접 사용자를 추가해야 합니다.
-                    # 라이브러리는 config 파일 사용을 전제로 하므로 DB 연동은 직접 구현합니다.
-                    new_username = st.session_state['new_username']
-                    new_email = st.session_state['new_email'] # 이 라이브러리는 email을 요구함
-                    new_name = st.session_state['new_name']
-                    new_password = st.session_state['new_password']
-                    
-                    # 비밀번호 해싱
-                    hashed_password = stauth.Hasher([new_password]).generate()[0]
-                    
-                    # DB에 사용자 추가
-                    # add_new_user 함수를 이메일도 저장하도록 수정하거나, 이메일은 무시할 수 있습니다.
-                    success, message = add_new_user(new_username, new_name, hashed_password)
-
-                    if success:
-                        st.success('사용자 등록이 완료되었습니다. 이제 로그인 탭에서 로그인해주세요.')
-                    else:
-                        st.error(message or "사용자 등록에 실패했습니다.")
-
-            except Exception as e:
-                st.error(e)
-    
-    # --- 로그인 상태에 따른 분기 처리 (추가/수정) ---
     if st.session_state["authentication_status"]:
         # --- 로그인 성공 시 ---
+        # st.session_state에서 이름과 사용자 이름을 가져옵니다.
         name = st.session_state["name"]
         username = st.session_state["username"]
         
+        # --- 이하 로그인 성공 후의 로직은 이전과 동일 ---
         st.sidebar.write(f"환영합니다, **{name}** 님!")
         authenticator.logout('로그아웃', 'sidebar')
         
-        # --- 기존 main 로직을 로그인 성공 블록 안으로 이동 ---
-        if 'db_setup_done' not in st.session_state:
-            setup_database_tables()
-            st.session_state.db_setup_done = True
-        
         st.title("🚀 Oracle OCP AI 튜터")
         initialize_session_state()
 
-        # 앱 시작 시 DB 테이블 구조 확인 및 생성
-        if 'db_setup_done' not in st.session_state:
-            setup_database_tables()
-            st.session_state.db_setup_done = True
-    
-        st.title("🚀 Oracle OCP AI 튜터")
-        initialize_session_state()
-
-        # --- Sidebar Navigation ---
+        # 사이드바 메뉴 렌더링
         st.sidebar.title("메뉴")
         view_options = {
-            "home": "📝 퀴즈 풀기",
-            "notes": "📒 오답 노트",
-            "analytics": "📈 학습 통계",
-            "manage": "⚙️ 설정 및 관리"
-    }
+            "home": "📝 퀴즈 풀기", "notes": "📒 오답 노트",
+            "analytics": "📈 학습 통계", "manage": "⚙️ 설정 및 관리"
+        }
         for view, label in view_options.items():
             if st.sidebar.button(label, use_container_width=True, type="primary" if st.session_state.current_view == view else "secondary"):
                 st.session_state.current_view = view
-                if view == 'home': # 퀴즈 풀기 메뉴를 누르면 퀴즈 상태 초기화
+                if view == 'home':
                     st.session_state.questions_to_solve = []
                     st.session_state.user_answers = {}
                     st.session_state.current_question_index = 0
                 st.rerun()
-
         # --- App Management in Sidebar ---
         st.sidebar.write("---")
         st.sidebar.subheader("앱 관리")
@@ -572,15 +527,7 @@ def main():
         st.error('사용자 이름 또는 비밀번호가 잘못되었습니다.')
 
     elif st.session_state["authentication_status"] == None:
-        # --- 로그인하지 않은 상태 (초기 화면) ---
-        st.warning('로그인 후 이용해주세요.')
-        try:
-            if authenticator.register_user('회원가입'):
-            # --- 여기까지 ---
-                st.success('사용자 등록이 완료되었습니다. 이제 로그인해주세요.')
-        except Exception as e:
-            st.error(e)
-        
+        st.info('로그인하거나 새 계정을 만들어주세요.')
 
         # --- 회원가입 기능 (추가) ---
     if not st.session_state["authentication_status"]:
@@ -602,7 +549,7 @@ def main():
                             # DB에 사용자 추가
                             success, message = add_new_user(new_username, new_name, hashed_password)
                             
-                            if authenticator.register_user('회원가입', preauthorization=False):
+                            if authenticator.register_user('회원가입'):
                                 st.success("회원가입이 완료되었습니다. 이제 로그인해주세요.")
                                 st.session_state.show_register_form = False # 폼 숨기기
                                 st.rerun()
