@@ -4,8 +4,11 @@
 이 파일은 테이블 생성, 데이터 CRUD(Create, Read, Update, Delete),
 사용자 관리 및 통계 데이터 조회를 포함합니다.
 """
+# --- Python Standard Libraries ---
 import sqlite3
 import json
+
+# --- 3rd Party Libraries ---
 import pandas as pd
 
 # --- 상수 정의 ---
@@ -61,7 +64,7 @@ def setup_database_tables():
     conn.close()
     print("모든 데이터베이스 테이블 확인/생성/업그레이드 완료.")
 
-def load_original_questions_from_json(questions_with_difficulty, progress_callback=None):
+def load_original_questions_from_json(questions_with_difficulty):
     """
     '난이도'가 이미 포함된 문제 데이터 리스트를 받아 DB를 새로 고칩니다.
     이 함수는 더 이상 AI를 직접 호출하지 않습니다.
@@ -83,16 +86,10 @@ def load_original_questions_from_json(questions_with_difficulty, progress_callba
         cursor.execute(
             "INSERT INTO original_questions (id, question, options, answer, difficulty) VALUES (?, ?, ?, ?, ?)",
             (q['id'], q['question'], json.dumps(q.get('options', {})), json.dumps(q.get('answer', [])), q['difficulty'])
-        )
-        
-        if progress_callback:
-            progress_value = (i + 1) / total_questions
-            progress_text = f"DB에 문제 저장 중... ({i + 1}/{total_questions})"
-            progress_callback(progress_value, progress_text)
-            
+        )         
     conn.commit()
     conn.close()
-    return total_questions, None
+    return len(questions_with_difficulty), None
 
 # --- 문제 관리 (CRUD) ---
 def get_all_question_ids(q_type='original'):
