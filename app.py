@@ -539,14 +539,14 @@ def main():
                 with st.form("회원가입"):
                     st.subheader("새 계정 만들기")
                     new_name = st.text_input("이름", key="new_name")
-                    new_username = st.text_input("사용자 이름 (ID)", key="new_username")
-                    new_password = st.text_input("비밀번호", type="password", key="new_password")
+                    new_username = st.text_input("사용자 이름 (ID)").strip()
+                    new_password = st.text_input("비밀번호", type="password")
                     
                     if st.form_submit_button("가입하기"):
                         if new_name and new_username and new_password:
                             # 비밀번호 해싱
-                            hasher = stauth.Hasher()
-                            hashed_passwords = hasher.hash_password([new_password])
+                            hashed_passwords = stauth.Hasher([new_password]).generate()
+                            
                             if hashed_passwords:
                                 hashed_password = hashed_passwords[0]
                             else:
