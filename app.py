@@ -452,8 +452,8 @@ def render_management_page(username):
                             st.write("선택지 또는 정답 정보를 불러올 수 없습니다.")
 
                         # 삭제 버튼
-                        if st.button("이 오답 기록 삭제", key=f"del_wrong_manage_{question['question_id']}_{question['question_type']}", type="secondary"):
-                            delete_wrong_answer(username, question['question_id'], question['question_type'])
+                        if st.button("이 오답 기록 삭제", key=f"del_wrong_manage_{question['id']}_{question['question_type']}", type="secondary"):
+                            delete_wrong_answer(username, question['id'], question['question_type'])
                             st.toast("삭제되었습니다.", icon="🗑️")
                             st.rerun()
 
