@@ -152,40 +152,64 @@ def render_notes_page(username):
 
     st.write("---")
 
-    for question in wrong_answers:
-        if question:
-            with st.expander(f"**ID {question['id']} ({question['question_type']})** | {question['question'].replace('<p>', '').replace('</p>', '')[:50].strip()}..."):
-                
-                # --- 펼쳤을 때 보일 상세 내용 ---
-                st.markdown("**질문:**")
-                st.markdown(question['question'], unsafe_allow_html=True)
+    for row in wrong_answers:
+        if not row:
+            continue
 
-                if question.get['media_url'] and os.path.exists(question.get['media_url']):
-                    if question.get['media_type'] == 'image': st.image(question['media_url'])
-                    else: st.video(question['media_url'])
-                
-                try:
-                    options = json.loads(question['options'])
-                    st.markdown("**선택지:**")
-                    for key, value in options.items():
-                        st.write(f" - **{key}:** {value}")
-                except (json.JSONDecodeError, TypeError):
-                    st.write("선택지를 불러올 수 없습니다.")
-                
-                try:
-                    answer = json.loads(question['answer'])
+        # sqlite3.Row 또는 dict 어떤 형태든 안전하게 dict로 변환
+        try:
+            question = dict(row)
+        except Exception:
+            question = row
+
+        q_text = (question.get('question') or "") if isinstance(question, dict) else (question['question'] if 'question' in question else "")
+        preview = q_text.replace('<p>', '').replace('</p>', '')[:50].strip() + "..." if q_text else "미리보기 없음"
+
+        q_id = question.get('id') or question.get('question_id')
+        q_type = question.get('question_type') or question.get('type') or 'original'
+
+        with st.expander(f"**ID {q_id} ({q_type})** | {preview}"):
+            # 질문 본문
+            st.markdown("**질문:**")
+            st.markdown(q_text, unsafe_allow_html=True)
+
+            # 미디어 표시 (경로 존재 확인)
+            media_url = question.get('media_url')
+            media_type = question.get('media_type')
+            if media_url and os.path.exists(media_url):
+                if media_type == 'image':
+                    st.image(media_url)
+                else:
+                    st.video(media_url)
+            
+            # 선택지 출력
+            try:
+                options = json.loads(question.get('options') or "{}")
+                st.markdown("**선택지:**")
+                for key, value in options.items():
+                    st.write(f" - **{key}:** {value}")
+            except (json.JSONDecodeError, TypeError):
+                st.write("선택지를 불러올 수 없습니다.")
+            
+            # 정답 출력
+            try:
+                answer = json.loads(question.get('answer') or "[]")
+                if isinstance(answer, list):
                     st.error(f"**정답:** {', '.join(answer)}")
-                except (json.JSONDecodeError, TypeError):
-                    st.error("정답 정보를 불러올 수 없습니다.")
+                else:
+                    st.error(f"**정답:** {answer}")
+            except (json.JSONDecodeError, TypeError):
+                st.error("정답 정보를 불러올 수 없습니다.")
 
-                if st.button("🤖 AI 해설", key=f"note_exp_{question['id']}_{question['question_type']}"):
-                    with st.spinner("해설 생성 중..."):
-                        if exp := get_ai_explanation(question['id'], question['question_type']):
-                            if err := exp.get('error'): st.error(err)
-                            else:
-                                st.info(f"**💡 쉬운 비유:**\n{exp.get('analogy', 'N/A')}")
-                                st.info(f"**🔑 핵심 개념:**\n{exp.get('core_concepts', 'N/A')}")
-
+            # AI 해설 버튼
+            if st.button("🤖 AI 해설", key=f"note_exp_{q_id}_{q_type}"):
+                with st.spinner("해설 생성 중..."):
+                    if exp := get_ai_explanation(q_id, q_type):
+                        if err := exp.get('error'):
+                            st.error(err)
+                        else:
+                            st.info(f"**💡 쉬운 비유:**\n{exp.get('analogy', 'N/A')}")
+                            st.info(f"**🔑 핵심 개념:**\n{exp.get('core_concepts', 'N/A')}")
 def render_results_page(username):
     display_results(username, get_ai_explanation)
     if st.button("새 퀴즈 시작"): st.session_state.current_view = 'home'; st.rerun()
