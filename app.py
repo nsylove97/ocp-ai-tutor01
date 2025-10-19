@@ -248,15 +248,22 @@ def render_management_page(username):
     # --- 공통 탭 (두 번째 탭부터) ---
     with tabs[1]: # 원본 문제 데이터
         st.subheader("📚 원본 문제 데이터")
+        st.info("JSON 파일의 모든 문제를 불러와 AI가 자동으로 난이도를 분석하여 저장합니다. (시간이 다소 소요될 수 있습니다)")
+        
         num_q = len(get_all_question_ids('original'))
         st.metric("현재 저장된 문제 수", f"{num_q} 개")
-        if st.button("JSON에서 원본 문제 불러오기", type="primary"):
-            with st.spinner("DB 설정 중..."):
-                count, error = load_original_questions_from_json()
-                if error: st.error(f"로딩 실패: {error}")
-                else:
-                    st.toast(f"성공적으로 {count}개의 문제를 불러왔습니다!")
-                    st.rerun()
+
+        if st.button("AI 자동 난이도 부여 및 문제 불러오기", type="primary"):
+            progress_bar = st.progress(0, text="AI 난이도 분석 시작...")
+            
+            # load_original_questions_from_json은 이제 제너레이터이므로 list()로 모두 실행
+            for progress in load_original_questions_from_json():
+                progress_bar.progress(progress, text=f"AI 난이도 분석 중... ({int(progress*100)}%)")
+
+            st.toast("모든 문제에 대한 AI 난이도 분석 및 저장이 완료되었습니다!", icon="✅")
+            progress_bar.empty() # 진행률 바 숨기기
+            st.rerun()
+
 # --- 공통 탭 (두 번째 탭부터) ---
     with tabs[2]: #문제 추가
         st.subheader("➕ 새로운 문제 추가")
@@ -321,13 +328,24 @@ def render_management_page(username):
                     edited_file = st.file_uploader("미디어 교체", key=f"f_{edit_id}")
                     edited_opts = {k: st.text_input(f"선택지 {k}:", value=v, key=f"o_{k}_{edit_id}") for k, v in curr_opts.items()}
                     edited_ans = st.multiselect("정답:", options=list(edited_opts.keys()), default=curr_ans, key=f"a_{edit_id}")
-                    difficulty_options = ['쉬움', '보통', '어려움']
-                    current_difficulty = q_data.get('difficulty', '보통')
+                    st.write("---") # 시각적 구분을 위한 선
+                    st.markdown("**난이도 수정**")
                     
+                    difficulty_options = ['쉬움', '보통', '어려움']
+                    # DB에서 현재 문제의 난이도를 가져옴
+                    current_difficulty = q_data.get('difficulty', '보통')
+                    # 만약 DB 값이 옵션 목록에 없으면 '보통'으로 강제 (안정성)
                     if current_difficulty not in difficulty_options:
                         current_difficulty = '보통'
-                        current_difficulty_index = difficulty_options.index(current_difficulty)
-                        edited_difficulty = st.selectbox("난이도 수정:", difficulty_options, index=current_difficulty_index, key=f"edit_diff_{edit_id}")
+                    
+                    current_difficulty_index = difficulty_options.index(current_difficulty)
+                    
+                    edited_difficulty = st.selectbox(
+                        "난이도:", 
+                        difficulty_options, 
+                        index=current_difficulty_index, 
+                        key=f"edit_diff_{edit_id}"
+                    )
                     
                     if st.form_submit_button("저장"):
                         m_url, m_type = q_data.get('media_url'), q_data.get('media_type')
