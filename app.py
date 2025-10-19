@@ -581,50 +581,64 @@ def main():
     credentials, all_user_info = fetch_all_users()
     authenticator = stauth.Authenticate(
         credentials,
-        "ocp_cookie_v3", # 쿠키 이름/키를 변경하여 이전 로그인 정보 초기화
+        "ocp_cookie_v3",
         "auth_key_v3",
         30
     )
 
-    # --- 3. 로그인 위젯을 먼저 렌더링하고 상태를 받음 ---
-    # authenticator.login()은 이제 튜플을 반환합니다.
-    name, authentication_status, username = authenticator.login(location='main')
+    # --- 3. 로그인 위젯 렌더링 및 상태 값 받기 ---
+    login_result = authenticator.login(location='main')
+
+    # login_result가 None일 경우를 대비하여 기본값 설정
+    if login_result:
+        name, authentication_status, username = login_result
+    else:
+        # st.session_state에 저장된 값을 사용하거나, 기본값으로 설정
+        name = st.session_state.get("name")
+        authentication_status = st.session_state.get("authentication_status")
+        username = st.session_state.get("username")
+    # --- 여기까지 수정 ---
 
     # --- 4. 인증 상태에 따라 화면을 완벽하게 분기 ---
     if authentication_status:
         # --- 4a. 로그인 성공 시 ---
-        # 로그인 성공 후에는 run_main_app만 실행하고 main 함수를 종료합니다.
         run_main_app(authenticator, all_user_info)
-        return # ★★★★★ 이 return 문이 핵심입니다 ★★★★★
+        return
 
-    elif authentication_status == False:
-        # --- 4b. 로그인 실패 시 ---
+    # --- 5. 로그인하지 않았을 때의 UI ---
+    # 로그인 실패 또는 초기 상태 메시지
+    st.title("🚀 Oracle OCP AI 튜터") # 로그인 페이지에도 제목 표시
+    st.markdown("---")
+    
+    if authentication_status == False:
         st.error('아이디 또는 비밀번호가 일치하지 않습니다.')
-
     elif authentication_status == None:
-        # --- 4c. 로그인하지 않은 상태 (초기 화면) ---
         st.info('로그인하거나 아래에서 새 계정을 만들어주세요.')
-
-    # --- 5. 로그인하지 않았을 때만 회원가입 폼을 표시 ---
+    
+    # 회원가입 폼 렌더링
     st.write("---")
     with st.expander("새 계정 만들기"):
         try:
+            # register_user 위젯 사용
             if authenticator.register_user('회원가입', preauthorization=False):
-                # 성공 메시지는 라이브러리가 기본으로 보여줄 수 있으므로,
-                # 여기서는 DB 저장 로직만 확실히 처리합니다.
-                new_username = st.session_state.get("username_register")
-                new_name = st.session_state.get("name_register")
-                new_password = st.session_state.get("password_register")
-                
-                if all((new_username, new_name, new_password)):
-                    hashed_password = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
-                    success, msg = add_new_user(new_username, new_name, hashed_password)
-                    if success:
-                        st.success('회원가입이 완료되었습니다. 위에서 로그인해주세요.')
+                # 최신 라이브러리에서는 register_user 성공 시 st.session_state에 값이 저장됨
+                reg_username = st.session_state.get("username_register")
+                reg_name = st.session_state.get("name_register")
+                reg_password = st.session_state.get("password_register")
+
+                if all((reg_username, reg_name, reg_password)):
+                    # 관리자 ID로 가입 시도 방지
+                    if reg_username == MASTER_ACCOUNT_USERNAME:
+                        st.error(f"'{MASTER_ACCOUNT_USERNAME}'은 예약된 아이디입니다.")
                     else:
-                        st.error(msg)
+                        hashed_password = bcrypt.hashpw(reg_password.encode(), bcrypt.gensalt()).decode()
+                        success, msg = add_new_user(reg_username, reg_name, hashed_password)
+                        if success:
+                            st.success('회원가입이 완료되었습니다. 위에서 로그인해주세요.')
+                        else:
+                            st.error(msg)
         except Exception as e:
-            st.error(e)
+            st.error(f"회원가입 처리 중 오류 발생: {e}")
 
 def run_main_app(authenticator, all_user_info):
     """
