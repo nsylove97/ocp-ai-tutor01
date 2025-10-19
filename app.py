@@ -150,26 +150,54 @@ def render_quiz_page():
     else: st.error(f"문제(ID: {q_info['id']})를 불러오는 데 실패했습니다.")
 
 def render_notes_page(username):
+    """'오답 노트' 화면을 렌더링합니다."""
     st.header("📒 오답 노트")
     wrong_answers = get_wrong_answers(username)
+
     if not wrong_answers:
         st.success("🎉 오답 노트가 비어있습니다.")
         return
+    
+    st.info(f"총 {len(wrong_answers)}개의 틀린 문제가 있습니다. 다시 풀어보거나 아래에서 상세 내용을 확인하세요.")
     if st.button("틀린 문제 다시 풀기", type="primary"):
         st.session_state.questions_to_solve = [{'id': q['question_id'], 'type': q['question_type']} for q in wrong_answers]
         st.session_state.current_question_index = 0
         st.session_state.user_answers = {}
         st.session_state.current_view = 'quiz'
         st.rerun()
+
     st.write("---")
+
     for q_info in wrong_answers:
-        if q := get_question_by_id(q_info['question_id'], q_info['question_type']):
-            with st.container(border=True):
-                st.markdown(f"**문제 ID: {q['id']}** ({q_info['question_type']})")
-                st.markdown(q['question'], unsafe_allow_html=True)
-                if st.button("🤖 AI 해설", key=f"note_exp_{q['id']}_{q_info['question_type']}"):
+        question = get_question_by_id(q_info['question_id'], q_info['question_type'])
+        if question:
+            with st.expander(f"**ID {question['id']} ({q_info['question_type']})** | {question['question'].replace('<p>', '').replace('</p>', '')[:50].strip()}..."):
+                
+                # --- 펼쳤을 때 보일 상세 내용 ---
+                st.markdown("**질문:**")
+                st.markdown(question['question'], unsafe_allow_html=True)
+
+                if question.get('media_url') and os.path.exists(question.get('media_url')):
+                    if question.get('media_type') == 'image': st.image(question['media_url'])
+                    else: st.video(question['media_url'])
+                
+                try:
+                    options = json.loads(question['options'])
+                    st.markdown("**선택지:**")
+                    for key, value in options.items():
+                        st.write(f" - **{key}:** {value}")
+                except (json.JSONDecodeError, TypeError):
+                    st.write("선택지를 불러올 수 없습니다.")
+                
+                try:
+                    answer = json.loads(question['answer'])
+                    st.error(f"**정답:** {', '.join(answer)}")
+                except (json.JSONDecodeError, TypeError):
+                    st.error("정답 정보를 불러올 수 없습니다.")
+
+                if st.button("🤖 AI 해설", key=f"note_exp_{question['id']}_{q_info['question_type']}"):
                     with st.spinner("해설 생성 중..."):
-                        if exp := get_ai_explanation(q['id'], q_info['question_type']):
+                        if exp := get_ai_explanation(question['id'], q_info['question_type']):
                             if err := exp.get('error'): st.error(err)
                             else:
                                 st.info(f"**💡 쉬운 비유:**\n{exp.get('analogy', 'N/A')}")
@@ -436,37 +464,70 @@ def render_management_page(username):
                         st.cache_data.clear()
                         st.rerun()
 
-    with tabs[4]: #오답 노트 관리
+    # --- 탭 4: 오답 노트 관리 ---
+    with tabs[4]:
         st.subheader("📒 오답 노트 관리")
         wrong_answers = get_wrong_answers(username)
-        if not wrong_answers: st.info("오답 노트가 비어있습니다.")
+        if not wrong_answers:
+            st.info("관리할 오답 노트가 없습니다.")
         else:
+            st.warning(f"총 {len(wrong_answers)}개의 오답 기록이 있습니다. 완전히 이해한 문제는 삭제할 수 있습니다.")
             for q_info in wrong_answers:
-                q = get_question_by_id(q_info['question_id'], q_info['question_type'])
-                if q:
-                    c1, c2 = st.columns([4, 1])
-                    c1.text(f"ID {q['id']} ({q_info['question_type']}): {q['question'].replace('<p>', '')[:50]}...")
-                    if c2.button("삭제", key=f"dw_{q_info['question_id']}_{q_info['question_type']}", type="secondary"):
-                        delete_wrong_answer(username, q_info['question_id'], q_info['question_type'])
+                question = get_question_by_id(q_info['question_id'], q_info['question_type'])
+                if question:
+                    # --- st.expander 적용 ---
+                    with st.expander(f"**ID {question['id']} ({q_info['question_type']})** | {question['question'].replace('<p>', '').replace('</p>', '')[:50].strip()}..."):
+                        
+                        st.markdown(question['question'], unsafe_allow_html=True)
+                        try:
+                            options = json.loads(question['options'])
+                            answer = json.loads(question['answer'])
+                            st.write("**선택지:**")
+                            for key, value in options.items():
+                                st.write(f" - **{key}:** {value}")
+                            st.error(f"**정답:** {', '.join(answer)}")
+                        except (json.JSONDecodeError, TypeError):
+                            st.write("선택지 또는 정답 정보를 불러올 수 없습니다.")
+
+                        # 삭제 버튼
+                        if st.button("이 오답 기록 삭제", key=f"del_wrong_manage_{q_info['question_id']}_{q_info['question_type']}", type="secondary"):
+                            delete_wrong_answer(username, q_info['question_id'], q_info['question_type'])
+                            st.toast("삭제되었습니다.", icon="🗑️")
+                            st.rerun()
+
+
+    # --- 탭 5: AI 변형 문제 관리 ---
+    with tabs[5]:
+        st.subheader("✨ AI 변형 문제 관리")
+        modified_questions = get_all_modified_questions()
+        if not modified_questions:
+            st.info("관리할 AI 변형 문제가 없습니다.")
+        else:
+            if st.button("모든 변형 문제 삭제", type="primary"):
+                clear_all_modified_questions()
+                st.toast("모든 AI 변형 문제가 삭제되었습니다.", icon="🗑️")
+                st.rerun()
+
+            for mq in modified_questions:
+                # --- st.expander 적용 ---
+                with st.expander(f"**ID {mq['id']}** | {mq['question'].replace('<p>', '').replace('</p>', '')[:50].strip()}..."):
+                    
+                    st.markdown(mq['question'], unsafe_allow_html=True)
+                    try:
+                        options = json.loads(mq['options'])
+                        answer = json.loads(mq['answer'])
+                        st.write("**선택지:**")
+                        for key, value in options.items():
+                            st.write(f" - **{key}:** {value}")
+                        st.error(f"**정답:** {', '.join(answer)}")
+                    except (json.JSONDecodeError, TypeError):
+                        st.write("선택지 또는 정답 정보를 불러올 수 없습니다.")
+                    
+                    # 삭제 버튼
+                    if st.button("이 변형 문제 삭제", key=f"del_mod_{mq['id']}", type="secondary"):
+                        delete_modified_question(mq['id'])
                         st.toast("삭제되었습니다.", icon="🗑️")
                         st.rerun()
-
-    with tabs[5]: # AI 변형 문제 관리
-        st.subheader("✨ AI 변형 문제 관리")
-        mod_qs = get_all_modified_questions()
-        if not mod_qs: st.info("변형 문제가 없습니다.")
-        else:
-            if st.button("모두 삭제", type="primary"):
-                clear_all_modified_questions()
-                st.toast("모두 삭제되었습니다.", icon="🗑️")
-                st.rerun()
-            for mq in mod_qs:
-                c1, c2 = st.columns([4, 1])
-                c1.text(f"ID {mq['id']}: {mq['question'][:50]}...")
-                if c2.button("삭제", key=f"dm_{mq['id']}", type="secondary"):
-                    delete_modified_question(mq['id'])
-                    st.toast("삭제되었습니다.", icon="🗑️")
-                    st.rerun()
 
 def render_analytics_page(username):
     st.header("📈 학습 통계")
