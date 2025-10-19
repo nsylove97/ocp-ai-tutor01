@@ -545,7 +545,7 @@ def main():
                     if st.form_submit_button("가입하기"):
                         if new_name and new_username and new_password:
                             # 비밀번호 해싱
-                            hashed_password = stauth.Hasher([new_password]).generate()[0]
+                            hashed_password = stauth.Hasher(new_password).hash()
                             # DB에 사용자 추가
                             success, message = add_new_user(new_username, new_name, hashed_password)
                             
