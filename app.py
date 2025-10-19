@@ -201,27 +201,27 @@ def render_management_page(username):
                 # Modal 객체 생성. title이 있으면 X 버튼이 자동으로 생깁니다.
                 modal = Modal(
                     title=f"⚠️ 삭제 확인", 
-                    key=f"modal_{user_key}"
+                    key=f"modal_delete_user" 
                 )
                 
                 # open() 메소드를 사용하여 모달을 엽니다.
                 # 이 메소드는 모달이 열려있는 동안 True를 반환합니다.
-                if modal.is_open():
-                    with modal.container():
-                        st.warning(f"정말로 **{user_key}** 사용자를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")
+                with modal.container():
+                    st.warning(f"정말로 **{user_key}** 사용자를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")
                         
-                        c1, c2 = st.columns(2)
-                        if c1.button("✅ 예, 삭제합니다", key=f"confirm_del_{user_key}", type="primary", use_container_width=True):
-                            delete_user(user_key)
-                            st.toast(f"사용자 '{user_key}'가 삭제되었습니다.", icon="🗑️")
-                            st.session_state.user_to_delete = None # 상태 초기화
-                            modal.close() # 모달 닫기
-                            st.rerun()
+                    c1, c2 = st.columns(2)
+                    if c1.button("✅ 예, 삭제합니다", type="primary", use_container_width=True):
+                        delete_user(user_key)
+                        st.toast(f"사용자 '{user_key}'가 삭제되었습니다.", icon="🗑️")
+                        st.session_state.user_to_delete = None # 상태 초기화
+                        modal.close() # 모달 닫기
+                        st.rerun()
                         
-                        if c2.button("❌ 아니요, 취소합니다", key=f"cancel_del_{user_key}", use_container_width=True):
-                            st.session_state.user_to_delete = None # 상태 초기화
-                            modal.close() # 모달 닫기
-                            st.rerun()
+                    if c2.button("❌ 아니요, 취소합니다", use_container_width=True):
+                        st.session_state.user_to_delete = None # 상태 초기화
+                        modal.close() # 모달 닫기
+                        st.rerun()
+        modal.open()
     else:
         with tabs[0]: #회원 탈퇴 탭
             st.subheader("회원 탈퇴")
