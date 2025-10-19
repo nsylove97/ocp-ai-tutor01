@@ -169,7 +169,8 @@ def fetch_all_users():
         role = user['role'] if 'role' in user.keys() else 'user'     
         all_user_info[username] = {
             "name": user['name'],
-            "role": role
+            "role": role,
+            "password": user['password']
         }
     return credentials, all_user_info
 
