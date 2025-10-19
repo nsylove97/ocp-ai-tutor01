@@ -150,10 +150,6 @@ def render_results_page(username):
     display_results(username, get_ai_explanation)
     if st.button("새 퀴즈 시작"): st.session_state.current_view = 'home'; st.rerun()
 
-# ###################################################################### #
-# ################           START OF CHANGES           ################ #
-# ###################################################################### #
-
 def render_management_page(username):
     """
     문제 추가/편집, 오답 노트, 사용자 관리 등 앱의 설정 및 데이터 관리 화면을 렌더링합니다.
@@ -191,7 +187,7 @@ def render_management_page(username):
                         f"삭제 확인: {user_key}", 
                         key=f"modal_{user_key}",
                         # 모달의 최대 너비 설정
-                        max_width="400px" 
+                        max_width="450px" 
                     )
 
                     with st.container(border=True):
@@ -206,8 +202,18 @@ def render_management_page(username):
                     # 모달이 열려야 하는 상태일 때만 모달을 화면에 표시
                     if st.session_state.delete_user_modal.get(user_key, False):
                         with modal.container():
-                            st.warning(f"정말로 **{user['name']}** ({user['username']}) 사용자를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")
-                            
+                            st.markdown("""
+                                <style>
+                                    div[data-modal-container] {
+                                        display: flex;
+                                        flex-direction: column;
+                                        justify-content: center;
+                                        align-items: center;
+                                        text-align: center;
+                                    }
+                                </style>
+                            """, unsafe_allow_html=True)
+                            st.warning(f"정말로 **{user['name']}** ({user['username']}) 사용자를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.")                            
                             c1, c2 = st.columns(2)
                             # '최종 삭제' 버튼
                             if c1.button("예, 삭제합니다", key=f"confirm_delete_{user_key}", type="primary", use_container_width=True):
@@ -411,10 +417,13 @@ def run_main_app(authenticator, all_user_info):
     view_map.get(st.session_state.current_view, render_home_page)()
 
 def main():
-    """메인 실행 함수 (인증 흐름 최종 단순화 버전)"""
+    """메인 실행 함수 (UI/UX 개선 최종 버전)"""
     st.set_page_config(page_title="Oracle OCP AI 튜터", layout="wide", initial_sidebar_state="expanded")
 
-    # --- DB 테이블 및 마스터 계정 설정 (앱 시작 시 한 번) ---
+    # --- 1. 앱의 공통 헤더를 먼저 렌더링 ---
+    st.title("🚀 Oracle OCP AI 튜터")
+    
+    # --- 2. DB 및 마스터 계정 설정 (백그라운드 작업) ---
     if 'db_setup_done' not in st.session_state:
         setup_database_tables()
         credentials, _ = fetch_all_users()
@@ -423,30 +432,25 @@ def main():
             ensure_master_account(MASTER_ACCOUNT_USERNAME, MASTER_ACCOUNT_NAME, hashed_pw)
             st.toast(f"관리자 계정 '{MASTER_ACCOUNT_USERNAME}' 설정 완료!", icon="👑")
         st.session_state.db_setup_done = True
-
-    # --- Authenticator 객체 생성 ---
+    
+    # --- 3. 인증 객체 생성 ---
     credentials, all_user_info = fetch_all_users()
     authenticator = stauth.Authenticate(credentials, "ocp_cookie", "auth_key", 30)
 
-    # --- 1. 로그인 위젯을 먼저 호출하여 상태를 결정하게 함 ---
-    # 이 함수는 내부적으로 폼을 그리고, 로그인 시도 시 session_state를 업데이트 후 rerun함
-    authenticator.login(location='main')
-
-    # --- 2. 결정된 인증 상태에 따라 앱의 흐름을 분기 ---
+    # --- 4. 인증 상태에 따라 화면 분기 ---
     if st.session_state.get("authentication_status"):
-        # --- 2a. 로그인 성공 시 ---
-        # 메인 앱 로직을 실행
+        # --- 4a. 로그인 성공 시 ---
         run_main_app(authenticator, all_user_info)
 
     else:
-        # --- 2b. 로그인하지 않은 모든 경우 (초기, 실패) ---
-        st.title("🚀 Oracle OCP AI 튜터")
-        
-        # 로그인 실패 메시지 표시
+        # --- 4b. 로그인하지 않은 경우 ---
+        # 컬럼을 사용하여 로그인 폼을 감싸고 중앙에 배치
+        _, col2, _ = st.columns([1, 1.5, 1])
+        with col2:
+            authenticator.login(location='main')
+
         if st.session_state.get("authentication_status") is False:
             st.error('아이디 또는 비밀번호가 일치하지 않습니다.')
-        
-        # 초기 상태 안내 메시지 표시
         elif st.session_state.get("authentication_status") is None:
             st.info('로그인하거나 아래에서 새 계정을 만들어주세요.')
         
