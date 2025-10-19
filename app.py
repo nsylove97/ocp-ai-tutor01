@@ -27,7 +27,7 @@ from db_utils import (
     get_stats, get_top_5_missed,
     fetch_all_users, add_new_user,
     delete_user, get_all_users_for_admin, ensure_master_account,
-    get_question_ids_by_difficulty
+    get_question_ids_by_difficulty, clear_all_original_questions
 )
 from ui_components import display_question, display_results
 
@@ -248,24 +248,41 @@ def render_management_page(username):
     # --- 공통 탭 (두 번째 탭부터) ---
     with tabs[1]: # 원본 문제 데이터
         st.subheader("📚 원본 문제 데이터")
-        st.info("JSON 파일의 모든 문제를 불러와 AI가 자동으로 난이도를 분석하여 저장합니다. (시간이 다소 소요될 수 있습니다)")
+        st.info("JSON 파일의 모든 문제를 불러오거나, 기존 문제를 모두 삭제할 수 있습니다.")
         
         num_q = len(get_all_question_ids('original'))
         st.metric("현재 저장된 문제 수", f"{num_q} 개")
+        
+        st.write("---")
 
+        # --- AI 자동 난이도 부여 버튼 ---
         if st.button("AI 자동 난이도 부여 및 문제 불러오기", type="primary"):
             progress_bar = st.progress(0, text="AI 난이도 분석 시작...")
             
-            try:
-                progress_generator = load_original_questions_from_json()
-                for progress in progress_generator:
-                    progress_bar.progress(progress, text=f"AI 난이도 분석 중... ({int(progress*100)}%)")
-                else: # 루프가 break 없이 완료되면 실행
-                    st.toast("모든 문제에 대한 AI 난이도 분석 및 저장이 완료되었습니다!", icon="✅")
-            except Exception as e:
-                st.error(f"데이터 로딩 중 오류가 발생했습니다: {e}")
-            finally:
-                progress_bar.empty() # 진행률 바 숨기기
+            # 콜백 함수 정의: progress_bar를 직접 업데이트
+            def update_progress(value, text):
+                progress_bar.progress(value, text=text)
+
+            # db_utils 함수에 콜백 전달
+            count, error = load_original_questions_from_json(progress_callback=update_progress)
+            
+            progress_bar.empty() # 작업 완료 후 진행률 바 숨기기
+
+            if error:
+                st.error(f"문제 로딩 실패: {error}")
+            else:
+                st.toast(f"모든 문제({count}개)에 대한 AI 난이도 분석 및 저장이 완료되었습니다!", icon="✅")
+                st.rerun() # 메트릭 값을 갱신하기 위해 새로고침
+
+        st.write("---")
+
+        # --- 문제 초기화 버튼 (새로운 기능) ---
+        st.subheader("⚠️ 위험 구역")
+        with st.container(border=True):
+            st.warning("아래 버튼은 데이터베이스에 저장된 **모든 원본 문제**를 영구적으로 삭제합니다. 신중하게 사용하세요.")
+            if st.button("모든 원본 문제 삭제 (초기화)", type="secondary"):
+                clear_all_original_questions()
+                st.toast("모든 원본 문제가 성공적으로 삭제되었습니다.", icon="🗑️")
                 st.rerun()
 
 # --- 공통 탭 (두 번째 탭부터) ---

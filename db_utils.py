@@ -7,6 +7,7 @@
 import sqlite3
 import json
 import pandas as pd
+from gemini_handler import analyze_difficulty
 
 # --- 상수 정의 ---
 DB_NAME = 'ocp_quiz.db'
@@ -61,9 +62,18 @@ def setup_database_tables():
     conn.close()
     print("모든 데이터베이스 테이블 확인/생성/업그레이드 완료.")
 
-# --- 원본 문제 데이터 로딩 ---
-def load_original_questions_from_json(json_path='questions_final.json'):
-    """JSON 파일에서 원본 질문 데이터를 읽어 DB를 완전히 새로 고칩니다."""
+def load_original_questions_from_json(json_path='questions_final.json', progress_callback=None):
+    """
+    JSON 파일에서 원본 질문 데이터를 읽고, AI로 각 문제의 난이도를 분석하여
+    DB를 완전히 새로 고칩니다. 진행 상황을 콜백 함수를 통해 알립니다.
+
+    Args:
+        json_path (str): JSON 파일 경로.
+        progress_callback (function, optional): 진행률(0.0~1.0)과 텍스트를 인자로 받는 콜백 함수.
+
+    Returns:
+        tuple: (로드된 문제 수, 에러 메시지)
+    """
     try:
         with open(json_path, 'r', encoding='utf-8') as f:
             questions = json.load(f)
@@ -74,15 +84,29 @@ def load_original_questions_from_json(json_path='questions_final.json'):
     cursor = conn.cursor()
     cursor.execute("DELETE FROM original_questions")
     
-    for q in questions:
-        cursor.execute(
-            "INSERT INTO original_questions (id, question, options, answer) VALUES (?, ?, ?, ?)",
-            (q.get('id'), q.get('question'), json.dumps(q.get('options', {})), json.dumps(q.get('answer', [])))
-        )
+    total_questions = len(questions)
+    if total_questions == 0:
+        conn.close()
+        return 0, "JSON 파일에 문제가 없습니다."
     
+    for i, q in enumerate(questions):
+        # AI를 호출하여 난이도 분석
+        difficulty = analyze_difficulty(q['question'])
+        
+        cursor.execute(
+            "INSERT INTO original_questions (id, question, options, answer, difficulty) VALUES (?, ?, ?, ?, ?)",
+            (q['id'], q['question'], json.dumps(q.get('options', {})), json.dumps(q.get('answer', [])), difficulty)
+        )
+        
+        # 콜백 함수가 제공되었으면, 진행률을 호출
+        if progress_callback:
+            progress_value = (i + 1) / total_questions
+            progress_text = f"AI 난이도 분석 중... ({i + 1}/{total_questions})"
+            progress_callback(progress_value, progress_text)
+            
     conn.commit()
     conn.close()
-    return len(questions), None
+    return total_questions, None
 
 # --- 문제 관리 (CRUD) ---
 def get_all_question_ids(q_type='original'):
@@ -296,3 +320,12 @@ def get_question_ids_by_difficulty(difficulty='모든 난이도'):
         ids = [row['id'] for row in conn.execute(query, (difficulty,)).fetchall()]
     conn.close()
     return ids
+
+def clear_all_original_questions():
+    """DB에서 모든 원본 문제를 삭제합니다."""
+    conn = get_db_connection()
+    # 원본 문제와 관련된 오답 기록도 함께 삭제하는 것이 좋습니다.
+    conn.execute("DELETE FROM user_answers WHERE question_type = 'original'")
+    conn.execute("DELETE FROM original_questions")
+    conn.commit()
+    conn.close()
