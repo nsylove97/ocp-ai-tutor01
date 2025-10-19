@@ -26,7 +26,8 @@ from db_utils import (
     delete_modified_question, clear_all_modified_questions,
     get_stats, get_top_5_missed,
     fetch_all_users, add_new_user,
-    delete_user, get_all_users_for_admin, ensure_master_account
+    delete_user, get_all_users_for_admin, ensure_master_account,
+    get_question_ids_by_difficulty
 )
 from ui_components import display_question, display_results
 
@@ -61,14 +62,14 @@ def initialize_session_state():
     for key, value in defaults.items():
         if key not in st.session_state: st.session_state[key] = value
 
-def start_quiz_session(quiz_mode, quiz_type=None, num_questions=None, question_id=None):
+def start_quiz_session(quiz_mode, quiz_type=None, num_questions=None, question_id=None, difficulty=None):
     st.session_state.questions_to_solve = []
     st.session_state.user_answers = {}
     st.session_state.current_question_index = 0
     questions_loaded = False
     if quiz_mode == "랜덤 퀴즈":
         if quiz_type == '기존 문제':
-            all_ids = get_all_question_ids('original')
+            all_ids = get_question_ids_by_difficulty(difficulty)
             if all_ids:
                 selected_ids = random.sample(all_ids, min(num_questions, len(all_ids)))
                 st.session_state.questions_to_solve = [{'id': q_id, 'type': 'original'} for q_id in selected_ids]
@@ -99,9 +100,21 @@ def start_quiz_session(quiz_mode, quiz_type=None, num_questions=None, question_i
 def render_home_page():
     st.header("📝 퀴즈 설정")
     quiz_mode = st.radio("퀴즈 모드를 선택하세요:", ("랜덤 퀴즈", "ID로 문제 풀기"), horizontal=True)
+    
+    difficulty_options = ['쉬움', '보통', '어려움', '모든 난이도']
+
     if quiz_mode == "랜덤 퀴즈":
-        num_q = st.slider("문제 수:", 1, 50, 10); q_type = st.radio("문제 유형:", ('기존 문제', '✨ AI 변형 문제'))
-        if st.button("퀴즈 시작", type="primary"): start_quiz_session(quiz_mode, quiz_type=q_type, num_questions=num_q)
+        col1, col2 = st.columns(2)
+        with col1:
+            num_questions = st.slider("문제 수:", 1, 50, 10, key="num_questions_slider")
+        with col2:
+            selected_difficulty = st.selectbox("난이도:", difficulty_options, index=3) # 기본값 '모든 난이도'
+
+        quiz_type = st.radio("문제 유형:", ('기존 문제', '✨ AI 변형 문제'), key="quiz_type_selector")
+        
+        if st.button("랜덤 퀴즈 시작하기", type="primary"):
+            # start_quiz_session 호출 시 difficulty 인자 전달
+            start_quiz_session(quiz_mode, quiz_type=quiz_type, num_questions=num_questions, difficulty=selected_difficulty)
     else:
         q_id = st.number_input("문제 ID:", min_value=1, step=1)
         if q_id and (p_q := get_question_by_id(q_id, 'original')):
@@ -259,8 +272,11 @@ def render_management_page(username):
         with st.form(key="add_form_submit"):
             valid_options = [l for l, t in st.session_state.temp_new_options.items() if t.strip()]
             new_answer = st.multiselect("정답 선택:", options=valid_options)
+            new_difficulty = st.selectbox("난이도 설정:", ('쉬움', '보통', '어려움'), index=1, key="new_diff")
+
             if st.form_submit_button("✅ 새 문제 추가하기"):
                 new_q_html = st.session_state.temp_new_question
+                new_difficulty = st.selectbox("난이도 설정:", ('쉬움', '보통', '어려움'), index=1, key="new_diff")
                 if not new_q_html or not new_q_html.strip() or new_q_html == '<p><br></p>': st.error("질문 내용을 입력해야 합니다.")
                 elif not valid_options: st.error("선택지 내용을 입력해야 합니다.")
                 elif not new_answer: st.error("정답을 선택해야 합니다.")
@@ -271,7 +287,7 @@ def render_management_page(username):
                         with open(file_path, "wb") as f: f.write(uploaded_file.getbuffer())
                         media_url, media_type = file_path, 'image' if uploaded_file.type.startswith('image') else 'video'
                     final_options = {k: v for k, v in st.session_state.temp_new_options.items() if k in valid_options}
-                    new_id = add_new_original_question(new_q_html, final_options, new_answer, media_url, media_type)
+                    new_id = add_new_original_question(new_q_html, final_options, new_answer, new_difficulty, media_url, media_type)
                     st.session_state.temp_new_question = ""
                     st.session_state.temp_new_options = {}
                     st.toast(f"성공! 새 문제(ID: {new_id})가 추가되었습니다.", icon="🎉")
@@ -300,17 +316,26 @@ def render_management_page(username):
                     curr_opts = json.loads(q_data['options'])
                     curr_ans = json.loads(q_data['answer'])
                     edited_q = st_quill(value=q_data['question'] or "", html=True, key=f"q_{edit_id}")
+                    
                     if q_data.get('media_url'): st.write(f"현재 미디어: {os.path.basename(q_data['media_url'])}")
                     edited_file = st.file_uploader("미디어 교체", key=f"f_{edit_id}")
                     edited_opts = {k: st.text_input(f"선택지 {k}:", value=v, key=f"o_{k}_{edit_id}") for k, v in curr_opts.items()}
                     edited_ans = st.multiselect("정답:", options=list(edited_opts.keys()), default=curr_ans, key=f"a_{edit_id}")
+                    difficulty_options = ['쉬움', '보통', '어려움']
+                    current_difficulty = q_data.get('difficulty', '보통')
+                    
+                    if current_difficulty not in difficulty_options:
+                        current_difficulty = '보통'
+                        current_difficulty_index = difficulty_options.index(current_difficulty)
+                        edited_difficulty = st.selectbox("난이도 수정:", difficulty_options, index=current_difficulty_index, key=f"edit_diff_{edit_id}")
+                    
                     if st.form_submit_button("저장"):
                         m_url, m_type = q_data.get('media_url'), q_data.get('media_type')
                         if edited_file:
                             fp = os.path.join(MEDIA_DIR, edited_file.name)
                             with open(fp, "wb") as f: f.write(edited_file.getbuffer())
                             m_url, m_type = fp, 'image' if edited_file.type.startswith('image') else 'video'
-                        update_original_question(edit_id, edited_q, edited_opts, edited_ans, m_url, m_type)
+                        update_original_question(edit_id, edited_q, edited_opts, edited_ans, edited_difficulty, m_url, m_type)
                         st.toast("업데이트 완료!", icon="✅")
                         st.cache_data.clear()
                         st.rerun()

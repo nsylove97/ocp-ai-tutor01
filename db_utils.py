@@ -30,13 +30,30 @@ def setup_database_tables():
             cursor.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
     # original_questions 테이블
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='original_questions'")
-    if not cursor.fetchone():
-        cursor.execute('''CREATE TABLE original_questions (id INTEGER PRIMARY KEY, question TEXT, options TEXT, answer TEXT, concept TEXT, media_url TEXT, media_type TEXT)''')
-    else:
+    table_exists = cursor.fetchone()
+    if table_exists:
         cursor.execute("PRAGMA table_info(original_questions)")
-        cols = [col['name'] for col in cursor.fetchall()]
-        if 'media_url' not in cols: cursor.execute("ALTER TABLE original_questions ADD COLUMN media_url TEXT")
-        if 'media_type' not in cols: cursor.execute("ALTER TABLE original_questions ADD COLUMN media_type TEXT")
+        columns = [row['name'] for row in cursor.fetchall()]
+        if 'media_url' not in columns:
+            cursor.execute("ALTER TABLE original_questions ADD COLUMN media_url TEXT")
+        if 'media_type' not in columns:
+            cursor.execute("ALTER TABLE original_questions ADD COLUMN media_type TEXT")
+        if 'difficulty' not in columns:
+            # 난이도 컬럼 추가. 기본값은 '보통'
+            cursor.execute("ALTER TABLE original_questions ADD COLUMN difficulty TEXT NOT NULL DEFAULT '보통'")
+    else:
+        cursor.execute('''
+        CREATE TABLE original_questions (
+            id INTEGER PRIMARY KEY,
+            question TEXT NOT NULL,
+            options TEXT NOT NULL,
+            answer TEXT NOT NULL,
+            concept TEXT,
+            media_url TEXT,
+            media_type TEXT,
+            difficulty TEXT NOT NULL DEFAULT '보통' -- '쉬움', '보통', '어려움'
+        )''')
+    
     # 기타 테이블
     cursor.execute('''CREATE TABLE IF NOT EXISTS modified_questions (id INTEGER PRIMARY KEY AUTOINCREMENT, original_id INTEGER, question TEXT, options TEXT, answer TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS user_answers (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, question_id INTEGER, question_type TEXT, user_choice TEXT, is_correct BOOLEAN, solved_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
@@ -85,26 +102,30 @@ def get_question_by_id(q_id, q_type='original'):
     conn.close()
     return dict(question_row) if question_row else None
 
-def add_new_original_question(question_text, options_dict, answer_list, media_url=None, media_type=None):
+def add_new_original_question(question_text, options_dict, answer_list, difficulty, media_url=None, media_type=None):
     """새로운 원본 문제를 DB에 추가하고 새 ID를 반환합니다."""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT IFNULL(MAX(id), 0) + 1 FROM original_questions")
     new_id = cursor.fetchone()[0]
     cursor.execute(
-        "INSERT INTO original_questions (id, question, options, answer, media_url, media_type) VALUES (?, ?, ?, ?, ?, ?)",
-        (new_id, question_text, json.dumps(options_dict), json.dumps(answer_list), media_url, media_type)
+        """INSERT INTO original_questions 
+           (id, question, options, answer, difficulty, media_url, media_type) 
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (new_id, question_text, json.dumps(options_dict), json.dumps(answer_list), difficulty, media_url, media_type)
     )
     conn.commit()
     conn.close()
     return new_id
 
-def update_original_question(q_id, question_text, options_dict, answer_list, media_url=None, media_type=None):
+def update_original_question(q_id, question_text, options_dict, answer_list, difficulty, media_url=None, media_type=None):
     """ID를 기반으로 원본 문제의 내용을 업데이트합니다."""
     conn = get_db_connection()
     conn.execute(
-        "UPDATE original_questions SET question = ?, options = ?, answer = ?, media_url = ?, media_type = ? WHERE id = ?",
-        (question_text, json.dumps(options_dict), json.dumps(answer_list), media_url, media_type, q_id)
+        """UPDATE original_questions 
+           SET question = ?, options = ?, answer = ?, difficulty = ?, media_url = ?, media_type = ? 
+           WHERE id = ?""",
+        (question_text, json.dumps(options_dict), json.dumps(answer_list), difficulty, media_url, media_type, q_id)
     )
     conn.commit()
     conn.close()
@@ -261,3 +282,17 @@ def clear_all_modified_questions():
     conn.execute("DELETE FROM modified_questions")
     conn.commit()
     conn.close()
+
+def get_question_ids_by_difficulty(difficulty='모든 난이도'):
+    """
+    특정 난이도 또는 모든 난이도의 원본 문제 ID 목록을 반환합니다.
+    """
+    conn = get_db_connection()
+    if difficulty == '모든 난이도':
+        query = "SELECT id FROM original_questions ORDER BY id ASC"
+        ids = [row['id'] for row in conn.execute(query).fetchall()]
+    else:
+        query = "SELECT id FROM original_questions WHERE difficulty = ? ORDER BY id ASC"
+        ids = [row['id'] for row in conn.execute(query, (difficulty,)).fetchall()]
+    conn.close()
+    return ids
