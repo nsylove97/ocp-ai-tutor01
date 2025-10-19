@@ -256,65 +256,71 @@ def render_management_page(username):
     # --- 공통 탭 (두 번째 탭부터) ---
     with tabs[1]: # 원본 문제 데이터
         st.subheader("📚 원본 문제 데이터")
-        st.info("로컬 JSON 파일의 문제를 데이터베이스로 불러옵니다.")
-        
-        num_q = len(get_all_question_ids('original'))
-        st.metric("현재 저장된 문제 수", f"{num_q} 개")
-        
-        st.write("---")
-
-        # --- AI 난이도 분석 옵션 ---
-        analyze_option = st.checkbox("🤖 AI로 자동 난이도 분석 실행 (시간 소요)", value=False)
-        st.caption("이 옵션을 선택하지 않으면 모든 문제의 난이도는 '보통'으로 설정됩니다.")
-
-        if st.button("JSON 파일에서 원본 문제 불러오기", type="primary"):
-            try:
-                with open('questions_final.json', 'r', encoding='utf-8') as f:
-                    questions_from_json = json.load(f)
-            except FileNotFoundError:
-                st.error("`questions_final.json` 파일을 찾을 수 없습니다.")
-                st.stop()
+        col1, col2 = st.columns(2)
+        with col1:
+            st.info("로컬 JSON 파일의 문제를 데이터베이스로 불러옵니다.")     
+            num_q = len(get_all_question_ids('original'))
+            st.metric("현재 저장된 문제 수", f"{num_q} 개")
             
-            if not questions_from_json:
-                st.warning("JSON 파일에 문제가 없습니다.")
-                st.stop()
+            st.write("---")
 
-            # --- 로직 분기 ---
-            if analyze_option:
-                # --- 1. AI 난이도 분석을 선택한 경우 ---
-                questions_to_load = []
-                progress_bar = st.progress(0, text="AI 난이도 분석 시작...")
-                total_questions = len(questions_from_json)
+            # --- AI 난이도 분석 옵션 ---
+            analyze_option = st.checkbox("🤖 AI로 자동 난이도 분석 실행 (시간 소요)", value=False)
+            st.caption("이 옵션을 선택하지 않으면 모든 문제의 난이도는 '보통'으로 설정됩니다.")
 
-                for i, q in enumerate(questions_from_json):
-                    difficulty = analyze_difficulty(q['question'])
-                    q['difficulty'] = difficulty
-                    questions_to_load.append(q)
-                    
-                    progress_value = (i + 1) / total_questions
-                    progress_bar.progress(progress_value, text=f"AI 난이도 분석 중... ({i + 1}/{total_questions})")
+            if st.button("JSON 파일에서 원본 문제 불러오기", type="primary"):
+                try:
+                    with open('questions_final.json', 'r', encoding='utf-8') as f:
+                        questions_from_json = json.load(f)
+                except FileNotFoundError:
+                    st.error("`questions_final.json` 파일을 찾을 수 없습니다.")
+                    st.stop()
                 
-                st.toast("AI 난이도 분석 완료! DB에 저장합니다.", icon="🤖")
-                count, error = load_original_questions_from_json(questions_to_load)
-                progress_bar.empty()
-            else:
-                # --- 2. AI 난이도 분석을 선택하지 않은 경우 ---
-                # 모든 문제의 난이도를 '보통'으로 설정하여 전달
-                for q in questions_from_json:
-                    q['difficulty'] = '보통'
-                count, error = load_original_questions_from_json(questions_from_json)
+                if not questions_from_json:
+                    st.warning("JSON 파일에 문제가 없습니다.")
+                    st.stop()
 
-            # --- 공통 결과 처리 ---
-            if error:
-                st.error(f"문제 저장 실패: {error}")
-            else:
-                st.success(f"모든 문제({count}개)를 성공적으로 불러왔습니다!")
-                st.rerun()
+                # --- 로직 분기 ---
+                if analyze_option:
+                    # --- 1. AI 난이도 분석을 선택한 경우 ---
+                    questions_to_load = []
+                    progress_bar = st.progress(0, text="AI 난이도 분석 시작...")
+                    total_questions = len(questions_from_json)
 
+                    for i, q in enumerate(questions_from_json):
+                        difficulty = analyze_difficulty(q['question'])
+                        q['difficulty'] = difficulty
+                        questions_to_load.append(q)
+                        
+                        progress_value = (i + 1) / total_questions
+                        progress_bar.progress(progress_value, text=f"AI 난이도 분석 중... ({i + 1}/{total_questions})")
+                    
+                    st.toast("AI 난이도 분석 완료! DB에 저장합니다.", icon="🤖")
+                    count, error = load_original_questions_from_json(questions_to_load)
+                    progress_bar.empty()
+                else:
+                    # --- 2. AI 난이도 분석을 선택하지 않은 경우 ---
+                    # 모든 문제의 난이도를 '보통'으로 설정하여 전달
+                    for q in questions_from_json:
+                        q['difficulty'] = '보통'
+                    count, error = load_original_questions_from_json(questions_from_json)
+                    
+            with st.expander("⚠️ 문제 초기화 (주의)"):
+                if st.button("모든 원본 문제 삭제", type="secondary"):
+                    clear_all_original_questions()
+                    st.toast("모든 원본 문제가 삭제되었습니다.", icon="🗑️")
+                    st.rerun()
+
+                # --- 공통 결과 처리 ---
+                if error:
+                    st.error(f"문제 저장 실패: {error}")
+                else:
+                    st.success(f"모든 문제({count}개)를 성공적으로 불러왔습니다!")
+                    st.rerun()
         st.write("---")
 
         with col2:
-            st.info("현재 DB에 저장된 모든 문제(수정된 내용, AI 분석 난이도 포함)를 JSON 파일로 저장합니다.")
+            st.info("현재 DB 데이터를 JSON 파일로 저장(내보내기)합니다.")
             
             # 1. DB에서 데이터를 가져와 JSON 문자열로 변환
             questions_to_export = export_questions_to_json_format()
@@ -330,6 +336,15 @@ def render_management_page(username):
                file_name="questions_updated.json", # 다운로드될 파일 이름
                mime="application/json",
             )
+
+            st.warning("아래 버튼은 서버의 `questions_final.json` 파일을 직접 덮어씁니다.")
+            if st.button("서버 파일에 덮어쓰기"):
+                try:
+                    with open("questions_final.json", "w", encoding="utf-8") as f:
+                        f.write(json_string_to_export)
+                    st.success("`questions_final.json` 파일이 업데이트되었습니다!")
+                except Exception as e:
+                    st.error(f"파일 쓰기 중 오류 발생: {e}")
 
         st.write("---")
 
