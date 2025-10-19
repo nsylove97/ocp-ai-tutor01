@@ -168,10 +168,10 @@ def render_notes_page(username):
 
     st.write("---")
 
-    for q_info in wrong_answers:
-        question = get_question_by_id(q_info['question_id'], q_info['question_type'])
+    for question in wrong_answers:
+        question = get_question_by_id(question['question_id'], question['question_type'])
         if question:
-            with st.expander(f"**ID {question['id']} ({q_info['question_type']})** | {question['question'].replace('<p>', '').replace('</p>', '')[:50].strip()}..."):
+            with st.expander(f"**ID {question['id']} ({question['question_type']})** | {question['question'].replace('<p>', '').replace('</p>', '')[:50].strip()}..."):
                 
                 # --- 펼쳤을 때 보일 상세 내용 ---
                 st.markdown("**질문:**")
@@ -195,9 +195,9 @@ def render_notes_page(username):
                 except (json.JSONDecodeError, TypeError):
                     st.error("정답 정보를 불러올 수 없습니다.")
 
-                if st.button("🤖 AI 해설", key=f"note_exp_{question['id']}_{q_info['question_type']}"):
+                if st.button("🤖 AI 해설", key=f"note_exp_{question['id']}_{question['question_type']}"):
                     with st.spinner("해설 생성 중..."):
-                        if exp := get_ai_explanation(question['id'], q_info['question_type']):
+                        if exp := get_ai_explanation(question['id'], question['question_type']):
                             if err := exp.get('error'): st.error(err)
                             else:
                                 st.info(f"**💡 쉬운 비유:**\n{exp.get('analogy', 'N/A')}")
@@ -468,15 +468,15 @@ def render_management_page(username):
     with tabs[4]:
         st.subheader("📒 오답 노트 관리")
         wrong_answers = get_wrong_answers(username)
+
         if not wrong_answers:
             st.info("관리할 오답 노트가 없습니다.")
         else:
             st.warning(f"총 {len(wrong_answers)}개의 오답 기록이 있습니다. 완전히 이해한 문제는 삭제할 수 있습니다.")
-            for q_info in wrong_answers:
-                question = get_question_by_id(q_info['question_id'], q_info['question_type'])
+            for question in wrong_answers:
+                question = get_question_by_id(question['question_id'], question['question_type'])
                 if question:
-                    # --- st.expander 적용 ---
-                    with st.expander(f"**ID {question['id']} ({q_info['question_type']})** | {question['question'].replace('<p>', '').replace('</p>', '')[:50].strip()}..."):
+                    with st.expander(f"**ID {question['id']} ({question['question_type']})** | {question['question'].replace('<p>', '').replace('</p>', '')[:50].strip()}..."):
                         
                         st.markdown(question['question'], unsafe_allow_html=True)
                         try:
@@ -490,8 +490,8 @@ def render_management_page(username):
                             st.write("선택지 또는 정답 정보를 불러올 수 없습니다.")
 
                         # 삭제 버튼
-                        if st.button("이 오답 기록 삭제", key=f"del_wrong_manage_{q_info['question_id']}_{q_info['question_type']}", type="secondary"):
-                            delete_wrong_answer(username, q_info['question_id'], q_info['question_type'])
+                        if st.button("이 오답 기록 삭제", key=f"del_wrong_manage_{question['question_id']}_{question['question_type']}", type="secondary"):
+                            delete_wrong_answer(username, question['question_id'], question['question_type'])
                             st.toast("삭제되었습니다.", icon="🗑️")
                             st.rerun()
 

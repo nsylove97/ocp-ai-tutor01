@@ -222,11 +222,23 @@ def save_user_answer(username, q_id, q_type, user_choice, is_correct):
     conn.close()
 
 def get_wrong_answers(username):
-    """특정 사용자의 틀린 문제 목록을 가져옵니다."""
+    """특정 사용자의 틀린 문제 목록(상세 정보 포함)을 가져옵니다."""
     conn = get_db_connection()
-    wrong_answers = conn.execute(
-        "SELECT DISTINCT question_id, question_type FROM user_answers WHERE is_correct = 0 AND username = ?", (username,)
-    ).fetchall()
+     # 원본 문제와 변형 문제를 UNION ALL로 합친 후, user_answers와 조인합니다.
+    query = """
+    WITH all_questions AS (
+        SELECT 'original' as type, id, question, options, answer, media_url, media_type, difficulty FROM original_questions
+        UNION ALL
+        SELECT 'modified' as type, id, question, options, answer, NULL as media_url, NULL as media_type, '보통' as difficulty FROM modified_questions
+    )
+    SELECT ua.question_id, ua.question_type, q.*
+    FROM user_answers ua
+    JOIN all_questions q ON ua.question_id = q.id AND ua.question_type = q.type
+    WHERE ua.is_correct = 0 AND ua.username = ?
+    GROUP BY ua.question_id, ua.question_type 
+    ORDER BY ua.solved_at DESC
+    """
+    wrong_answers = conn.execute(query, (username,)).fetchall()
     conn.close()
     return wrong_answers
 
@@ -276,9 +288,11 @@ def get_top_5_missed(username):
 
 # --- AI 변형 문제 관리 ---
 def get_all_modified_questions():
-    """저장된 모든 AI 변형 문제를 가져옵니다."""
+    """저장된 모든 AI 변형 문제의 상세 정보를 가져옵니다."""
     conn = get_db_connection()
-    return conn.execute("SELECT id, question FROM modified_questions ORDER BY id DESC").fetchall()
+    questions = conn.execute("SELECT * FROM modified_questions ORDER BY id DESC").fetchall()
+    conn.close()
+    return questions
 
 def save_modified_question(original_id, q_data):
     """AI가 생성한 변형 문제를 저장하고 새 ID를 반환합니다."""
