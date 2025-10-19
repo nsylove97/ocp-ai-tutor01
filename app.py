@@ -458,11 +458,7 @@ def main():
     authenticator.login(location='main')
 
     if st.session_state["authentication_status"]:
-        # --- 로그인 성공 시 ---
-        # st.session_state에서 이름과 사용자 이름을 가져옵니다.
-        name = st.session_state["name"]
-        username = st.session_state["username"]
-        run_main_app(authenticator, name, username)
+        run_main_app(authenticator, st.session_state["name"], st.session_state["username"])
 
         # --- 이하 로그인 성공 후의 로직은 이전과 동일 ---
         st.sidebar.write(f"환영합니다, **{name}** 님!")
@@ -524,12 +520,15 @@ def main():
             st.error("알 수 없는 페이지입니다. 홈으로 돌아갑니다.")
             st.session_state.current_view = 'home'
             st.rerun()
+
     elif st.session_state["authentication_status"] == False:
         # --- 로그인 실패 시 ---
         st.error('사용자 이름 또는 비밀번호가 잘못되었습니다.')
+        show_register_form()
 
     elif st.session_state["authentication_status"] == None:
         st.info('로그인하거나 새 계정을 만들어주세요.')
+        show_register_form()
 
         # --- 회원가입 기능 (추가) ---
     if not st.session_state["authentication_status"]:
