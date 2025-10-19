@@ -1,22 +1,27 @@
 # app.py
+
 """
 Oracle OCP AI 튜터 메인 애플리케이션 파일
-Streamlit을 사용하여 UI를 구성하고, 앱의 전체적인 흐름을 제어합니다.
 """
+# --- Python Standard Libraries ---
+import os
+import json
+import random
+
+# --- 3rd Party Libraries ---
 import streamlit as st
 import streamlit_authenticator as stauth
 import bcrypt
-import random
-import json
-import os
-from dotenv import load_dotenv
-
-# --- 3rd Party Libraries ---
+import pandas as pd
 from streamlit_quill import st_quill
 from streamlit_modal import Modal
+from dotenv import load_dotenv
 
 # --- Custom Modules ---
-from gemini_handler import generate_explanation, generate_modified_question
+# gemini_handler로부터 필요한 모든 함수를 직접 임포트
+from gemini_handler import generate_explanation, generate_modified_question, analyze_difficulty
+
+# db_utils로부터 필요한 모든 함수를 직접 임포트
 from db_utils import (
     setup_database_tables, load_original_questions_from_json, get_db_connection,
     get_all_question_ids, get_question_by_id,
@@ -27,8 +32,11 @@ from db_utils import (
     get_stats, get_top_5_missed,
     fetch_all_users, add_new_user,
     delete_user, get_all_users_for_admin, ensure_master_account,
-    get_question_ids_by_difficulty, clear_all_original_questions
+    get_question_ids_by_difficulty,
+    clear_all_original_questions # 이전에 추가했던 함수도 포함
 )
+
+# ui_components로부터 필요한 모든 함수를 직접 임포트
 from ui_components import display_question, display_results
 
 # --- Constants ---
@@ -248,31 +256,55 @@ def render_management_page(username):
     # --- 공통 탭 (두 번째 탭부터) ---
     with tabs[1]: # 원본 문제 데이터
         st.subheader("📚 원본 문제 데이터")
-        st.info("JSON 파일의 모든 문제를 불러오거나, 기존 문제를 모두 삭제할 수 있습니다.")
+        st.info("JSON 파일의 모든 문제를 불러와 AI가 자동으로 난이도를 분석하여 저장합니다. (시간이 다소 소요될 수 있습니다)")
         
         num_q = len(get_all_question_ids('original'))
         st.metric("현재 저장된 문제 수", f"{num_q} 개")
         
         st.write("---")
 
-        # --- AI 자동 난이도 부여 버튼 ---
         if st.button("AI 자동 난이도 부여 및 문제 불러오기", type="primary"):
-            progress_bar = st.progress(0, text="AI 난이도 분석 시작...")
+            try:
+                # 1. 먼저 JSON 파일에서 문제 목록을 읽어옴
+                with open('questions_final.json', 'r', encoding='utf-8') as f:
+                    questions = json.load(f)
+            except FileNotFoundError:
+                st.error("`questions_final.json` 파일을 찾을 수 없습니다.")
+                st.stop()
             
-            # 콜백 함수 정의: progress_bar를 직접 업데이트
-            def update_progress(value, text):
-                progress_bar.progress(value, text=text)
+            if not questions:
+                st.warning("JSON 파일에 문제가 없습니다.")
+                st.stop()
 
-            # db_utils 함수에 콜백 전달
-            count, error = load_original_questions_from_json(progress_callback=update_progress)
+            # 2. 각 문제에 대해 AI로 난이도를 분석하고, 결과를 리스트에 저장
+            questions_with_difficulty = []
+            progress_bar = st.progress(0, text="AI 난이도 분석 시작...")
+            total_questions = len(questions)
+
+            for i, q in enumerate(questions):
+                # gemini_handler에 있는 함수를 직접 호출!
+                difficulty = analyze_difficulty(q['question']) 
+                
+                # 원본 문제 데이터에 'difficulty' 키를 추가
+                q['difficulty'] = difficulty
+                questions_with_difficulty.append(q)
+                
+                # 진행률 업데이트
+                progress_value = (i + 1) / total_questions
+                progress_bar.progress(progress_value, text=f"AI 난이도 분석 중... ({i + 1}/{total_questions})")
             
-            progress_bar.empty() # 작업 완료 후 진행률 바 숨기기
+            st.toast("AI 난이도 분석 완료! 이제 데이터베이스에 저장합니다.", icon="🤖")
+
+            # 3. 난이도가 부여된 전체 문제 목록을 db_utils 함수에 전달하여 DB에 저장
+            count, error = load_original_questions_from_json(questions_with_difficulty)
+            
+            progress_bar.empty()
 
             if error:
-                st.error(f"문제 로딩 실패: {error}")
+                st.error(f"문제 저장 실패: {error}")
             else:
-                st.toast(f"모든 문제({count}개)에 대한 AI 난이도 분석 및 저장이 완료되었습니다!", icon="✅")
-                st.rerun() # 메트릭 값을 갱신하기 위해 새로고침
+                st.success(f"모든 문제({count}개)에 대한 AI 난이도 분석 및 저장이 완료되었습니다!")
+                st.rerun()
 
         st.write("---")
 
