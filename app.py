@@ -377,47 +377,64 @@ def run_main_app(authenticator, all_user_info):
     view_map.get(st.session_state.current_view, render_home_page)()
 
 def main():
+    """메인 실행 함수 (인증 흐름 최종 단순화 버전)"""
     st.set_page_config(page_title="Oracle OCP AI 튜터", layout="wide", initial_sidebar_state="expanded")
-    
-    # --- 1. DB 테이블 구조 확인 및 생성 ---
+
+    # --- DB 테이블 및 마스터 계정 설정 (앱 시작 시 한 번) ---
     if 'db_setup_done' not in st.session_state:
         setup_database_tables()
+        credentials, _ = fetch_all_users()
+        if MASTER_ACCOUNT_USERNAME not in credentials['usernames']:
+            hashed_pw = bcrypt.hashpw(MASTER_ACCOUNT_PASSWORD.encode(), bcrypt.gensalt()).decode()
+            ensure_master_account(MASTER_ACCOUNT_USERNAME, MASTER_ACCOUNT_NAME, hashed_pw)
+            st.toast(f"관리자 계정 '{MASTER_ACCOUNT_USERNAME}' 설정 완료!", icon="👑")
         st.session_state.db_setup_done = True
-    
-    # --- 2. 마스터 계정 확인 및 자동 생성 ---
+
+    # --- Authenticator 객체 생성 ---
     credentials, all_user_info = fetch_all_users()
-    if MASTER_ACCOUNT_USERNAME not in credentials['usernames']:
-        hashed_pw = bcrypt.hashpw(MASTER_ACCOUNT_PASSWORD.encode(), bcrypt.gensalt()).decode()
-        ensure_master_account(MASTER_ACCOUNT_USERNAME, MASTER_ACCOUNT_NAME, hashed_pw)
-        # 마스터 계정을 추가했으므로, 사용자 정보를 다시 불러옵니다.
-        credentials, all_user_info = fetch_all_users()
-        st.toast(f"관리자 계정 '{MASTER_ACCOUNT_USERNAME}' 설정 완료!", icon="👑")
-
-    # --- 3. Authenticator 객체 생성 ---
     authenticator = stauth.Authenticate(credentials, "ocp_cookie", "auth_key", 30)
-
-    # --- 인증 상태를 먼저 확인 ---
-    # 로그인 성공 시, 메인 앱을 실행하고 main 함수를 즉시 종료합니다.
-    if st.session_state.get("authentication_status"):
-        run_main_app(authenticator, all_user_info)
-        return
     
-    # 회원가입 폼 (로그인하지 않은 상태에서만 보임)
-    with st.expander("새 계정 만들기"):
-        with st.form("reg_form"):
-            new_name, new_user, new_pwd = st.text_input("이름"), st.text_input("아이디"), st.text_input("비밀번호", type="password")
-            if st.form_submit_button("가입하기"):
-                if new_user == MASTER_ACCOUNT_USERNAME:
-                    st.error("예약된 아이디입니다.")
-                elif all((new_name, new_user, new_pwd)):
-                    hashed = bcrypt.hashpw(new_pwd.encode(), bcrypt.gensalt()).decode()
-                    success, msg = add_new_user(new_user, new_name, hashed)
-                    if success:
-                        st.success("가입 완료! 로그인해주세요.")
+    # --- 1. 로그인 위젯을 먼저 호출하여 상태를 결정하게 함 ---
+    # 이 함수는 내부적으로 폼을 그리고, 로그인 시도 시 session_state를 업데이트 후 rerun함
+    authenticator.login(location='main')
+
+    # --- 2. 결정된 인증 상태에 따라 앱의 흐름을 분기 ---
+    if st.session_state.get("authentication_status"):
+        # --- 2a. 로그인 성공 시 ---
+        # 메인 앱 로직을 실행
+        run_main_app(authenticator, all_user_info)
+
+    else:
+        # --- 2b. 로그인하지 않은 모든 경우 (초기, 실패) ---
+        st.title("🚀 Oracle OCP AI 튜터")
+        
+        # 로그인 실패 메시지 표시
+        if st.session_state.get("authentication_status") is False:
+            st.error('아이디 또는 비밀번호가 일치하지 않습니다.')
+        
+        # 초기 상태 안내 메시지 표시
+        elif st.session_state.get("authentication_status") is None:
+            st.info('로그인하거나 아래에서 새 계정을 만들어주세요.')
+        
+        # 회원가입 폼 렌더링
+        st.write("---")
+        with st.expander("새 계정 만들기"):
+            with st.form("reg_form"):
+                new_name = st.text_input("이름")
+                new_user = st.text_input("아이디")
+                new_pwd = st.text_input("비밀번호", type="password")
+                if st.form_submit_button("가입하기"):
+                    if new_user == MASTER_ACCOUNT_USERNAME:
+                        st.error("예약된 아이디입니다.")
+                    elif all((new_name, new_user, new_pwd)):
+                        hashed = bcrypt.hashpw(new_pwd.encode(), bcrypt.gensalt()).decode()
+                        success, msg = add_new_user(new_user, new_name, hashed)
+                        if success:
+                            st.success("가입 완료! 로그인해주세요.")
+                        else:
+                            st.error(msg)
                     else:
-                        st.error(msg)
-                else:
-                    st.error("모든 정보를 입력해주세요.")
+                        st.error("모든 정보를 입력해주세요.")
 
 if __name__ == "__main__":
     main()
