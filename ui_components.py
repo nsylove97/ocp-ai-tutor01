@@ -1,42 +1,61 @@
 # ui_components.py
 import streamlit as st
 import json
-import streamlit_shadcn_ui as ui
 
 # --- CSS 스타일 정의 ---
-# 선택된 항목에 적용할 스타일과 컨테이너의 기본 스타일을 정의합니다.
-SELECTED_CHOICE_STYLE = """
-    border: 2px solid #1c83e1;
-    background-color: #e5f1fc;
-    border-radius: 10px;
-    padding: 15px;
+st.markdown("""
+<style>
+/* Streamlit 버튼을 감싸는 div 컨테이너의 기본 여백을 줄여 흰 줄을 최소화 */
+div.stButton {
     margin-bottom: 10px;
-"""
+}
 
-DEFAULT_CHOICE_STYLE = """
-    border: 1px solid #e6e6e6;
-    background-color: #fafafa;
-    border-radius: 10px;
-    padding: 15px;
-    margin-bottom: 10px;
-"""
+/* 모든 버튼에 대한 기본 스타일 (카드 모양처럼) */
+.stButton > button {
+    width: 100%;
+    text-align: left !important; /* 텍스트 왼쪽 정렬 */
+    padding: 15px !important;
+    border-radius: 10px !important;
+    border: 1px solid #e6e6e6 !important;
+    background-color: #fafafa !important;
+    color: #31333f !important; /* 기본 글자색 */
+    transition: all 0.2s ease-in-out; /* 부드러운 전환 효과 */
+}
+/* 버튼 위에 마우스를 올렸을 때 */
+.stButton > button:hover {
+    border-color: #1c83e1 !important;
+    background-color: #f0f2f6 !important;
+}
+
+/* --- 핵심: 선택된 상태의 버튼 스타일 --- */
+/* type="primary"로 지정된 버튼에만 이 스타일을 적용합니다. */
+.stButton > button[kind="primary"] {
+    border: 2px solid #1c83e1 !important;
+    background-color: #e5f1fc !important;
+}
+
+/* 버튼이 비활성화되었을 때 (현재는 사용 안함) */
+.stButton > button:disabled {
+    background-color: #f0f2f6 !important;
+    color: #a3a3a3 !important;
+    border-color: #e6e6e6 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 def handle_choice_selection(choice_key, answer_count):
-    """선택지 클릭을 처리하는 콜백 함수"""
-    # 현재 문제의 인덱스와 사용자 답변 상태를 가져옴
+    """선택지 클릭을 처리하는 콜백 함수 (이전과 동일)"""
     idx = st.session_state.current_question_index
     user_answers_for_current_q = st.session_state.user_answers.get(idx, [])
 
-    if answer_count > 1: # 다중 선택 모드
-        # 이미 선택된 것이면 제거(토글), 아니면 추가
+    if answer_count > 1:
         if choice_key in user_answers_for_current_q:
             user_answers_for_current_q.remove(choice_key)
         else:
             user_answers_for_current_q.append(choice_key)
-    else: # 단일 선택 모드
-        # 항상 새로운 선택으로 덮어씀
+    else:
         user_answers_for_current_q = [choice_key]
     
-    # 변경된 답변을 세션 상태에 다시 저장
     st.session_state.user_answers[idx] = user_answers_for_current_q
 
 def display_question(question_data, current_idx, total_questions):
@@ -65,7 +84,7 @@ def display_question(question_data, current_idx, total_questions):
     # --- 여기까지 ---
 
     st.write("---")
-
+   
     options = json.loads(question_data['options'])
     try:
         answer_count = len(json.loads(question_data['answer']))
@@ -79,24 +98,28 @@ def display_question(question_data, current_idx, total_questions):
         st.info("**정답 1개를 고르세요.**")
     
     user_selection = st.session_state.user_answers.get(current_idx, [])
-
+    
     # 각 선택지를 순회하며 클릭 가능한 '카드' 생성
     for key, value in options.items():
         is_selected = key in user_selection
         
-        # shadcn.card 컴포넌트를 사용하여 선택지를 감쌉니다.
-        # variant 속성을 이용해 선택 상태에 따라 다른 스타일을 적용합니다.
-        # 'default'는 일반 상태, 'secondary'는 선택된 상태로 활용.
-        with ui.card(
-            key=f"card_{key}_{current_idx}",
-            variant="secondary" if is_selected else "default",
-            # on_click 콜백을 사용하여 클릭 이벤트를 처리합니다.
-            # args를 통해 클릭된 선택지의 key와 문제의 answer_count를 전달합니다.
+        # 선택 상태에 따라 버튼의 type을 동적으로 결정
+        # 선택됨 -> 'primary', 선택 안됨 -> 'secondary'
+        button_type = "primary" if is_selected else "secondary"
+        
+        # st.button을 생성하고, 클릭 시 콜백 함수를 실행
+        if st.button(
+            label=f"{key}. {value}", 
+            key=f"choice_{key}_{current_idx}", 
+            use_container_width=True,
+            type=button_type, # <--- 여기가 핵심!
             on_click=handle_choice_selection,
             args=(key, answer_count)
         ):
-            # 카드 안에 선택지 내용을 표시합니다.
-            st.markdown(f"**{key}.** {value}")
+            # on_click 콜백이 실행된 후 Streamlit은 자동으로 rerun을 수행하므로
+            # 이 블록 안에 별도의 코드를 넣을 필요가 없습니다.
+            pass
+
 
 def display_results(get_ai_explanation_func):
     """퀴즈 결과를 화면에 표시합니다."""
