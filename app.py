@@ -114,6 +114,8 @@ def render_quiz_page():
         return
 
     idx = st.session_state.current_question_index
+    if idx not in st.session_state.user_answers:
+        st.session_state.user_answers[idx] = []
     total_questions = len(st.session_state.questions_to_solve)
     q_info = st.session_state.questions_to_solve[idx]
     question = get_question_by_id(q_info['id'], q_info['type'])
