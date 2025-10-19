@@ -590,6 +590,7 @@ def main():
     authenticator = stauth.Authenticate(credentials, "ocp_cookie_v3", "auth_key_v3", 30)
     name, authentication_status, username = authenticator.login(location='main')
     login_result = authenticator.login('로그인', location='main')
+    
     if login_result is None:
         name = None
         authentication_status = None
