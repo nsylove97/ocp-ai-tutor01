@@ -163,7 +163,7 @@ def fetch_all_users():
         user_credentials["usernames"][user['username']] = {
             "name": user['name'],
             "password": user['password'],
-            "role": user.get('role', 'user')
+            "role": role
         }
     return user_credentials
 
