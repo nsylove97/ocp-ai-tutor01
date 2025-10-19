@@ -9,6 +9,7 @@ import bcrypt
 import random
 import json
 import os
+from dotenv import load_dotenv
 
 # --- 3rd Party Libraries ---
 from streamlit_quill import st_quill
@@ -30,12 +31,19 @@ from db_utils import (
 from ui_components import display_question, display_results
 
 # --- Constants ---
+load_dotenv()
 MEDIA_DIR = "media"
 if not os.path.exists(MEDIA_DIR):
     os.makedirs(MEDIA_DIR)
 MASTER_ACCOUNT_USERNAME = "admin"
 MASTER_ACCOUNT_NAME = "Master Admin"
-MASTER_ACCOUNT_PASSWORD = "admin"
+# 코드에서 비밀번호를 직접 적는 대신, os.environ.get()으로 환경 변수를 읽어옵니다.
+MASTER_ACCOUNT_PASSWORD = os.environ.get("MASTER_PASSWORD")
+
+# 만약 .env 파일에 MASTER_PASSWORD가 설정되지 않았을 경우를 대비한 방어 코드
+if not MASTER_ACCOUNT_PASSWORD:
+    st.error("치명적인 오류: 마스터 계정의 비밀번호가 환경 변수에 설정되지 않았습니다. (.env 파일을 확인하세요)")
+    st.stop() # 앱 실행을 중지
 
 # --- Helper Functions ---
 @st.cache_data
