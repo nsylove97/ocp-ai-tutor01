@@ -23,7 +23,7 @@ from db_utils import (
     get_all_modified_questions, save_modified_question,
     delete_modified_question, clear_all_modified_questions,
     get_stats, get_top_5_missed,
-    add_user_table, fetch_all_users, add_new_user
+    add_user_table, fetch_all_users, add_new_user, delete_user, get_all_users_for_admin
 )
 from ui_components import display_question, display_results
 
@@ -31,6 +31,7 @@ from ui_components import display_question, display_results
 MEDIA_DIR = "media"
 if not os.path.exists(MEDIA_DIR):
     os.makedirs(MEDIA_DIR)
+MASTER_ACCOUNT_USERNAME = "master"
 
 # --- Helper Functions ---
 
@@ -203,11 +204,48 @@ def render_results_page(username):
         st.rerun()
 
 def render_management_page(username):
-    st.header("⚙️ 설정 및 관리")
-    tabs = ["원본 문제 데이터", "문제 추가", "문제 편집", "오답 노트 관리", "AI 변형 문제 관리"]
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(tabs)
+    # 관리자인 경우와 일반 사용자인 경우 다른 탭 목록을 보여줌
+    if st.session_state.get('is_admin'):
+        admin_tabs = ["사용자 관리", "원본 문제 데이터", "문제 추가", "문제 편집", "오답 노트 관리", "AI 변형 문제 관리"]
+        tab_admin, tab_data, tab_add, tab_edit, tab_notes, tab_ai = st.tabs(admin_tabs)
 
-    with tab1:
+        with tab_admin:
+            st.subheader("👑 사용자 관리 (관리자 전용)")
+            all_users = get_all_users_for_admin()
+            st.metric("총 등록된 사용자 수", f"{len(all_users)} 명")
+            
+            for user in all_users:
+                # 관리자 자신은 삭제할 수 없도록 함
+                is_master = (user['username'] == MASTER_ACCOUNT_USERNAME)
+                
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    role_icon = "👑" if user['role'] == 'admin' or is_master else "👤"
+                    st.write(f"{role_icon} **{user['name']}** ({user['username']})")
+                with col2:
+                    if not is_master: # 마스터 계정이 아니면 삭제 버튼 표시
+                        if st.button("사용자 삭제", key=f"del_user_{user['username']}", type="secondary"):
+                            delete_user(user['username'])
+                            st.toast(f"사용자 '{user['username']}'가 삭제되었습니다.", icon="🗑️")
+                            st.rerun()
+    else:
+        # 일반 사용자의 탭 목록
+        user_tabs = ["회원 탈퇴", "원본 문제 데이터", "문제 추가", "문제 편집", "오답 노트 관리", "AI 변형 문제 관리"]
+        tab_탈퇴, tab_data, tab_add, tab_edit, tab_notes, tab_ai = st.tabs(user_tabs)
+
+        with tab_탈퇴:
+            st.subheader("👋 회원 탈퇴")
+            st.warning("회원 탈퇴 시, 귀하의 모든 학습 기록(오답 노트, 통계 등)이 영구적으로 삭제되며 복구할 수 없습니다.")
+            if st.checkbox("위 내용을 확인했으며, 회원 탈퇴에 동의합니다."):
+                if st.button("회원 탈퇴 진행하기", type="primary"):
+                    delete_user(username)
+                    st.success("회원 탈퇴가 완료되었습니다. 이용해주셔서 감사합니다.")
+                    # 세션 상태를 초기화하고 로그아웃 처리
+                    st.session_state.authentication_status = None
+                    st.session_state.name = None
+                    st.session_state.username = None
+                    st.rerun()
+    with tab_data:
         st.subheader("📚 원본 문제 데이터")
         num_questions = len(get_all_question_ids('original'))
         st.metric("현재 저장된 원본 문제 수", f"{num_questions} 개")
@@ -219,7 +257,7 @@ def render_management_page(username):
                     st.toast(f"성공적으로 {count}개의 문제를 불러왔습니다!")
                     st.rerun()
 
-    with tab2:
+    with tab_add:
         st.subheader("➕ 새로운 문제 추가")
         if 'temp_new_question' not in st.session_state: st.session_state.temp_new_question = ""
         st.session_state.temp_new_question = st_quill(value=st.session_state.temp_new_question, placeholder="질문 내용을 입력하세요...", html=True, key="quill_add")
@@ -251,7 +289,7 @@ def render_management_page(username):
                     st.toast(f"성공! 새 문제(ID: {new_id})가 추가되었습니다.", icon="🎉")
                     st.rerun()
 
-    with tab3:
+    with tab_edit:
         st.subheader("✏️ 문제 편집")
         all_ids = get_all_question_ids('original')
         if not all_ids: st.info("편집할 문제가 없습니다.")
@@ -289,7 +327,7 @@ def render_management_page(username):
                         st.cache_data.clear()
                         st.rerun()
 
-    with tab4:
+    with tab_notes:
         st.subheader("📒 오답 노트 관리")
         wrong_answers = get_wrong_answers(username)
         if not wrong_answers: st.info("오답 노트가 비어있습니다.")
@@ -304,7 +342,7 @@ def render_management_page(username):
                         st.toast("삭제되었습니다.", icon="🗑️")
                         st.rerun()
 
-    with tab5:
+    with tab_ai:
         st.subheader("✨ AI 변형 문제 관리")
         mod_qs = get_all_modified_questions()
         if not mod_qs: st.info("변형 문제가 없습니다.")
@@ -344,7 +382,8 @@ def run_main_app(authenticator):
     # session_state에서 직접 사용자 정보 가져오기 (가장 안정적인 방법)
     name = st.session_state.get("name")
     username = st.session_state.get("username")
-    
+    st.session_state.is_admin = (username == MASTER_ACCOUNT_USERNAME)
+
     if not name or not username:
         st.error("사용자 정보를 불러올 수 없습니다. 다시 로그인해주세요.")
         authenticator.logout('로그아웃', location='sidebar', key='err_logout')
@@ -413,6 +452,9 @@ def main():
                     new_pwd = st.text_input("비밀번호", type="password")
                     if st.form_submit_button("가입하기"):
                         if new_name and new_user and new_pwd:
+                            if new_user == MASTER_ACCOUNT_USERNAME:
+                                st.error(f"'{MASTER_ACCOUNT_USERNAME}'은 관리자용으로 예약된 아이디입니다. 다른 아이디를 사용해주세요.")
+                                return                               
                             hashed_pwd = bcrypt.hashpw(new_pwd.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                             success, msg = add_new_user(new_user, new_name, hashed_pwd)
                             if success: st.success("가입 완료! 로그인해주세요.")
