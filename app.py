@@ -390,28 +390,16 @@ def main():
         st.session_state.db_setup_done = True
     
     # --- 2. 마스터 계정 확인 및 자동 생성 ---
-    users = fetch_all_users()
-    if MASTER_ACCOUNT_USERNAME not in users['usernames'] or users['usernames'][MASTER_ACCOUNT_USERNAME].get('role') != 'admin':
-        hashed_password = bcrypt.hashpw(MASTER_ACCOUNT_PASSWORD.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT OR REPLACE INTO users (username, name, password, role) VALUES (?, ?, ?, ?)",
-            (MASTER_ACCOUNT_USERNAME, MASTER_ACCOUNT_NAME, hashed_password, 'admin')
-        )
-        conn.commit()
-        conn.close()
-        users = fetch_all_users() # 사용자 정보 다시 로드
-        st.toast(f"관리자 계정 '{MASTER_ACCOUNT_USERNAME}'이(가) 설정되었습니다.", icon="👑")
-
+    credentials, all_user_info = fetch_all_users()
+    if MASTER_ACCOUNT_USERNAME not in credentials['usernames'] or all_user_info.get(MASTER_ACCOUNT_USERNAME, {}).get('role') != 'admin':
+        hashed_pw = bcrypt.hashpw(MASTER_ACCOUNT_PASSWORD.encode(), bcrypt.gensalt()).decode()
+        ensure_master_account(MASTER_ACCOUNT_USERNAME, MASTER_ACCOUNT_NAME, hashed_pw)
+        # 마스터 계정을 추가했으므로, 사용자 정보를 다시 불러옵니다.
+        credentials, all_user_info = fetch_all_users()
+        st.toast(f"관리자 계정 '{MASTER_ACCOUNT_USERNAME}' 설정 완료!", icon="👑")
 
     # --- 3. Authenticator 객체 생성 ---
-    authenticator = stauth.Authenticate(
-        users,
-        "ocp_ai_tutor_cookie",
-        "abcdef",
-        cookie_expiry_days=30
-    )
+    authenticator = stauth.Authenticate(credentials, "ocp_cookie", "auth_key", 30)
 
     # --- 4. 로그인 위젯 렌더링 ---
     # st.session_state에 자동으로 'authentication_status', 'name', 'username'이 저장됩니다.
