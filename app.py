@@ -256,13 +256,17 @@ def render_management_page(username):
         if st.button("AI 자동 난이도 부여 및 문제 불러오기", type="primary"):
             progress_bar = st.progress(0, text="AI 난이도 분석 시작...")
             
-            # load_original_questions_from_json은 이제 제너레이터이므로 list()로 모두 실행
-            for progress in load_original_questions_from_json():
-                progress_bar.progress(progress, text=f"AI 난이도 분석 중... ({int(progress*100)}%)")
-
-            st.toast("모든 문제에 대한 AI 난이도 분석 및 저장이 완료되었습니다!", icon="✅")
-            progress_bar.empty() # 진행률 바 숨기기
-            st.rerun()
+            try:
+                progress_generator = load_original_questions_from_json()
+                for progress in progress_generator:
+                    progress_bar.progress(progress, text=f"AI 난이도 분석 중... ({int(progress*100)}%)")
+                else: # 루프가 break 없이 완료되면 실행
+                    st.toast("모든 문제에 대한 AI 난이도 분석 및 저장이 완료되었습니다!", icon="✅")
+            except Exception as e:
+                st.error(f"데이터 로딩 중 오류가 발생했습니다: {e}")
+            finally:
+                progress_bar.empty() # 진행률 바 숨기기
+                st.rerun()
 
 # --- 공통 탭 (두 번째 탭부터) ---
     with tabs[2]: #문제 추가
