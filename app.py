@@ -277,7 +277,7 @@ def render_management_page(username):
         st.write("---")
 
         # --- 문제 초기화 버튼 (새로운 기능) ---
-        st.subheader("⚠️ 위험 구역")
+        st.subheader("⚠️ 문제 초기화")
         with st.container(border=True):
             st.warning("아래 버튼은 데이터베이스에 저장된 **모든 원본 문제**를 영구적으로 삭제합니다. 신중하게 사용하세요.")
             if st.button("모든 원본 문제 삭제 (초기화)", type="secondary"):
