@@ -588,8 +588,9 @@ def main():
     
     credentials, all_user_info = fetch_all_users()
     authenticator = stauth.Authenticate(credentials, "ocp_cookie_v3", "auth_key_v3", 30)
-
-    name, authentication_status, username = authenticator.login('Login', 'main')
+   
+    with st.container():
+        name, authentication_status, username = authenticator.login('Login', 'main')
 
     if authentication_status:
         run_main_app(authenticator, all_user_info)
