@@ -5,26 +5,24 @@ Streamlit UI 컴포넌트를 생성하는 함수들을 모아놓은 모듈.
 """
 import streamlit as st
 # Do NOT call st.set_page_config or inject viewport meta here — keep those only in app.py.
-# ...existing code...
- 
 # --- CSS Injection ---
 # 앱 전체에 적용될 커스텀 CSS 스타일을 한 번만 주입합니다.
 # 이 코드는 파일이 임포트될 때 한 번만 실행됩니다.
 # --- Minimal, safer CSS for iPhone Safari ---
 try:
     st.markdown(
-+        """<style>
-+        /* Minimal stable CSS for iOS Safari: avoid transitions/animations and heavy fixed positioning */
-+        html, body, .main, .block-container { min-height: 100vh; -webkit-text-size-adjust: 100%; }
-+        /* disable tap highlight and avoid transitions that trigger repaints */
-+        * { -webkit-tap-highlight-color: rgba(0,0,0,0); -webkit-transition: none !important; transition: none !important; animation: none !important; }
-+        /* keep buttons native-like and avoid forcing full repaint */
-+        div[data-testid="stButton"] > button { touch-action: manipulation; -webkit-user-select: text; }
-+        /* modal containers: avoid full-screen fixed overlays that can conflict with iOS viewport */
-+        [data-modal-container], .stModal, .modal { position: relative !important; overflow: visible !important; background: transparent !important; }
-+        [data-modal-container] > div, .stModal > div { max-width: 920px; width: calc(100% - 2rem); max-height: calc(100vh - 4rem); overflow: auto; background: #fff; padding: 1rem; border-radius: 8px; margin: 1rem auto; -webkit-overflow-scrolling: touch; }
-+        body { padding-bottom: env(safe-area-inset-bottom, 0); padding-top: env(safe-area-inset-top, 0); }
-+        </style>""",
+        """<style>
+        /* Minimal stable CSS for iOS Safari: avoid transitions/animations and heavy fixed positioning */
+        html, body, .main, .block-container { min-height: 100vh; -webkit-text-size-adjust: 100%; }
+        /* disable tap highlight and avoid transitions that trigger repaints */
+        * { -webkit-tap-highlight-color: rgba(0,0,0,0); -webkit-transition: none !important; transition: none !important; animation: none !important; }
+        /* keep buttons native-like and avoid forcing full repaint */
+        div[data-testid="stButton"] > button { touch-action: manipulation; -webkit-user-select: text; }
+        /* modal containers: avoid full-screen fixed overlays that can conflict with iOS viewport */
+        [data-modal-container], .stModal, .modal { position: relative !important; overflow: visible !important; background: transparent !important; }
+        [data-modal-container] > div, .stModal > div { max-width: 920px; width: calc(100% - 2rem); max-height: calc(100vh - 4rem); overflow: auto; background: #fff; padding: 1rem; border-radius: 8px; margin: 1rem auto; -webkit-overflow-scrolling: touch; }
+        body { padding-bottom: env(safe-area-inset-bottom, 0); padding-top: env(safe-area-inset-top, 0); }
+        </style>""",
         unsafe_allow_html=True,
     )
 except Exception as e:
