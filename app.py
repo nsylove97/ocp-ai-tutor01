@@ -463,42 +463,36 @@ def render_management_page(username):
             # 삭제 확인 모달 초기화
             wrong_modal = Modal(title="⚠️ 오답 기록 삭제 확인", key="delete_wrong_modal")
             if 'delete_wrong_target' not in st.session_state: st.session_state.delete_wrong_target = None
-            for question in wrong_answers:
-                if question:
-                    with st.expander(f"**ID {question['id']} ({question['question_type']})** | {question['question'].replace('<p>', '').replace('</p>', '')[:50].strip()}..."):
-                        
-                        st.markdown(question['question'], unsafe_allow_html=True)
-                        try:
-                            options = json.loads(question['options'])
-                            answer = json.loads(question['answer'])
-                            st.write("**선택지:**")
-                            for key, value in options.items():
-                                st.write(f" - **{key}:** {value}")
-                            st.error(f"**정답:** {', '.join(answer)}")
-                        except (json.JSONDecodeError, TypeError):
-                            st.write("선택지 또는 정답 정보를 불러올 수 없습니다.")
 
-                        # 삭제 버튼
-                        if st.button("이 오답 기록 삭제", key=f"del_wrong_manage_{question['id']}_{question['question_type']}", type="secondary"):
-                            delete_wrong_answer(username, question['id'], question['question_type'])
-                            st.toast("삭제되었습니다.", icon="🗑️")
-                            st.rerun()
-                    with st.expander(f"**ID {question['id']} ({question['question_type']})** | {question['question'].replace('<p>', '').replace('</p>', '')[:50].strip()}..."):
-                        st.markdown(question['question'], unsafe_allow_html=True)
-                        try:
-                            options = json.loads(question['options'])
-                            answer = json.loads(question['answer'])
-                            st.write("**선택지:**")
-                            for key, value in options.items():
-                                st.write(f" - **{key}:** {value}")
-                            st.error(f"**정답:** {', '.join(answer)}")
-                        except (json.JSONDecodeError, TypeError):
-                            st.write("선택지 또는 정답 정보를 불러올 수 없습니다.")
+            # 각 항목을 하나의 expander로 그리고 삭제 버튼 키에 인덱스를 포함해 고유화
+            for i, row in enumerate(wrong_answers):
+                # sqlite3.Row일 수 있으므로 안전하게 dict로 변환
+                try:
+                    question = dict(row)
+                except Exception:
+                    question = row
 
-                        # 삭제 버튼 -> 모달 열기
-                        if st.button("이 오답 기록 삭제", key=f"del_wrong_manage_{question['id']}_{question['question_type']}", type="secondary"):
-                            st.session_state.delete_wrong_target = (question['id'], question['question_type'])
-                            wrong_modal.open()
+                q_id = question.get('id') or question.get('question_id')
+                q_type = question.get('question_type') or question.get('type') or 'original'
+                preview = (question.get('question') or "").replace('<p>', '').replace('</p>', '')[:50].strip() + "..."
+
+                with st.expander(f"**ID {q_id} ({q_type})** | {preview}"):
+                    st.markdown(question.get('question') or "", unsafe_allow_html=True)
+                    try:
+                        options = json.loads(question.get('options') or "{}")
+                        answer = json.loads(question.get('answer') or "[]")
+                        st.write("**선택지:**")
+                        for key, value in options.items():
+                            st.write(f" - **{key}:** {value}")
+                        st.error(f"**정답:** {', '.join(answer)}")
+                    except (json.JSONDecodeError, TypeError):
+                        st.write("선택지 또는 정답 정보를 불러올 수 없습니다.")
+
+                    # 삭제 버튼 -> 모달 열기 (키에 인덱스 포함)
+                    btn_key = f"del_wrong_manage_{q_id}_{q_type}_{i}"
+                    if st.button("이 오답 기록 삭제", key=btn_key, type="secondary"):
+                        st.session_state.delete_wrong_target = (q_id, q_type)
+                        wrong_modal.open()
 
             # 모달이 열리면 확인 UI 그림
             if wrong_modal.is_open():
