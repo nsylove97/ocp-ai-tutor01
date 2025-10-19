@@ -524,7 +524,7 @@ def run_main_app(authenticator, all_user_info):
         if st.button("로그아웃", key="main_logout"):
             for k in ["authentication_status", "username", "name", "is_admin"]:
                 if k in st.session_state: del st.session_state[k]
-            st.experimental_rerun()
+            st.rerun()
         st.write("---")
         st.title("메뉴")
         
@@ -616,7 +616,7 @@ def main():
                     st.session_state.name = user.get("name", login_user)
                     st.session_state.is_admin = (user.get("role") == "admin")
                     st.success("로그인 성공")
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error("아이디 또는 비밀번호가 일치하지 않습니다.")
 
