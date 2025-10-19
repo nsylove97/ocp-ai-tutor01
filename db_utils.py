@@ -7,7 +7,6 @@
 import sqlite3
 import json
 import pandas as pd
-from gemini_handler import analyze_difficulty
 
 # --- 상수 정의 ---
 DB_NAME = 'ocp_quiz.db'
@@ -74,6 +73,7 @@ def load_original_questions_from_json(json_path='questions_final.json', progress
     Returns:
         tuple: (로드된 문제 수, 에러 메시지)
     """
+    from gemini_handler import analyze_difficulty
     try:
         with open(json_path, 'r', encoding='utf-8') as f:
             questions = json.load(f)

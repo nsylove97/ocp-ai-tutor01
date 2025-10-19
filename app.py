@@ -16,7 +16,7 @@ from streamlit_quill import st_quill
 from streamlit_modal import Modal
 
 # --- Custom Modules ---
-from gemini_handler import generate_explanation, generate_modified_question
+from gemini_handler import generate_explanation, generate_modified_question, analyze_difficulty
 from db_utils import (
     setup_database_tables, load_original_questions_from_json, get_db_connection,
     get_all_question_ids, get_question_by_id,
