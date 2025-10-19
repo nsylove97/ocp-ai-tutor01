@@ -46,6 +46,19 @@ div[data-testid="stButton"] > button:focus {
     outline: none !important;
     box-shadow: 0 0 0 2px rgba(28, 131, 225, 0.5) !important;
 }
+/* --- 로그인 폼 중앙 정렬을 위한 CSS 추가 --- */
+/* authenticator가 생성하는 폼 컨테이너를 선택합니다. */
+div[data-testid="stForm"] {
+    /* Flexbox를 사용하여 내부 요소를 중앙 정렬 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* 폼 내부의 컨텐츠를 담는 div를 선택하여 너비를 제한 */
+div[data-testid="stForm"] > div[data-testid="stVerticalBlock"] {
+    width: 400px; /* 로그인 폼의 최대 너비를 400px로 제한 */
+}
 </style>
 """, unsafe_allow_html=True)
 

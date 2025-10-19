@@ -12,6 +12,7 @@ import os
 
 # --- 3rd Party Libraries ---
 from streamlit_quill import st_quill
+from streamlit_modal import Modal
 
 # --- Custom Modules ---
 from gemini_handler import generate_explanation, generate_modified_question
@@ -178,16 +179,48 @@ def render_management_page(username):
             all_users = get_all_users_for_admin()
             st.metric("총 등록된 사용자 수", f"{len(all_users)} 명")
             st.write("---")
+            if 'delete_user_modal' not in st.session_state:
+                st.session_state.delete_user_modal = {}
+
             for user in all_users:
                 if user['username'] != MASTER_ACCOUNT_USERNAME:
+                    user_key = user['username']
+                    
+                    # 각 사용자에 대한 모달 객체 생성
+                    modal = Modal(
+                        f"삭제 확인: {user_key}", 
+                        key=f"modal_{user_key}",
+                        # 모달의 최대 너비 설정
+                        max_width="400px" 
+                    )
+
                     with st.container(border=True):
-                        c1, c2 = st.columns([0.8, 0.2])
-                        c1.markdown(f"**👤 {user['name']}** (`{user['username']}`)")
-                        if c2.button("계정 삭제", key=f"del_user_{user['username']}", type="secondary", use_container_width=True):
-                            delete_user(user['username'])
-                            st.toast(f"사용자 '{user['username']}'가 삭제되었습니다.", icon="🗑️")
-                            st.rerun()
-        else: # 일반 사용자
+                        col1, col2 = st.columns([0.8, 0.2])
+                        with col1:
+                            st.markdown(f"**👤 {user['name']}** (`{user['username']}`)")
+                        with col2:
+                            # '계정 삭제' 버튼은 이제 모달을 여는 역할만 함
+                            if st.button("계정 삭제", key=f"open_modal_{user_key}", type="secondary", use_container_width=True):
+                                st.session_state.delete_user_modal[user_key] = True
+
+                    # 모달이 열려야 하는 상태일 때만 모달을 화면에 표시
+                    if st.session_state.delete_user_modal.get(user_key, False):
+                        with modal.container():
+                            st.warning(f"정말로 **{user['name']}** ({user['username']}) 사용자를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")
+                            
+                            c1, c2 = st.columns(2)
+                            # '최종 삭제' 버튼
+                            if c1.button("예, 삭제합니다", key=f"confirm_delete_{user_key}", type="primary", use_container_width=True):
+                                delete_user(user_key)
+                                st.session_state.delete_user_modal[user_key] = False # 모달 닫기
+                                st.toast(f"사용자 '{user_key}'가 삭제되었습니다.", icon="🗑️")
+                                st.rerun()
+                            
+                            # '취소' 버튼
+                            if c2.button("아니요, 취소합니다", key=f"cancel_delete_{user_key}", use_container_width=True):
+                                st.session_state.delete_user_modal[user_key] = False # 모달 닫기
+                                st.rerun()
+
             st.subheader("회원 탈퇴")
             st.warning("회원 탈퇴 시 모든 학습 기록(오답 노트, 통계)이 영구적으로 삭제됩니다.")
             if st.checkbox("위 내용에 동의하며 탈퇴를 진행합니다.", key="delete_confirm"):
@@ -393,7 +426,7 @@ def main():
     # --- Authenticator 객체 생성 ---
     credentials, all_user_info = fetch_all_users()
     authenticator = stauth.Authenticate(credentials, "ocp_cookie", "auth_key", 30)
-    
+
     # --- 1. 로그인 위젯을 먼저 호출하여 상태를 결정하게 함 ---
     # 이 함수는 내부적으로 폼을 그리고, 로그인 시도 시 session_state를 업데이트 후 rerun함
     authenticator.login(location='main')
