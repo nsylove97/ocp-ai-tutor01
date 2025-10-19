@@ -192,6 +192,21 @@ def get_question_ids_by_difficulty(difficulty='모든 난이도'):
     conn.close()
     return ids
 
+def get_all_question_ids(q_type='original'):
+    """
+    특정 타입('original' 또는 'modified')의 모든 문제 ID 목록을 반환합니다.
+    'original'의 경우 get_question_ids_by_difficulty를 재활용합니다.
+    """
+    if q_type == 'original':
+        # '모든 난이도' 옵션을 사용하여 모든 원본 문제 ID를 가져옴
+        return get_question_ids_by_difficulty('모든 난이도')
+    else:
+        # 'modified'의 경우 기존 로직 유지
+        conn = get_db_connection()
+        ids = [row['id'] for row in conn.execute("SELECT id FROM modified_questions ORDER BY id ASC").fetchall()]
+        conn.close()
+        return ids
+
 def clear_all_original_questions():
     """DB에서 모든 원본 문제를 삭제합니다."""
     conn = get_db_connection()
