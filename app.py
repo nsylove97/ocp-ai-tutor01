@@ -153,7 +153,6 @@ def render_notes_page(username):
     st.write("---")
 
     for question in wrong_answers:
-        question = get_question_by_id(question['question_id'], question['question_type'])
         if question:
             with st.expander(f"**ID {question['id']} ({question['question_type']})** | {question['question'].replace('<p>', '').replace('</p>', '')[:50].strip()}..."):
                 
@@ -438,7 +437,6 @@ def render_management_page(username):
         else:
             st.warning(f"총 {len(wrong_answers)}개의 오답 기록이 있습니다. 완전히 이해한 문제는 삭제할 수 있습니다.")
             for question in wrong_answers:
-                question = get_question_by_id(question['question_id'], question['question_type'])
                 if question:
                     with st.expander(f"**ID {question['id']} ({question['question_type']})** | {question['question'].replace('<p>', '').replace('</p>', '')[:50].strip()}..."):
                         
