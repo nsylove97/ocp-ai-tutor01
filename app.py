@@ -1,6 +1,7 @@
 # app.py (최종 검토 및 정리 버전)
 import streamlit as st
 import streamlit_authenticator as stauth
+import bcrypt
 import random
 import os
 import json
@@ -544,8 +545,18 @@ def main():
                     
                     if st.form_submit_button("가입하기"):
                         if new_name and new_username and new_password:
-                            # 비밀번호 해싱
-                            hashed_password = stauth.Authenticate.hash_password(new_password)
+                            # --- 비밀번호 해싱 방식 (bcrypt 직접 사용) ---
+                            # 1. 비밀번호를 바이트(bytes) 형태로 인코딩합니다.
+                            password_bytes = new_password.encode('utf-8')
+
+                            # 2. bcrypt의 gensalt()로 솔트(salt)를 생성합니다.
+                            salt = bcrypt.gensalt()
+
+                            # 3. hashpw() 함수로 비밀번호와 솔트를 결합하여 해시를 생성합니다.
+                            hashed_password_bytes = bcrypt.hashpw(password_bytes, salt)
+
+                            # 4. DB에 저장하기 위해 다시 문자열(string) 형태로 디코딩합니다.
+                            hashed_password = hashed_password_bytes.decode('utf-8')
                             
                             # DB에 사용자 추가
                             success, message = add_new_user(new_username, new_name, hashed_password)
