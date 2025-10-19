@@ -1,6 +1,7 @@
 # ui_components.py
 import streamlit as st
 import json
+import streamlit_shadcn_ui as ui
 
 # --- CSS 스타일 정의 ---
 # 선택된 항목에 적용할 스타일과 컨테이너의 기본 스타일을 정의합니다.
@@ -46,7 +47,6 @@ def display_question(question_data, current_idx, total_questions):
     st.subheader(f"문제 {current_idx + 1}/{total_questions}{question_id_text}")
     st.markdown(question_data['question'], unsafe_allow_html=True)
     
-    # --- 여기가 수정된 부분입니다 ---
     # if 문 다음에 실행될 코드 블록을 올바르게 들여쓰기 합니다.
     if question_data.get('media_url'):
         media_type = question_data.get('media_type')
@@ -80,16 +80,23 @@ def display_question(question_data, current_idx, total_questions):
     
     user_selection = st.session_state.user_answers.get(current_idx, [])
 
+    # 각 선택지를 순회하며 클릭 가능한 '카드' 생성
     for key, value in options.items():
         is_selected = key in user_selection
-        style = SELECTED_CHOICE_STYLE if is_selected else DEFAULT_CHOICE_STYLE
         
-        with st.container():
-            st.markdown(f'<div style="{style}">', unsafe_allow_html=True)
-            if st.button(f"{key}. {value}", key=f"choice_{key}_{current_idx}", use_container_width=True):
-                handle_choice_selection(key, answer_count)
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+        # shadcn.card 컴포넌트를 사용하여 선택지를 감쌉니다.
+        # variant 속성을 이용해 선택 상태에 따라 다른 스타일을 적용합니다.
+        # 'default'는 일반 상태, 'secondary'는 선택된 상태로 활용.
+        with ui.card(
+            key=f"card_{key}_{current_idx}",
+            variant="secondary" if is_selected else "default",
+            # on_click 콜백을 사용하여 클릭 이벤트를 처리합니다.
+            # args를 통해 클릭된 선택지의 key와 문제의 answer_count를 전달합니다.
+            on_click=handle_choice_selection,
+            args=(key, answer_count)
+        ):
+            # 카드 안에 선택지 내용을 표시합니다.
+            st.markdown(f"**{key}.** {value}")
 
 def display_results(get_ai_explanation_func):
     """퀴즈 결과를 화면에 표시합니다."""
