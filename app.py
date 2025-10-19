@@ -454,16 +454,46 @@ def main():
         "abcdef",  # 서명 키 (아무거나 복잡하게)
         cookie_expiry_days=30
     )
+    # 탭을 사용하여 로그인과 회원가입 UI를 분리
+    login_tab, register_tab = st.tabs(["로그인", "회원가입"])
 
     # --- 로그인/회원가입 위젯 렌더링 ---
-    # name, authentication_status, username을 authenticator.login()의 반환 값으로 받음
-    name, authentication_status, username = authenticator.login('로그인', 'main')
+    with login_tab:
+        authenticator.login()
+    
+        with register_tab:
+            try:
+                if authenticator.register_user(preauthorization=False):
+                    # 회원가입 성공 시, DB에 직접 사용자를 추가해야 합니다.
+                    # 라이브러리는 config 파일 사용을 전제로 하므로 DB 연동은 직접 구현합니다.
+                    new_username = st.session_state['new_username']
+                    new_email = st.session_state['new_email'] # 이 라이브러리는 email을 요구함
+                    new_name = st.session_state['new_name']
+                    new_password = st.session_state['new_password']
+                    
+                    # 비밀번호 해싱
+                    hashed_password = stauth.Hasher([new_password]).generate()[0]
+                    
+                    # DB에 사용자 추가
+                    # add_new_user 함수를 이메일도 저장하도록 수정하거나, 이메일은 무시할 수 있습니다.
+                    success, message = add_new_user(new_username, new_name, hashed_password)
+
+                    if success:
+                        st.success('사용자 등록이 완료되었습니다. 이제 로그인 탭에서 로그인해주세요.')
+                    else:
+                        st.error(message or "사용자 등록에 실패했습니다.")
+
+            except Exception as e:
+                st.error(e)
     
     # --- 로그인 상태에 따른 분기 처리 (추가/수정) ---
-    if authentication_status:
+    if st.session_state["authentication_status"]:
         # --- 로그인 성공 시 ---
+        name = st.session_state["name"]
+        username = st.session_state["username"]
+        
         st.sidebar.write(f"환영합니다, **{name}** 님!")
-        authenticator.logout('로그아웃', 'sidebar') # 사이드바에 로그아웃 버튼 추가
+        authenticator.logout('로그아웃', 'sidebar')
         
         # --- 기존 main 로직을 로그인 성공 블록 안으로 이동 ---
         if 'db_setup_done' not in st.session_state:
@@ -537,15 +567,16 @@ def main():
             st.error("알 수 없는 페이지입니다. 홈으로 돌아갑니다.")
             st.session_state.current_view = 'home'
             st.rerun()
-    elif authentication_status == False:
+    elif st.session_state["authentication_status"] == False:
         # --- 로그인 실패 시 ---
         st.error('사용자 이름 또는 비밀번호가 잘못되었습니다.')
 
-    elif authentication_status == None:
+    elif st.session_state["authentication_status"] == None:
         # --- 로그인하지 않은 상태 (초기 화면) ---
         st.warning('로그인 후 이용해주세요.')
 
         # --- 회원가입 기능 (추가) ---
+    if not st.session_state["authentication_status"]:
         try:
             if st.button('회원가입'):
                 st.session_state.show_register_form = True
@@ -564,7 +595,7 @@ def main():
                             # DB에 사용자 추가
                             success, message = add_new_user(new_username, new_name, hashed_password)
                             
-                            if success:
+                            if authenticator.register_user('회원가입', preauthorization=False):
                                 st.success("회원가입이 완료되었습니다. 이제 로그인해주세요.")
                                 st.session_state.show_register_form = False # 폼 숨기기
                                 st.rerun()
