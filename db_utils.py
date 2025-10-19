@@ -1,19 +1,29 @@
 # db_utils.py
 """
 데이터베이스(SQLite)와의 모든 상호작용을 담당하는 함수들을 모아놓은 모듈.
+이 파일은 테이블 생성, 데이터 CRUD(Create, Read, Update, Delete),
+사용자 관리 및 통계 데이터 조회를 포함합니다.
 """
+# --- Python Standard Libraries ---
 import sqlite3
 import json
+
+# --- 3rd Party Libraries ---
 import pandas as pd
 
+# --- 상수 정의 ---
 DB_NAME = 'ocp_quiz.db'
 
+# --- 데이터베이스 연결 ---
 def get_db_connection():
+    """데이터베이스 연결 객체를 생성하고 반환합니다."""
     conn = sqlite3.connect(DB_NAME, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
+# --- 스키마 설정 ---
 def setup_database_tables():
+    """앱에 필요한 모든 테이블을 생성하고, 필요한 경우 스키마를 업그레이드합니다."""
     conn = get_db_connection()
     cursor = conn.cursor()
     # users 테이블
@@ -43,38 +53,162 @@ def setup_database_tables():
         )''')
     
     # 기타 테이블
-    cursor.execute('''CREATE TABLE IF NOT EXISTS modified_questions (...)''') # 스키마 생략
-    cursor.execute('''CREATE TABLE IF NOT EXISTS user_answers (...)''') # 스키마 생략
+    cursor.execute('''CREATE TABLE IF NOT EXISTS modified_questions (id INTEGER PRIMARY KEY AUTOINCREMENT, original_id INTEGER, question TEXT, options TEXT, answer TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS user_answers (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, question_id INTEGER, question_type TEXT, user_choice TEXT, is_correct BOOLEAN, solved_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     conn.commit()
     conn.close()
-    print("모든 DB 테이블 확인/생성/업그레이드 완료.")
+    print("모든 데이터베이스 테이블 확인/생성/업그레이드 완료.")
 
+# --- 데이터 로딩/내보내기 ---
 def load_original_questions_from_json(questions_with_difficulty: list):
-    """
-    '난이도'가 이미 포함된 문제 데이터 리스트를 받아 DB를 새로 고칩니다.
-    """
+    """'난이도'가 포함된 문제 리스트를 받아 DB를 새로 고칩니다."""
     if not questions_with_difficulty:
         return 0, "입력된 문제 데이터가 없습니다."
-
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM original_questions")
-    
     for q in questions_with_difficulty:
         cursor.execute(
-            """INSERT INTO original_questions 
-               (id, question, options, answer, difficulty, media_url, media_type) 
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (
-                q.get('id'), q.get('question'), json.dumps(q.get('options', {})),
-                json.dumps(q.get('answer', [])), q.get('difficulty', '보통'),
-                q.get('media_url'), q.get('media_type')
-            )
+            "INSERT INTO original_questions (id, question, options, answer, difficulty, media_url, media_type) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (q.get('id'), q.get('question'), json.dumps(q.get('options', {})), json.dumps(q.get('answer', [])), q.get('difficulty', '보통'), q.get('media_url'), q.get('media_type'))
         )
-            
     conn.commit()
     conn.close()
     return len(questions_with_difficulty), None
+
+def export_questions_to_json_format():
+    """DB의 모든 원본 문제를 JSON 파일 형식(dict 리스트)으로 변환하여 반환합니다."""
+    conn = get_db_connection()
+    all_rows = conn.execute("SELECT * FROM original_questions ORDER BY id ASC").fetchall()
+    conn.close()
+    questions_list = []
+    for row in all_rows:
+        q_dict = dict(row)
+        try: q_dict['options'] = json.loads(q_dict['options'])
+        except: q_dict['options'] = {}
+        try: q_dict['answer'] = json.loads(q_dict['answer'])
+        except: q_dict['answer'] = []
+        questions_list.append(q_dict)
+    return questions_list
+
+# --- 문제 관리 (CRUD) ---
+def get_question_ids_by_difficulty(difficulty='모든 난이도'):
+    """특정 난이도의 원본 문제 ID 목록을 반환합니다."""
+    conn = get_db_connection()
+    if difficulty == '모든 난이도':
+        ids = [row['id'] for row in conn.execute("SELECT id FROM original_questions ORDER BY id ASC").fetchall()]
+    else:
+        ids = [row['id'] for row in conn.execute("SELECT id FROM original_questions WHERE difficulty = ? ORDER BY id ASC", (difficulty,)).fetchall()]
+    conn.close()
+    return ids
+
+def get_all_question_ids(q_type='original'):
+    """'original' 또는 'modified' 타입의 모든 문제 ID 목록을 반환합니다."""
+    if q_type == 'original':
+        return get_question_ids_by_difficulty('모든 난이도')
+    else:
+        conn = get_db_connection()
+        ids = [row['id'] for row in conn.execute("SELECT id FROM modified_questions ORDER BY id ASC").fetchall()]
+        conn.close()
+        return ids
+
+def get_question_by_id(q_id, q_type='original'):
+    """ID와 타입으로 특정 문제를 딕셔너리 형태로 반환합니다."""
+    table_name = 'original_questions' if q_type == 'original' else 'modified_questions'
+    conn = get_db_connection()
+    row = conn.execute(f"SELECT * FROM {table_name} WHERE id = ?", (q_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def add_new_original_question(question_text, options_dict, answer_list, difficulty, media_url=None, media_type=None):
+    """새로운 원본 문제를 DB에 추가하고 새 ID를 반환합니다."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT IFNULL(MAX(id), 0) + 1 FROM original_questions")
+    new_id = cursor.fetchone()[0]
+    cursor.execute(
+        "INSERT INTO original_questions (id, question, options, answer, difficulty, media_url, media_type) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (new_id, question_text, json.dumps(options_dict), json.dumps(answer_list), difficulty, media_url, media_type)
+    )
+    conn.commit()
+    conn.close()
+    return new_id
+
+def update_original_question(q_id, question_text, options_dict, answer_list, difficulty, media_url=None, media_type=None):
+    """ID를 기반으로 원본 문제의 내용을 업데이트합니다."""
+    conn = get_db_connection()
+    conn.execute(
+        "UPDATE original_questions SET question=?, options=?, answer=?, difficulty=?, media_url=?, media_type=? WHERE id=?",
+        (question_text, json.dumps(options_dict), json.dumps(answer_list), difficulty, media_url, media_type, q_id)
+    )
+    conn.commit()
+    conn.close()
+
+def clear_all_original_questions():
+    """DB에서 모든 원본 문제와 관련 오답 기록을 삭제합니다."""
+    conn = get_db_connection()
+    conn.execute("DELETE FROM user_answers WHERE question_type = 'original'")
+    conn.execute("DELETE FROM original_questions")
+    conn.commit()
+    conn.close()
+
+# --- 사용자 관리 ---
+def fetch_all_users():
+    """모든 사용자 정보를 Authenticator용과 추가 정보용으로 분리하여 반환합니다."""
+    conn = get_db_connection()
+    users = conn.execute("SELECT * FROM users").fetchall()
+    conn.close()
+    credentials = {"usernames": {}}
+    all_user_info = {}
+    for user in users:
+        username = user['username']
+        credentials["usernames"][username] = {"name": user['name'], "password": user['password']}
+        all_user_info[username] = {"name": user['name'], "role": user.get('role', 'user')}
+    return credentials, all_user_info
+
+def add_new_user(username, name, hashed_password):
+    """새로운 사용자를 추가합니다."""
+    conn = get_db_connection()
+    try:
+        conn.execute("INSERT INTO users (username, name, password) VALUES (?, ?, ?)", (username, name, hashed_password))
+        conn.commit()
+        return True, None
+    except sqlite3.IntegrityError:
+        return False, "이미 존재하는 아이디입니다."
+    finally: conn.close()
+
+def delete_user(username):
+    """특정 사용자와 관련 학습 기록을 모두 삭제합니다."""
+    conn = get_db_connection()
+    conn.execute("DELETE FROM user_answers WHERE username = ?", (username,))
+    conn.execute("DELETE FROM users WHERE username = ?", (username,))
+    conn.commit()
+    conn.close()
+
+def get_all_users_for_admin():
+    """관리자용으로 모든 사용자 목록을 반환합니다."""
+    conn = get_db_connection()
+    users = conn.execute("SELECT username, name, role FROM users ORDER BY username ASC").fetchall()
+    conn.close()
+    return users
+
+def ensure_master_account(username, name, hashed_password):
+    """마스터 관리자 계정이 존재하도록 보장합니다."""
+    conn = get_db_connection()
+    conn.execute("INSERT OR REPLACE INTO users (username, name, password, role) VALUES (?, ?, ?, ?)", (username, name, hashed_password, 'admin'))
+    conn.commit()
+    conn.close()
+
+# --- 답변 기록 및 통계 ---
+def save_user_answer(username, q_id, q_type, user_choice, is_correct):
+    """사용자의 답변 기록을 저장합니다."""
+    conn = get_db_connection()
+    conn.execute(
+        "INSERT INTO user_answers (username, question_id, question_type, user_choice, is_correct) VALUES (?, ?, ?, ?, ?)",
+        (username, q_id, q_type, json.dumps(user_choice), is_correct)
+    )
+    conn.commit()
+    conn.close()
 
 def get_wrong_answers(username: str):
     """특정 사용자의 틀린 문제 목록(상세 정보 포함)을 가져옵니다."""
@@ -100,15 +234,12 @@ def get_wrong_answers(username: str):
 def delete_wrong_answer(username, question_id, question_type):
     """특정 사용자의 특정 오답 기록을 삭제합니다."""
     conn = get_db_connection()
-    conn.execute(
-        "DELETE FROM user_answers WHERE question_id = ? AND question_type = ? AND username = ?",
-        (question_id, question_type, username)
-    )
+    conn.execute("DELETE FROM user_answers WHERE question_id = ? AND question_type = ? AND username = ?", (question_id, question_type, username))
     conn.commit()
     conn.close()
 
 def get_stats(username):
-    """특정 사용자의 전체 학습 통계를 계산하여 반환합니다."""
+    """특정 사용자의 학습 통계를 계산하여 반환합니다."""
     conn = get_db_connection()
     try:
         df = pd.read_sql_query("SELECT is_correct FROM user_answers WHERE username = ?", conn, params=(username,))
@@ -117,10 +248,8 @@ def get_stats(username):
         correct = int(df['is_correct'].sum())
         accuracy = (correct / total) * 100
         return total, correct, accuracy
-    except (pd.io.sql.DatabaseError, KeyError):
-        return 0, 0, 0.0
-    finally:
-        conn.close()
+    except: return 0, 0, 0.0
+    finally: conn.close()
 
 def get_top_5_missed(username):
     """특정 사용자가 가장 많이 틀린 문제 Top 5를 DataFrame으로 반환합니다."""
@@ -128,22 +257,17 @@ def get_top_5_missed(username):
     try:
         query = """
         SELECT q.id, q.question, COUNT(*) as wrong_count
-        FROM user_answers ua
-        JOIN original_questions q ON ua.question_id = q.id
+        FROM user_answers ua JOIN original_questions q ON ua.question_id = q.id
         WHERE ua.is_correct = 0 AND ua.question_type = 'original' AND ua.username = ?
-        GROUP BY q.id, q.question
-        ORDER BY wrong_count DESC, q.id ASC
-        LIMIT 5
+        GROUP BY q.id, q.question ORDER BY wrong_count DESC, q.id ASC LIMIT 5
         """
         return pd.read_sql_query(query, conn, params=(username,))
-    except pd.io.sql.DatabaseError:
-        return pd.DataFrame()
-    finally:
-        conn.close()
+    except: return pd.DataFrame()
+    finally: conn.close()
 
 # --- AI 변형 문제 관리 ---
 def get_all_modified_questions():
-    """저장된 모든 AI 변형 문제의 상세 정보를 가져옵니다."""
+    """모든 AI 변형 문제의 상세 정보를 가져옵니다."""
     conn = get_db_connection()
     questions = conn.execute("SELECT * FROM modified_questions ORDER BY id DESC").fetchall()
     conn.close()
@@ -163,7 +287,7 @@ def save_modified_question(original_id, q_data):
     return new_id
 
 def delete_modified_question(question_id):
-    """특정 AI 변형 문제와 관련된 모든 사용자의 오답 기록을 삭제합니다."""
+    """특정 AI 변형 문제와 관련 오답 기록을 삭제합니다."""
     conn = get_db_connection()
     conn.execute("DELETE FROM user_answers WHERE question_id = ? AND question_type = 'modified'", (question_id,))
     conn.execute("DELETE FROM modified_questions WHERE id = ?", (question_id,))
@@ -171,77 +295,9 @@ def delete_modified_question(question_id):
     conn.close()
 
 def clear_all_modified_questions():
-    """모든 AI 변형 문제와 관련된 모든 사용자의 오답 기록을 삭제합니다."""
+    """모든 AI 변형 문제와 관련 오답 기록을 삭제합니다."""
     conn = get_db_connection()
     conn.execute("DELETE FROM user_answers WHERE question_type = 'modified'")
     conn.execute("DELETE FROM modified_questions")
     conn.commit()
     conn.close()
-
-def get_question_ids_by_difficulty(difficulty='모든 난이도'):
-    """
-    특정 난이도 또는 모든 난이도의 원본 문제 ID 목록을 반환합니다.
-    """
-    conn = get_db_connection()
-    if difficulty == '모든 난이도':
-        query = "SELECT id FROM original_questions ORDER BY id ASC"
-        ids = [row['id'] for row in conn.execute(query).fetchall()]
-    else:
-        query = "SELECT id FROM original_questions WHERE difficulty = ? ORDER BY id ASC"
-        ids = [row['id'] for row in conn.execute(query, (difficulty,)).fetchall()]
-    conn.close()
-    return ids
-
-def get_all_question_ids(q_type='original'):
-    """
-    특정 타입('original' 또는 'modified')의 모든 문제 ID 목록을 반환합니다.
-    'original'의 경우 get_question_ids_by_difficulty를 재활용합니다.
-    """
-    if q_type == 'original':
-        # '모든 난이도' 옵션을 사용하여 모든 원본 문제 ID를 가져옴
-        return get_question_ids_by_difficulty('모든 난이도')
-    else:
-        # 'modified'의 경우 기존 로직 유지
-        conn = get_db_connection()
-        ids = [row['id'] for row in conn.execute("SELECT id FROM modified_questions ORDER BY id ASC").fetchall()]
-        conn.close()
-        return ids
-
-def clear_all_original_questions():
-    """DB에서 모든 원본 문제를 삭제합니다."""
-    conn = get_db_connection()
-    # 원본 문제와 관련된 오답 기록도 함께 삭제하는 것이 좋습니다.
-    conn.execute("DELETE FROM user_answers WHERE question_type = 'original'")
-    conn.execute("DELETE FROM original_questions")
-    conn.commit()
-    conn.close()
-
-def export_questions_to_json_format():
-    """
-    데이터베이스의 'original_questions' 테이블에 있는 모든 데이터를
-    JSON 파일 형식(딕셔너리 리스트)으로 변환하여 반환합니다.
-    """
-    conn = get_db_connection()
-    # "SELECT * ..."를 사용하여 모든 컬럼을 가져옵니다.
-    all_questions_rows = conn.execute("SELECT * FROM original_questions ORDER BY id ASC").fetchall()
-    conn.close()
-    
-    questions_list = []
-    for row in all_questions_rows:
-        # DB row 객체를 파이썬 딕셔너리로 변환
-        question_dict = dict(row)
-        
-        # JSON으로 저장된 'options'와 'answer'를 다시 파이썬 객체로 파싱
-        try:
-            question_dict['options'] = json.loads(question_dict['options'])
-        except (json.JSONDecodeError, TypeError):
-            question_dict['options'] = {} # 파싱 실패 시 빈 딕셔너리
-            
-        try:
-            question_dict['answer'] = json.loads(question_dict['answer'])
-        except (json.JSONDecodeError, TypeError):
-            question_dict['answer'] = [] # 파싱 실패 시 빈 리스트
-            
-        questions_list.append(question_dict)
-        
-    return questions_list
