@@ -574,6 +574,13 @@ def main():
     elif st.session_state["authentication_status"] == None:
         # --- 로그인하지 않은 상태 (초기 화면) ---
         st.warning('로그인 후 이용해주세요.')
+        try:
+            if authenticator.register_user('회원가입'):
+            # --- 여기까지 ---
+                st.success('사용자 등록이 완료되었습니다. 이제 로그인해주세요.')
+        except Exception as e:
+            st.error(e)
+        
 
         # --- 회원가입 기능 (추가) ---
     if not st.session_state["authentication_status"]:
