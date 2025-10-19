@@ -159,6 +159,7 @@ def fetch_all_users():
     
     user_credentials = {"usernames": {}}
     for user in users:
+        role = user['role'] if 'role' in user else 'user'
         user_credentials["usernames"][user['username']] = {
             "name": user['name'],
             "password": user['password'],
