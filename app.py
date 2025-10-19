@@ -476,41 +476,44 @@ def render_management_page(username):
                 q_type = question.get('question_type') or question.get('type') or 'original'
                 preview = (question.get('question') or "").replace('<p>', '').replace('</p>', '')[:50].strip() + "..."
 
-                with st.expander(f"**ID {q_id} ({q_type})** | {preview}"):
-                    st.markdown(question.get('question') or "", unsafe_allow_html=True)
-                    try:
-                        options = json.loads(question.get('options') or "{}")
-                        answer = json.loads(question.get('answer') or "[]")
-                        st.write("**선택지:**")
-                        for key, value in options.items():
-                            st.write(f" - **{key}:** {value}")
-                        st.error(f"**정답:** {', '.join(answer)}")
-                    except (json.JSONDecodeError, TypeError):
-                        st.write("선택지 또는 정답 정보를 불러올 수 없습니다.")
-
-                    # 삭제 버튼 -> 모달 열기 (키에 인덱스 포함)
-                    btn_key = f"del_wrong_manage_{q_id}_{q_type}_{i}"
-                    if st.button("이 오답 기록 삭제", key=btn_key, type="secondary"):
-                        st.session_state.delete_wrong_target = (q_id, q_type)
-                        wrong_modal.open()
-
-            # 모달이 열리면 확인 UI 그림
-            if wrong_modal.is_open():
-                with wrong_modal.container():
-                    target = st.session_state.get('delete_wrong_target')
-                    if target:
-                        st.warning(f"정말로 ID {target[0]} ({target[1]}) 오답 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")
-                        c1, c2 = st.columns(2)
-                        if c1.button("✅ 예, 삭제합니다", type="primary"):
-                            delete_wrong_answer(username, target[0], target[1])
-                            st.toast("오답 기록이 삭제되었습니다.", icon="🗑️")
-                            st.session_state.delete_wrong_target = None
-                            wrong_modal.close()
-                            st.rerun()
-                        if c2.button("❌ 취소", use_container_width=True):
-                            st.session_state.delete_wrong_target = None
-                            wrong_modal.close()
-                            st.rerun()
+                # expander 옆에 작게 삭제 버튼을 배치 (한 줄로 보여주기 위해 container + columns 사용)
+                with st.container():
+                    col_exp, col_btn = st.columns([0.95, 0.05])
+                    with col_exp:
+                        with st.expander(f"**ID {q_id} ({q_type})** | {preview}"):
+                            st.markdown(question.get('question') or "", unsafe_allow_html=True)
+                            try:
+                                options = json.loads(question.get('options') or "{}")
+                                answer = json.loads(question.get('answer') or "[]")
+                                st.write("**선택지:**")
+                                for key, value in options.items():
+                                    st.write(f" - **{key}:** {value}")
+                                st.error(f"**정답:** {', '.join(answer)}")
+                            except (json.JSONDecodeError, TypeError):
+                                st.write("선택지 또는 정답 정보를 불러올 수 없습니다.")
+                    with col_btn:
+                        small_key = f"del_wrong_btn_{q_id}_{q_type}_{i}"
+                        if st.button("삭제", key=small_key, help="오답 기록 삭제", use_container_width=True):
+                            st.session_state.delete_wrong_target = (q_id, q_type)
+                            wrong_modal.open()
+ 
+                # 모달이 열리면 확인 UI 그림
+                if wrong_modal.is_open():
+                    with wrong_modal.container():
+                        target = st.session_state.get('delete_wrong_target')
+                        if target:
+                            st.warning(f"정말로 ID {target[0]} ({target[1]}) 오답 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")
+                            c1, c2 = st.columns(2)
+                            if c1.button("✅ 예, 삭제합니다", type="primary"):
+                                delete_wrong_answer(username, target[0], target[1])
+                                st.toast("오답 기록이 삭제되었습니다.", icon="🗑️")
+                                st.session_state.delete_wrong_target = None
+                                wrong_modal.close()
+                                st.rerun()
+                            if c2.button("❌ 취소", use_container_width=True):
+                                st.session_state.delete_wrong_target = None
+                                wrong_modal.close()
+                                st.rerun()
 
     # --- 탭 5: AI 변형 문제 관리 ---
     with tabs[5]:
@@ -528,22 +531,29 @@ def render_management_page(username):
             # 각 항목별 삭제 버튼 -> 모달
             if 'delete_mod_target' not in st.session_state: st.session_state.delete_mod_target = None
             single_mod_modal = Modal(title="⚠️ 변형 문제 삭제 확인", key="delete_single_mod_modal")
-            for mq in modified_questions:
-                with st.expander(f"**ID {mq['id']}** | {mq['question'].replace('<p>', '').replace('</p>', '')[:50].strip()}..."):
-                    st.markdown(mq['question'], unsafe_allow_html=True)
-                    try:
-                        options = json.loads(mq['options'])
-                        answer = json.loads(mq['answer'])
-                        st.write("**선택지:**")
-                        for key, value in options.items():
-                            st.write(f" - **{key}:** {value}")
-                        st.error(f"**정답:** {', '.join(answer)}")
-                    except (json.JSONDecodeError, TypeError):
-                        st.write("선택지 또는 정답 정보를 불러올 수 없습니다.")
+            for idx, mq in enumerate(modified_questions):
+                # expander + 우측 작고 눈에 거슬리지 않는 삭제 버튼 배치
+                preview = mq['question'].replace('<p>', '').replace('</p>', '')[:50].strip() + "..."
+                with st.container():
+                    col_exp, col_btn = st.columns([0.95, 0.05])
+                    with col_exp:
+                        with st.expander(f"**ID {mq['id']}** | {preview}"):
+                            st.markdown(mq['question'], unsafe_allow_html=True)
+                            try:
+                                options = json.loads(mq['options'])
+                                answer = json.loads(mq['answer'])
+                                st.write("**선택지:**")
+                                for key, value in options.items():
+                                    st.write(f" - **{key}:** {value}")
+                                st.error(f"**정답:** {', '.join(answer)}")
+                            except (json.JSONDecodeError, TypeError):
+                                st.write("선택지 또는 정답 정보를 불러올 수 없습니다.")
 
-                    if st.button("이 변형 문제 삭제", key=f"del_mod_{mq['id']}", type="secondary"):
-                        st.session_state.delete_mod_target = mq['id']
-                        single_mod_modal.open()
+                    with col_btn:
+                        mod_btn_key = f"del_mod_btn_{mq['id']}_{idx}"
+                        if st.button("삭제", key=mod_btn_key, help="변형 문제 삭제", use_container_width=True):
+                            st.session_state.delete_mod_target = mq['id']
+                            single_mod_modal.open()
 
             if single_mod_modal.is_open():
                 with single_mod_modal.container():
@@ -688,24 +698,25 @@ def main():
                 st.error("아이디 또는 비밀번호가 일치하지 않습니다.")
 
         st.write("---")
-        st.subheader("새 계정 만들기 (이름 · 아이디 · 비밀번호)")
-        reg_name = st.text_input("이름", key="reg_name")
-        reg_user = st.text_input("아이디", key="reg_user")
-        reg_pw = st.text_input("비밀번호", type="password", key="reg_pw")
-        if st.button("회원가입"):
-            if not all((reg_name, reg_user, reg_pw)):
-                st.error("모든 필드를 입력해주세요.")
-            elif reg_user == MASTER_ACCOUNT_USERNAME:
-                st.error(f"'{MASTER_ACCOUNT_USERNAME}'은 예약된 아이디입니다.")
-            elif reg_user in all_user_info:
-                st.error("이미 존재하는 아이디입니다.")
-            else:
-                hashed_pw = bcrypt.hashpw(reg_pw.encode(), bcrypt.gensalt()).decode()
-                success, msg = add_new_user(reg_user, reg_name, hashed_pw)
-                if success:
-                    st.success("회원가입 완료! 로그인해주세요.")
+        # 회원가입은 접었다 폈다 가능한 expander로 제공
+        with st.expander("새 계정 만들기 (이름 · 아이디 · 비밀번호)", expanded=False):
+            reg_name = st.text_input("이름", key="reg_name")
+            reg_user = st.text_input("아이디", key="reg_user")
+            reg_pw = st.text_input("비밀번호", type="password", key="reg_pw")
+            if st.button("회원가입", key="signup_btn"):
+                if not all((reg_name, reg_user, reg_pw)):
+                    st.error("모든 필드를 입력해주세요.")
+                elif reg_user == MASTER_ACCOUNT_USERNAME:
+                    st.error(f"'{MASTER_ACCOUNT_USERNAME}'은 예약된 아이디입니다.")
+                elif reg_user in all_user_info:
+                    st.error("이미 존재하는 아이디입니다.")
                 else:
-                    st.error(msg)
+                    hashed_pw = bcrypt.hashpw(reg_pw.encode(), bcrypt.gensalt()).decode()
+                    success, msg = add_new_user(reg_user, reg_name, hashed_pw)
+                    if success:
+                        st.success("회원가입 완료! 로그인해주세요.")
+                    else:
+                        st.error(msg)
         # 로그인되지 않은 상태면 main 흐름 멈춤
         return
 
