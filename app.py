@@ -182,12 +182,10 @@ def render_management_page(username):
                 if user['username'] != MASTER_ACCOUNT_USERNAME:
                     user_key = user['username']
                     
-                    # 각 사용자에 대한 모달 객체 생성
+                    # 모달 객체 생성
                     modal = Modal(
                         f"삭제 확인: {user_key}", 
-                        key=f"modal_{user_key}",
-                        # 모달의 최대 너비 설정
-                        max_width="450px" 
+                        key=f"modal_{user_key}"
                     )
 
                     with st.container(border=True):
@@ -202,17 +200,6 @@ def render_management_page(username):
                     # 모달이 열려야 하는 상태일 때만 모달을 화면에 표시
                     if st.session_state.delete_user_modal.get(user_key, False):
                         with modal.container():
-                            st.markdown("""
-                                <style>
-                                    div[data-modal-container] {
-                                        display: flex;
-                                        flex-direction: column;
-                                        justify-content: center;
-                                        align-items: center;
-                                        text-align: center;
-                                    }
-                                </style>
-                            """, unsafe_allow_html=True)
                             st.warning(f"정말로 **{user['name']}** ({user['username']}) 사용자를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.")                            
                             c1, c2 = st.columns(2)
                             # '최종 삭제' 버튼
