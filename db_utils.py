@@ -137,13 +137,27 @@ def setup_database_tables():
     """
     conn = get_db_connection()
     cursor = conn.cursor()
-    
-    # 원본 문제 테이블
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS original_questions (
-        id INTEGER PRIMARY KEY, question TEXT NOT NULL, options TEXT NOT NULL,
-        answer TEXT NOT NULL, concept TEXT
-    )''')
+
+    try:
+        # 기존 테이블 정보 읽기
+        cursor.execute("PRAGMA table_info(original_questions)")
+        columns = [row['name'] for row in cursor.fetchall()]
+        # media_url 컬럼이 없으면 추가
+        if 'media_url' not in columns:
+            cursor.execute("ALTER TABLE original_questions ADD COLUMN media_url TEXT")
+        # media_type 컬럼이 없으면 추가
+        if 'media_type' not in columns:
+            cursor.execute("ALTER TABLE original_questions ADD COLUMN media_type TEXT")
+    except sqlite3.OperationalError:
+        # original_questions 테이블 자체가 없는 경우 (최초 실행)
+        # 원본 문제 테이블
+
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS original_questions (
+            id INTEGER PRIMARY KEY, question TEXT NOT NULL, options TEXT NOT NULL,
+            answer TEXT NOT NULL, concept TEXT
+        )''')
+        
     # 변형 문제 테이블
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS modified_questions (

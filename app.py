@@ -3,6 +3,8 @@ import streamlit as st
 import random
 import json
 import pandas as pd
+import os
+from streamlit_quill import st_quill
 from gemini_handler import generate_explanation, generate_modified_question
 from db_utils import get_all_question_ids, get_question_by_id, get_wrong_answers, save_modified_question
 from ui_components import display_question, display_results
@@ -180,12 +182,19 @@ def render_results_page():
 
 # ... (파일 상단 import문 및 다른 함수 정의)
 
+# --- 미디어 파일 저장 경로 설정 ---
+MEDIA_DIR = "media"
+if not os.path.exists(MEDIA_DIR):
+    os.makedirs(MEDIA_DIR)
+
 def render_management_page():
-    """오답 노트 및 AI 생성 문제를 관리하는 페이지"""
+    """문제 추가/편집, 오답 노트 등을 관리하는 페이지"""
     st.header("⚙️ 설정 및 관리")
 
-    # 탭 순서를 변경하여 원본 문제 관리를 가장 앞에 배치
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["원본 문제 데이터", "문제 추가 (원본)", "문제 편집 (원본)", "오답 노트 관리", "AI 변형 문제 관리"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "원본 문제 데이터", "문제 추가 (원본)", "문제 편집 (원본)", 
+        "오답 노트 관리", "AI 변형 문제 관리"
+    ])
 
     # --- 탭 1: 원본 문제 데이터 관리 ---
     with tab1:
@@ -213,11 +222,14 @@ def render_management_page():
     # --- 탭 2: 문제 추가 (원본) ---
     with tab2:
         st.subheader("➕ 새로운 원본 문제 추가")
-        st.info("새로운 OCP 문제를 직접 추가하여 나만의 문제 은행을 만드세요.")
+        st.info("MS Word처럼 텍스트 서식을 편집하고, 이미지/동영상을 첨부할 수 있습니다.")
 
         with st.form(key="add_form"):
-            # 문제 내용 입력
-            new_question_text = st.text_area("질문 내용:", height=150, placeholder="예: Which three statements are true...?")
+            # Quill 에디터 사용 (HTML 형식으로 내용 반환)
+            new_question_html = st_quill(placeholder="여기에 질문 내용을 입력하세요...", html=True)
+            
+            # 미디어 파일 업로드
+            uploaded_file = st.file_uploader("이미지 또는 동영상 첨부 (선택 사항)", type=['png', 'jpg', 'jpeg', 'gif', 'mp4', 'mov'])
             
             # 선택지 입력 (기본으로 5개 제공)
             new_options = {}
@@ -233,18 +245,18 @@ def render_management_page():
             submitted = st.form_submit_button("새 문제 추가하기")
 
             if submitted:
-                # 유효성 검사
-                if not new_question_text.strip():
-                    st.error("질문 내용을 입력해야 합니다.")
-                elif not all(text.strip() for text in new_options.values() if text):
-                    st.error("선택지 내용을 모두 입력해야 합니다. (최소 1개 이상)")
-                elif not new_answer:
-                    st.error("정답을 하나 이상 선택해야 합니다.")
-                else:
-                    # DB에 새 문제 추가
-                    new_id = add_new_original_question(new_question_text, new_options, new_answer)
-                    st.toast(f"성공적으로 새로운 문제(ID: {new_id})를 추가했습니다!")
-                    st.balloons() # 축하!
+                media_url, media_type = None, None
+                if uploaded_file is not None:
+                    # 파일을 로컬 media 폴더에 저장
+                    file_path = os.path.join(MEDIA_DIR, uploaded_file.name)
+                    with open(file_path, "wb") as f:
+                        f.write(uploaded_file.getbuffer())
+                    media_url = file_path
+                    media_type = 'image' if uploaded_file.type.startswith('image') else 'video'
+
+                # DB에 저장 (question 필드에 HTML 저장)
+                new_id = add_new_original_question(new_question_html, new_options, new_answer, media_url, media_type)
+                st.toast(f"성공! 새 문제(ID: {new_id})가 추가되었습니다.")
 
     # --- 탭 3: 문제 편집 ---
     with tab3:
@@ -266,15 +278,48 @@ def render_management_page():
                 # form을 사용하여 여러 입력 필드를 그룹화하고 한 번에 제출
                 with st.form(key="edit_form"):
                     # 현재 데이터를 기본값으로 설정하여 UI에 표시
+                    # DB에 저장된 HTML을 그대로 value로 전달
+                    edited_question_html = st_quill(
+                        value=question_to_edit['question'], 
+                        html=True,
+                        key="quill_editor"
+                    )
+                    
+                    st.write("---") # 시각적 구분선
+
+                    # --- 미디어 관리 UI ---
+                    # 1. 현재 첨부된 미디어가 있다면 표시
+                    current_media_url = question_to_edit['media_url']
+                    current_media_type = question_to_edit['media_type']
+                    
+                    if current_media_url:
+                        st.write("**현재 첨부된 미디어:**")
+                        if current_media_type == 'image':
+                            st.image(current_media_url, width=300)
+                        elif current_media_type == 'video':
+                            st.video(current_media_url)
+                        
+                        # 기존 미디어를 삭제할 수 있는 옵션 제공
+                        if st.checkbox("기존 미디어 삭제", key="delete_media_checkbox"):
+                            current_media_url = None
+                            current_media_type = None
+
+                    # 2. 새 미디어 파일 업로드 UI
+                    st.write("**미디어 교체 또는 추가:**")
+                    edited_uploaded_file = st.file_uploader(
+                        "새 이미지/동영상 파일을 업로드하면 기존 미디어를 대체합니다.", 
+                        type=['png', 'jpg', 'jpeg', 'gif', 'mp4', 'mov']
+                    )
+
+                    st.write("---")
+
+                    # --- 선택지 및 정답 편집 UI ---
                     current_options = json.loads(question_to_edit['options'])
                     current_answer = json.loads(question_to_edit['answer'])
-
-                    # 편집 가능한 입력 필드들
-                    edited_question_text = st.text_area("질문 내용:", value=question_to_edit['question'], height=150)
                     
                     edited_options = {}
                     for key, value in current_options.items():
-                        edited_options[key] = st.text_input(f"선택지 {key}:", value=value, key=f"option_{key}")
+                        edited_options[key] = st.text_input(f"선택지 {key}:", value=value, key=f"edit_option_{key}")
                     
                     edited_answer = st.multiselect("정답 선택:", options=list(edited_options.keys()), default=current_answer)
                     
@@ -282,11 +327,33 @@ def render_management_page():
                     submitted = st.form_submit_button("변경사항 저장")
 
                     if submitted:
-                        # 버튼이 클릭되면, 입력된 값으로 DB 업데이트
-                        update_original_question(edit_id, edited_question_text, edited_options, edited_answer)
-                        st.toast(f"ID {edit_id} 문제가 성공적으로 업데이트되었습니다!")
+                        final_media_url = current_media_url
+                        final_media_type = current_media_type
+
+                        # 새 파일이 업로드되었으면, 기존 미디어 정보를 덮어쓴다.
+                        if edited_uploaded_file is not None:
+                            # 새 파일을 로컬 media 폴더에 저장
+                            file_path = os.path.join(MEDIA_DIR, edited_uploaded_file.name)
+                            with open(file_path, "wb") as f:
+                                f.write(edited_uploaded_file.getbuffer())
+                            final_media_url = file_path
+                            final_media_type = 'image' if edited_uploaded_file.type.startswith('image') else 'video'
+
+                        # 최종 결정된 정보로 DB 업데이트
+                        update_original_question(
+                            edit_id, 
+                            edited_question_html, 
+                            edited_options, 
+                            edited_answer,
+                            final_media_url,
+                            final_media_type
+                        )
+                        st.success(f"ID {edit_id} 문제가 성공적으로 업데이트되었습니다!")
                         # 캐시된 데이터를 초기화하여 변경사항이 즉시 반영되도록 함
                         st.cache_data.clear()
+                        # 성공 후에는 폼이 다시 그려지도록 rerun
+                        st.rerun()
+
  
     # --- 탭 4: 오답 노트 관리 ---
     with tab4:

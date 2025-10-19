@@ -15,8 +15,17 @@ def display_question(question_data, current_idx, total_questions):
     # 문제 번호(ID)와 진행 상황을 함께 보여줍니다.
     question_id_text = f" (문제 ID: {question_data['id']})"
     st.subheader(f"문제 {current_idx + 1}/{total_questions}{question_id_text}")
-    st.markdown(question_data['question'])
+    st.markdown(question_data['question'], unsafe_allow_html=True)
+
+    # 미디어 파일이 있는 경우 표시
+    if question_data['media_url']:
+        if question_data['media_type'] == 'image':
+            st.image(question_data['media_url'])
+        elif question_data['media_type'] == 'video':
+            st.video(question_data['media_url'])
+
     st.write("---")
+    
 
     user_choice = []
     default_choice = st.session_state.user_answers.get(current_idx, [])
