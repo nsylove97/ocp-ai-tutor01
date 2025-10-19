@@ -223,21 +223,33 @@ def save_user_answer(username, q_id, q_type, user_choice, is_correct):
 
 def get_wrong_answers(username):
     """특정 사용자의 틀린 문제 목록(상세 정보 포함)을 가져옵니다."""
-    conn = get_db_connection()
-     # 원본 문제와 변형 문제를 UNION ALL로 합친 후, user_answers와 조인합니다.
+    conn = get_db_connection()    
+    # SELECT 구문에서 q.type을 question_type이라는 명확한 별칭으로 지정합니다.
+    # 또한, user_answers의 question_id도 함께 가져옵니다.
     query = """
     WITH all_questions AS (
         SELECT 'original' as type, id, question, options, answer, media_url, media_type, difficulty FROM original_questions
         UNION ALL
         SELECT 'modified' as type, id, question, options, answer, NULL as media_url, NULL as media_type, '보통' as difficulty FROM modified_questions
     )
-    SELECT ua.question_id, ua.question_type, q.*
+    SELECT 
+        ua.question_id, 
+        q.type as question_type, -- ★★★ q.type에 'question_type' 별칭 부여 ★★★
+        q.id, 
+        q.question, 
+        q.options, 
+        q.answer,
+        q.media_url,
+        q.media_type,
+        q.difficulty
     FROM user_answers ua
     JOIN all_questions q ON ua.question_id = q.id AND ua.question_type = q.type
     WHERE ua.is_correct = 0 AND ua.username = ?
     GROUP BY ua.question_id, ua.question_type 
     ORDER BY ua.solved_at DESC
     """
+    # --- 여기까지 ---
+
     wrong_answers = conn.execute(query, (username,)).fetchall()
     conn.close()
     return wrong_answers
