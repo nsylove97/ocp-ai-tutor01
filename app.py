@@ -466,7 +466,7 @@ def main():
 
         # --- 이하 로그인 성공 후의 로직은 이전과 동일 ---
         st.sidebar.write(f"환영합니다, **{name}** 님!")
-        authenticator.logout('로그아웃', 'sidebar')
+        authenticator.logout('로그아웃', location='sidebar', key='main_logout')
         
         st.title("🚀 Oracle OCP AI 튜터")
         initialize_session_state()
