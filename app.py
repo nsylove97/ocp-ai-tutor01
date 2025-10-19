@@ -176,8 +176,8 @@ def render_management_page(username):
             st.metric("총 등록된 사용자 수", f"{len(all_users)} 명")
             st.write("---")
             
-            # --- 모달 상태를 관리할 단일 변수 ---
-            # 어떤 사용자를 삭제할지 그 username만 저장합니다.
+            modal = Modal(title="⚠️ 삭제 확인", key="delete_user_modal")
+
             if 'user_to_delete' not in st.session_state:
                 st.session_state.user_to_delete = None
 
@@ -188,27 +188,17 @@ def render_management_page(username):
                         with col1:
                             st.markdown(f"**👤 {user['name']}** (`{user['username']}`)")
                         with col2:
-                            # '계정 삭제' 버튼을 누르면 session_state에 삭제할 사용자 이름을 저장
+                            # '계정 삭제' 버튼은 session_state를 변경하고 모달을 여는 역할
                             if st.button("계정 삭제", key=f"del_btn_{user['username']}", type="secondary", use_container_width=True):
                                 st.session_state.user_to_delete = user['username']
-                                st.rerun() # 상태 변경 후 즉시 rerun하여 모달을 띄움
+                                modal.open() # ★★★★★ 상태 변경 후 즉시 모달 열기 ★★★★★
             
-            # --- 모달 렌더링 로직 ---
-            # 삭제할 사용자가 지정되었을 때만 모달을 생성하고 엽니다.
-            if st.session_state.user_to_delete:
-                user_key = st.session_state.user_to_delete
-                
-                # Modal 객체 생성. title이 있으면 X 버튼이 자동으로 생깁니다.
-                modal = Modal(
-                    title=f"⚠️ 삭제 확인", 
-                    key=f"modal_delete_user" 
-                )
-                
-                # open() 메소드를 사용하여 모달을 엽니다.
-                modal.open()
-                # 이 메소드는 모달이 열려있는 동안 True를 반환합니다.
-                if modal.is_open():
-                    with modal.container():
+            # --- 2. 모달이 열려 있는지 확인하고 컨텐츠를 그림 ---
+            if modal.is_open():
+                with modal.container():
+                    # 삭제할 대상이 session_state에 저장되어 있는지 다시 한번 확인
+                    user_key = st.session_state.user_to_delete
+                    if user_key:
                         st.warning(f"정말로 **{user_key}** 사용자를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")
                         
                         c1, c2 = st.columns(2)
@@ -216,13 +206,12 @@ def render_management_page(username):
                             delete_user(user_key)
                             st.toast(f"사용자 '{user_key}'가 삭제되었습니다.", icon="🗑️")
                             st.session_state.user_to_delete = None # 상태 초기화
-                            modal.close() # 모달 닫기
-                            st.rerun()
+                            modal.close()
+                            # st.rerun()은 modal.close()에 의해 자동으로 트리거될 수 있음
                         
                         if c2.button("❌ 아니요, 취소합니다", use_container_width=True):
                             st.session_state.user_to_delete = None # 상태 초기화
-                            modal.close() # 모달 닫기
-                            st.rerun()
+                            modal.close()
     else:
         with tabs[0]: #회원 탈퇴 탭
             st.subheader("회원 탈퇴")
