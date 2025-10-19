@@ -171,3 +171,40 @@ def generate_modified_question(original_question_data: dict) -> dict:
         return {"error": f"API 사용량 한도를 초과했습니다. Google Cloud 콘솔에서 확인해주세요."}
     except Exception as e:
         return {"error": f"문제 변형 중 예상치 못한 API 오류 발생: {e}"}
+
+def analyze_difficulty(question_text: str) -> str:
+    """
+    Gemini를 사용하여 문제 텍스트를 분석하고 난이도를 '쉬움', '보통', '어려움' 중 하나로 추정합니다.
+    """
+    if not model:
+        print("Warning: Gemini API not configured. Defaulting difficulty to '보통'.")
+        return '보통'
+
+    prompt = f"""
+    Analyze the difficulty of the following Oracle OCP exam question.
+    Consider factors like complexity of the SQL query, subtlety of the concept, number of components involved, and depth of knowledge required.
+    
+    Based on your analysis, classify the difficulty into one of three levels: "쉬움", "보통", "어려움".
+    Your answer must be ONLY ONE of these three words and nothing else.
+
+    **Question to Analyze:**
+    ---
+    {question_text}
+    ---
+
+    **Difficulty (쉬움, 보통, or 어려움):**
+    """
+    
+    try:
+        response = model.generate_content(prompt, safety_settings=safety_settings)
+        # 응답 텍스트에서 앞뒤 공백을 제거
+        difficulty = response.text.strip()
+        
+        # 예상 답변 외의 값이 나오면 '보통'으로 강제
+        if difficulty not in ['쉬움', '보통', '어려움']:
+            return '보통'
+        return difficulty
+        
+    except Exception as e:
+        print(f"Difficulty analysis failed for a question: {e}")
+        return '보통' # 오류 발생 시 기본값 반환
