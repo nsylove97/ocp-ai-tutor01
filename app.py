@@ -805,6 +805,8 @@ def render_ai_tutor_page(username):
     if prompt := st.chat_input("질문을 입력하세요..."):
         # 현재 대화 기록이 비어있는지 (즉, 이것이 첫 질문인지) 확인
         is_first_message = not full_chat_history
+        action_needed = False
+        prompt_to_send_to_ai = None
 
         # 1. 사용자 메시지를 DB에 저장
         # 첫 메시지일 경우, 프롬프트 자체를 기본 제목으로 함께 저장
