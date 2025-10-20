@@ -427,8 +427,18 @@ def render_management_page(username):
     with tabs[3]: #문제 편집
         st.subheader("✏️ 문제 편집")
         all_ids = get_all_question_ids('original')
-        if not all_ids: st.info("편집할 문제가 없습니다.")
+        if not all_ids:
+            st.info("편집할 문제가 없습니다.")
         else:
+            # --- 여기가 핵심 수정 부분 1: 콜백 함수 정의 ---
+            def set_delete_target(q_id):
+                """삭제할 문제 ID를 세션 상태에 설정하는 콜백 함수"""
+                st.session_state.question_to_delete_id = q_id
+
+            def clear_delete_target():
+                """삭제 대상 ID를 세션 상태에서 제거하는 콜백 함수"""
+                st.session_state.question_to_delete_id = None
+
             delete_question_modal = Modal(title="⚠️ 문제 삭제 확인", key="delete_question_modal")
              # 어떤 문제를 삭제할지 ID를 저장할 세션 상태
             if 'question_to_delete_id' not in st.session_state:
@@ -454,9 +464,13 @@ def render_management_page(username):
                 with form_cols[0]:
                     st.markdown(f"**ID {edit_id} 문제 수정:**")
                 with form_cols[1]:
-                    if st.button("이 문제 삭제 🗑️", use_container_width=True, type="secondary"):
-                        st.session_state.question_to_delete_id = edit_id
-                        st.rerun()
+                    st.button(
+                        "이 문제 삭제 🗑️", 
+                        use_container_width=True, 
+                        type="secondary",
+                        on_click=set_delete_target, 
+                        args=(edit_id,)             
+                    )
                 with st.form(key=f"edit_form_{edit_id}"):
                     st.markdown(f"**ID {edit_id} 수정:**")
                     curr_opts = json.loads(q_data['options'])
@@ -503,24 +517,30 @@ def render_management_page(username):
             if delete_question_modal.is_open():
                 with delete_question_modal.container():
                     delete_id = st.session_state.question_to_delete_id
-                    st.warning(f"정말로 ID {delete_id} 문제를 영구적으로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")
+                    st.warning(f"정말로 ID {delete_id} 문제를 영구적으로 삭제하시겠습니까?")
                     
                     m_c1, m_c2 = st.columns(2)
                     if m_c1.button("✅ 예, 삭제합니다", type="primary", use_container_width=True):
-                        # clear_all_original_questions 함수가 이미 관련 오답 기록도 삭제함
-                        # 개별 삭제 함수를 만들어야 함
-                        delete_single_original_question(delete_id) # 이 함수를 db_utils에 추가해야 함
-                        
+                        delete_single_original_question(delete_id)                        
                         st.toast(f"ID {delete_id} 문제가 삭제되었습니다.", icon="🗑️")
-                        st.session_state.question_to_delete_id = None
-                        st.session_state.current_edit_id = None # 삭제 후 현재 ID 초기화
-                        delete_question_modal.close()
+                        
+                        # 삭제 후 상태 초기화 및 다음 문제로 이동
+                        clear_delete_target()
+                        # 남아있는 ID 목록을 다시 가져옴
+                        remaining_ids = get_all_question_ids('original')
+                        if remaining_ids:
+                            # 목록의 첫 번째 문제로 이동
+                            st.session_state.current_edit_id = remaining_ids[0]
+                        else:
+                            # 모든 문제가 삭제되었으면 상태 초기화
+                            st.session_state.current_edit_id = None
+                        
+                        delete_question_modal.close() # st.rerun() 전에 모달을 닫음
                         st.rerun()
                     
-                    if m_c2.button("❌ 아니요, 취소합니다", use_container_width=True):
-                        st.session_state.question_to_delete_id = None
-                        delete_question_modal.close()
-                        st.rerun()
+                    if m_c2.button("❌ 아니요, 취소합니다", use_container_width=True, on_click=clear_delete_target):
+                        # on_click으로 상태만 변경, rerun은 자동으로 일어남
+                        pass
 
     # --- 탭 4: 오답 노트 관리 ---
     with tabs[4]:
