@@ -488,24 +488,13 @@ def delete_chat_messages_from(message_id, username, session_id):
     """
     conn = get_db_connection()
     cursor = conn.cursor()
-    
-    # 1. 기준이 되는 메시지의 타임스탬프 가져오기
-    cursor.execute("SELECT timestamp FROM chat_history WHERE id = ?", (message_id,))
-    timestamp_row = cursor.fetchone()
-    
-    if not timestamp_row:
-        # 기준 메시지를 찾을 수 없으면 아무것도 하지 않음
-        conn.close()
-        return
 
-    # 2. 해당 타임스탬프 또는 그 이후에 생성된 모든 메시지를 삭제
-    # (자기 자신 포함하여 삭제)
-    timestamp_to_delete_from = timestamp_row['timestamp']
+    # 타임스탬프 대신, ID를 직접 비교하여 기준 ID보다 큰 모든 메시지를 삭제합니다.
     cursor.execute(
-        "DELETE FROM chat_history WHERE username = ? AND session_id = ? AND timestamp >= ?",
-        (username, session_id, timestamp_to_delete_from)
+        "DELETE FROM chat_history WHERE username = ? AND session_id = ? AND id > ?",
+        (username, session_id, message_id)
     )
-    
+   
     conn.commit()
     conn.close()
-    print(f"Session {session_id}: Messages from timestamp {timestamp_to_delete_from} deleted.")
+    print(f"Session {session_id}: Messages after ID {message_id} deleted.")
