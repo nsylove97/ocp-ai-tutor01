@@ -418,7 +418,7 @@ def save_chat_message(username, session_id, role, content, session_title=None):
 
     conn.commit()
     conn.close()
-    
+
 def get_chat_sessions(username):
     """특정 사용자의 모든 채팅 세션 ID와 첫 메시지를 가져옵니다."""
     conn = get_db_connection()
@@ -535,3 +535,18 @@ def delete_chat_messages_from(message_id, username, session_id):
     conn.commit()
     conn.close()
     print(f"Session {session_id}: Messages after ID {message_id} deleted.")
+
+def delete_single_original_question(question_id):
+    """
+    ID를 기반으로 정확히 하나의 원본 문제를 삭제합니다.
+    관련된 모든 사용자의 오답 기록도 함께 삭제합니다.
+    """
+    conn = get_db_connection()
+    # 1. 해당 원본 문제에 대한 모든 사용자의 오답 기록 삭제
+    conn.execute("DELETE FROM user_answers WHERE question_id = ? AND question_type = 'original'", (question_id,))
+    
+    # 2. 원본 문제 삭제
+    conn.execute("DELETE FROM original_questions WHERE id = ?", (question_id,))
+    
+    conn.commit()
+    conn.close()

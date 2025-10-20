@@ -27,7 +27,7 @@ from db_utils import (
     get_all_explanations_for_admin, get_chat_history, save_chat_message,
     get_chat_sessions, delete_chat_session,
     update_chat_session_title, get_full_chat_history, update_chat_message, delete_chat_message_and_following,
-    delete_single_chat_message, delete_chat_messages_from
+    delete_single_chat_message, delete_chat_messages_from, delete_single_original_question
 )
 from ui_components import display_question, display_results
 
@@ -418,7 +418,7 @@ def render_management_page(username):
                     final_options = {k: v for k, v in st.session_state.temp_new_options.items() if k in valid_options}
 
                     new_id = add_new_original_question(new_q_html, final_options, new_answer, new_difficulty, media_url, media_type)
-                    
+
                     st.session_state.temp_new_question = ""
                     st.session_state.temp_new_options = {}
                     st.toast(f"성공! 새 문제(ID: {new_id})가 추가되었습니다.", icon="🎉")
@@ -429,7 +429,14 @@ def render_management_page(username):
         all_ids = get_all_question_ids('original')
         if not all_ids: st.info("편집할 문제가 없습니다.")
         else:
-            if 'current_edit_id' not in st.session_state: st.session_state.current_edit_id = all_ids[0]
+            delete_question_modal = Modal(title="⚠️ 문제 삭제 확인", key="delete_question_modal")
+             # 어떤 문제를 삭제할지 ID를 저장할 세션 상태
+            if 'question_to_delete_id' not in st.session_state:
+                st.session_state.question_to_delete_id = None
+
+            if 'current_edit_id' not in st.session_state: 
+                st.session_state.current_edit_id = all_ids[0]
+            
             def change_id(amount):
                 try:
                     curr_idx = all_ids.index(st.session_state.current_edit_id)
@@ -443,6 +450,12 @@ def render_management_page(username):
             q_data = get_question_by_id(edit_id, 'original')
             if q_data:
                 with st.form(key=f"edit_form_{edit_id}"):
+                    form_cols = st.columns([0.8, 0.2])
+                    with form_cols[0]:
+                        st.markdown(f"**ID {edit_id} 문제 수정:**")
+                    with form_cols[1]:
+                        if st.button("이 문제 삭제 🗑️", use_container_width=True, type="secondary"):
+                            st.session_state.question_to_delete_id = edit_id
                     st.markdown(f"**ID {edit_id} 수정:**")
                     curr_opts = json.loads(q_data['options'])
                     curr_ans = json.loads(q_data['answer'])
@@ -480,6 +493,31 @@ def render_management_page(username):
                         update_original_question(edit_id, edited_q, edited_opts, edited_ans, edited_difficulty, m_url, m_type)
                         st.toast("업데이트 완료!", icon="✅")
                         st.cache_data.clear()
+                        st.rerun()
+            # 삭제할 문제가 지정되었을 때만 모달을 열고 내용을 그림
+            if st.session_state.question_to_delete_id:
+                delete_question_modal.open()
+
+            if delete_question_modal.is_open():
+                with delete_question_modal.container():
+                    delete_id = st.session_state.question_to_delete_id
+                    st.warning(f"정말로 ID {delete_id} 문제를 영구적으로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")
+                    
+                    m_c1, m_c2 = st.columns(2)
+                    if m_c1.button("✅ 예, 삭제합니다", type="primary", use_container_width=True):
+                        # clear_all_original_questions 함수가 이미 관련 오답 기록도 삭제함
+                        # 개별 삭제 함수를 만들어야 함
+                        delete_single_original_question(delete_id) # 이 함수를 db_utils에 추가해야 함
+                        
+                        st.toast(f"ID {delete_id} 문제가 삭제되었습니다.", icon="🗑️")
+                        st.session_state.question_to_delete_id = None
+                        st.session_state.current_edit_id = None # 삭제 후 현재 ID 초기화
+                        delete_question_modal.close()
+                        st.rerun()
+                    
+                    if m_c2.button("❌ 아니요, 취소합니다", use_container_width=True):
+                        st.session_state.question_to_delete_id = None
+                        delete_question_modal.close()
                         st.rerun()
 
     # --- 탭 4: 오답 노트 관리 ---
