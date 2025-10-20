@@ -26,7 +26,7 @@ try:
         {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
     ]
-    model = genai.GenerativeModel('gemini-flash-latest') # 최신 Flash 모델 사용 권장
+    model = genai.GenerativeModel('gemini-flash-lite-latest') 
 
 except (ValueError, Exception) as e:
     model = None
@@ -217,8 +217,7 @@ def get_chat_response(history: list, question: str) -> str:
         return "Gemini API가 설정되지 않았습니다."
 
     try:
-        # gemini-flash 모델은 채팅에 더 적합할 수 있습니다.
-        chat_model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        chat_model = genai.GenerativeModel('gemini-flash-lite-latest')
         chat = chat_model.start_chat(history=history)
         response = chat.send_message(question)
         return response.text
