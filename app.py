@@ -430,16 +430,15 @@ def render_management_page(username):
         if not all_ids:
             st.info("편집할 문제가 없습니다.")
         else:
-            # --- 여기가 핵심 수정 부분 1: 콜백 함수 정의 ---
-            def set_delete_target(q_id):
-                """삭제할 문제 ID를 세션 상태에 설정하는 콜백 함수"""
-                st.session_state.question_to_delete_id = q_id
-
-            def clear_delete_target():
-                """삭제 대상 ID를 세션 상태에서 제거하는 콜백 함수"""
+            # --- 모달 상태 변수 추가 ---
+            # 모달이 열려 있는지 여부를 직접 제어하는 상태 변수
+            if 'show_delete_modal' not in st.session_state:
+                st.session_state.show_delete_modal = False
+            
+            # 어떤 문제를 삭제할지 ID를 저장할 세션 상태
+            if 'question_to_delete_id' not in st.session_state:
                 st.session_state.question_to_delete_id = None
 
-            delete_question_modal = Modal(title="⚠️ 문제 삭제 확인", key="delete_question_modal")
              # 어떤 문제를 삭제할지 ID를 저장할 세션 상태
             if 'question_to_delete_id' not in st.session_state:
                 st.session_state.question_to_delete_id = None
@@ -464,13 +463,18 @@ def render_management_page(username):
                 with form_cols[0]:
                     st.markdown(f"**ID {edit_id} 문제 수정:**")
                 with form_cols[1]:
+                    def open_delete_modal(q_id):
+                        st.session_state.question_to_delete_id = q_id
+                        st.session_state.show_delete_modal = True    
+                    
                     st.button(
                         "이 문제 삭제 🗑️", 
                         use_container_width=True, 
                         type="secondary",
-                        on_click=set_delete_target, 
-                        args=(edit_id,)             
-                    )
+                        on_click=open_delete_modal,
+                        args=(edit_id,)
+                    )       
+
                 with st.form(key=f"edit_form_{edit_id}"):
                     st.markdown(f"**ID {edit_id} 수정:**")
                     curr_opts = json.loads(q_data['options'])
@@ -510,37 +514,34 @@ def render_management_page(username):
                         st.toast("업데이트 완료!", icon="✅")
                         st.cache_data.clear()
                         st.rerun()
-            # 삭제할 문제가 지정되었을 때만 모달을 열고 내용을 그림
-            if st.session_state.question_to_delete_id:
-                delete_question_modal.open()
+            
+            # Modal 객체는 항상 생성하되, 열고 닫는 것은 우리 상태 변수로 제어
+            delete_question_modal = Modal(title="⚠️ 문제 삭제 확인", key="delete_question_modal")            
 
-            if delete_question_modal.is_open():
+            # st.session_state.show_delete_modal이 True일 때만 모달을 엶
+            if st.session_state.show_delete_modal:
                 with delete_question_modal.container():
                     delete_id = st.session_state.question_to_delete_id
                     st.warning(f"정말로 ID {delete_id} 문제를 영구적으로 삭제하시겠습니까?")
                     
                     m_c1, m_c2 = st.columns(2)
                     if m_c1.button("✅ 예, 삭제합니다", type="primary", use_container_width=True):
-                        delete_single_original_question(delete_id)                        
+                        delete_single_original_question(delete_id)
                         st.toast(f"ID {delete_id} 문제가 삭제되었습니다.", icon="🗑️")
                         
                         # 삭제 후 상태 초기화 및 다음 문제로 이동
-                        clear_delete_target()
-                        # 남아있는 ID 목록을 다시 가져옴
-                        remaining_ids = get_all_question_ids('original')
-                        if remaining_ids:
-                            # 목록의 첫 번째 문제로 이동
-                            st.session_state.current_edit_id = remaining_ids[0]
-                        else:
-                            # 모든 문제가 삭제되었으면 상태 초기화
-                            st.session_state.current_edit_id = None
+                        st.session_state.question_to_delete_id = None
+                        st.session_state.show_delete_modal = False # ★ 모달 닫기
                         
-                        delete_question_modal.close() # st.rerun() 전에 모달을 닫음
-                        st.rerun()
+                        remaining_ids = get_all_question_ids('original')
+                        st.session_state.current_edit_id = remaining_ids[0] if remaining_ids else None
+                        
+                        st.rerun() # 모든 상태 변경 후 마지막에 한 번만 rerun
                     
-                    if m_c2.button("❌ 아니요, 취소합니다", use_container_width=True, on_click=clear_delete_target):
-                        # on_click으로 상태만 변경, rerun은 자동으로 일어남
-                        pass
+                    if m_c2.button("❌ 아니요, 취소합니다", use_container_width=True):
+                        st.session_state.question_to_delete_id = None
+                        st.session_state.show_delete_modal = False # ★ 모달 닫기
+                        st.rerun()
 
     # --- 탭 4: 오답 노트 관리 ---
     with tabs[4]:
