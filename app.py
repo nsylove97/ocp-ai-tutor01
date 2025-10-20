@@ -23,7 +23,8 @@ from db_utils import (
     get_question_ids_by_difficulty, clear_all_original_questions, export_questions_to_json_format,
     save_ai_explanation, get_ai_explanation_from_db, delete_ai_explanation,
     get_all_explanations_for_admin, get_chat_history, save_chat_message,
-    get_chat_sessions, delete_chat_session
+    get_chat_sessions, delete_chat_session,
+    update_chat_session_title, get_full_chat_history, update_chat_message, delete_chat_message_and_following
 )
 from ui_components import display_question, display_results
 
@@ -595,23 +596,36 @@ def render_management_page(username):
                             st.rerun()
 
     # --- 탭 6: AI 해설 관리 탭 ---
-    with tabs[6]: 
+    with tabs[6]: # AI 해설 관리 탭
         st.subheader("💾 저장된 AI 해설 관리")
-        st.info("저장된 AI 해설을 삭제하면, 다음 요청 시 새로운 해설이 생성됩니다.")
+        st.info("저장된 AI 해설을 확인하고, 불필요한 해설을 삭제할 수 있습니다.")
         
         all_explanations = get_all_explanations_for_admin()
         if not all_explanations:
             st.write("저장된 AI 해설이 없습니다.")
         else:
             for exp_info in all_explanations:
-                col1, col2 = st.columns([0.8, 0.2])
-                with col1:
-                    st.text(f"문제 ID: {exp_info['question_id']} ({exp_info['question_type']})")
-                with col2:
-                    if st.button("해설 삭제", key=f"del_exp_{exp_info['question_id']}_{exp_info['question_type']}", type="secondary"):
-                        delete_ai_explanation(exp_info['question_id'], exp_info['question_type'])
-                        st.toast("해설이 삭제되었습니다.", icon="🗑️")
-                        st.rerun()
+                q_id = exp_info['question_id']
+                q_type = exp_info['question_type']
+                question = get_question_by_id(q_id, q_type)
+
+                if question:
+                    with st.expander(f"**문제 ID: {q_id} ({q_type})** | {question['question'].replace('<p>', '').replace('</p>', '')[:50].strip()}..."):
+                        
+                        explanation = get_ai_explanation_from_db(q_id, q_type)
+                        
+                        if explanation and "error" not in explanation:
+                            st.info(f"**💡 쉬운 비유:**\n\n{explanation.get('analogy', 'N/A')}")
+                            st.info(f"**🖼️ 텍스트 시각화:**\n\n```\n{explanation.get('visualization', 'N/A')}\n```")
+                            st.info(f"**🔑 핵심 개념 정리:**\n\n{explanation.get('core_concepts', 'N/A')}")
+                        else:
+                            st.warning("저장된 해설을 불러오는 데 실패했습니다.")
+
+                        # 삭제 버튼
+                        if st.button("이 해설 삭제", key=f"del_exp_{q_id}_{q_type}", type="secondary"):
+                            delete_ai_explanation(q_id, q_type)
+                            st.toast("해설이 삭제되었습니다.", icon="🗑️")
+                            st.rerun()
 
 def render_analytics_page(username):
     st.header("📈 학습 통계")
@@ -631,59 +645,93 @@ def render_analytics_page(username):
                 st.markdown(row['question'], unsafe_allow_html=True)
 
 def render_ai_tutor_page(username):
-    """'AI 튜터 Q&A' 채팅 페이지를 렌더링합니다."""
+    """'AI 튜터 Q&A' 채팅 페이지 (고급 관리 기능 포함)"""
     st.header("🤖 AI 튜터 Q&A")
     st.info("Oracle OCP 또는 데이터베이스 관련 개념에 대해 자유롭게 질문하세요.")
 
-    # --- 채팅 세션 관리 사이드바 ---
+    # --- 1. 채팅 세션 관리 사이드바 ---
     with st.sidebar:
         st.write("---")
         st.subheader("대화 기록")
         chat_sessions = get_chat_sessions(username)
         
-        if st.button("새 대화 시작", use_container_width=True):
-            st.session_state.chat_session_id = f"session_{random.randint(1000, 9999)}"
+        if st.button("새 대화 시작 ➕", use_container_width=True):
+            # UUID를 사용하여 절대 중복되지 않는 세션 ID 생성
+            import uuid
+            st.session_state.chat_session_id = f"session_{uuid.uuid4()}"
             st.rerun()
 
         if 'chat_session_id' not in st.session_state:
             if chat_sessions:
                 st.session_state.chat_session_id = chat_sessions[0]['session_id']
             else:
-                st.session_state.chat_session_id = f"session_{random.randint(1000, 9999)}"
+                import uuid
+                st.session_state.chat_session_id = f"session_{uuid.uuid4()}"
 
+        # 각 세션을 버튼과 삭제 버튼으로 표시
         for session in chat_sessions:
             session_id = session['session_id']
-            preview = session['content'][:30] + "..."
-            if st.button(preview, key=f"session_{session_id}", use_container_width=True):
-                st.session_state.chat_session_id = session_id
-                st.rerun()
+            # 제목이 없으면 첫 메시지의 일부를 제목으로 사용
+            title = session['session_title'] or (session['content'][:20] + "...")
+            
+            col1, col2 = st.columns([0.8, 0.2])
+            with col1:
+                if st.button(title, key=f"session_btn_{session_id}", use_container_width=True):
+                    st.session_state.chat_session_id = session_id
+                    st.rerun()
+            with col2:
+                if st.button("🗑️", key=f"del_session_{session_id}", help="이 대화 삭제"):
+                    delete_chat_session(username, session_id)
+                    # 현재 세션이 삭제되었으면 다른 세션으로 전환
+                    if st.session_state.chat_session_id == session_id:
+                        del st.session_state.chat_session_id
+                    st.rerun()
 
-    # --- 메인 채팅 화면 ---
+    # --- 2. 메인 채팅 화면 ---
     session_id = st.session_state.chat_session_id
-    st.caption(f"현재 대화 세션 ID: {session_id}")
-
-    # DB에서 현재 세션의 대화 기록 불러오기
-    chat_history_for_api = get_chat_history(username, session_id)
     
-    # 화면에 대화 기록 표시
-    for message in chat_history_for_api:
+    # 세션 제목 편집
+    current_session = next((s for s in chat_sessions if s['session_id'] == session_id), None)
+    current_title = ""
+    if current_session:
+        current_title = current_session['session_title'] or (current_session['content'][:30])
+    
+    new_title = st.text_input("대화 제목:", value=current_title, key=f"title_{session_id}")
+    if new_title != current_title:
+        update_chat_session_title(username, session_id, new_title)
+        st.toast("제목이 변경되었습니다.")
+
+    # DB에서 현재 세션의 전체 대화 기록 불러오기 (id 포함)
+    full_chat_history = get_full_chat_history(username, session_id)
+    
+    # API 전송용 기록 (id 제외)
+    chat_history_for_api = [{"role": msg['role'], "parts": [msg['content']]} for msg in full_chat_history]
+
+    # 화면에 대화 기록 및 편집/삭제 버튼 표시
+    for i, message in enumerate(full_chat_history):
         with st.chat_message("user" if message['role'] == "user" else "assistant"):
-            st.markdown(message['parts'][0])
+            if message['role'] == 'user':
+                # 사용자 메시지는 편집 가능하도록 expander 사용
+                with st.expander(label=message['content'], expanded=False):
+                    edited_content = st.text_area("메시지 수정:", value=message['content'], key=f"edit_msg_{message['id']}")
+                    if st.button("수정 후 다시 질문", key=f"resubmit_{message['id']}"):
+                        # 수정된 내용으로 DB 업데이트
+                        update_chat_message(message['id'], edited_content)
+                        # 이 메시지 이후의 모든 AI 답변을 삭제 (새 답변을 받아야 하므로)
+                        delete_chat_message_and_following(message['id'] + 1, username, session_id)
+                        st.rerun()
+            else:
+                st.markdown(message['content'])
 
     # 사용자 입력 처리
     if prompt := st.chat_input("질문을 입력하세요..."):
-        # 사용자 메시지 저장 및 표시
+        # 사용자 메시지 저장
         save_chat_message(username, session_id, "user", prompt)
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        # AI 응답 생성 및 표시
-        with st.chat_message("assistant"):
-            with st.spinner("AI가 답변을 생각 중입니다..."):
-                # gemini_handler에 새로 추가한 함수 사용
-                from gemini_handler import get_chat_response
-                response = get_chat_response(chat_history_for_api, prompt)
-                st.markdown(response)
+        
+        # AI 응답 생성
+        with st.spinner("AI가 답변을 생각 중입니다..."):
+            from gemini_handler import get_chat_response
+            response = get_chat_response(chat_history_for_api, prompt)
         
         # AI 응답 저장
         save_chat_message(username, session_id, "model", response)

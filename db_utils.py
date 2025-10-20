@@ -62,17 +62,12 @@ def setup_database_tables():
         PRIMARY KEY (question_id, question_type)
     )''')
 
-    # AI 튜터 채팅 기록 저장 테이블
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS chat_history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL,
-        session_id TEXT NOT NULL, -- 각 대화 세션을 구분하는 ID
-        role TEXT NOT NULL, -- 'user' 또는 'model'
-        content TEXT NOT NULL,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-    )''')
-    
+     # AI 튜터 채팅 기록 저장 테이블
+    cursor.execute("PRAGMA table_info(chat_history)")
+    columns = [row['name'] for row in cursor.fetchall()]
+    if 'session_title' not in columns:
+        cursor.execute("ALTER TABLE chat_history ADD COLUMN session_title TEXT")
+
     # 기타 테이블
     cursor.execute('''CREATE TABLE IF NOT EXISTS modified_questions (id INTEGER PRIMARY KEY AUTOINCREMENT, original_id INTEGER, question TEXT, options TEXT, answer TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS user_answers (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, question_id INTEGER, question_type TEXT, user_choice TEXT, is_correct BOOLEAN, solved_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
@@ -391,7 +386,7 @@ def get_chat_sessions(username):
     """특정 사용자의 모든 채팅 세션 ID와 첫 메시지를 가져옵니다."""
     conn = get_db_connection()
     query = """
-    SELECT session_id, content
+    SELECT session_id, session_title, content
     FROM chat_history
     WHERE id IN (
         SELECT MIN(id)
@@ -409,5 +404,57 @@ def delete_chat_session(username, session_id):
     """특정 채팅 세션을 삭제합니다."""
     conn = get_db_connection()
     conn.execute("DELETE FROM chat_history WHERE username = ? AND session_id = ?", (username, session_id))
+    conn.commit()
+    conn.close()
+
+def update_chat_session_title(username, session_id, new_title):
+    """채팅 세션의 제목을 변경합니다."""
+    conn = get_db_connection()
+    conn.execute(
+        "UPDATE chat_history SET session_title = ? WHERE username = ? AND session_id = ?",
+        (new_title, username, session_id)
+    )
+    conn.commit()
+    conn.close()
+
+def get_full_chat_history(username, session_id):
+    """
+    메시지별 편집/삭제를 위해 id를 포함한 전체 채팅 기록을 가져옵니다.
+    """
+    conn = get_db_connection()
+    history = conn.execute(
+        "SELECT id, role, content FROM chat_history WHERE username = ? AND session_id = ? ORDER BY timestamp ASC",
+        (username, session_id)
+    ).fetchall()
+    conn.close()
+    return history
+
+def update_chat_message(message_id, new_content):
+    """특정 채팅 메시지의 내용을 수정합니다."""
+    conn = get_db_connection()
+    conn.execute("UPDATE chat_history SET content = ? WHERE id = ?", (new_content, message_id))
+    conn.commit()
+    conn.close()
+
+def delete_chat_message_and_following(message_id, username, session_id):
+    """
+    특정 메시지와 그 이후의 모든 메시지를 삭제합니다.
+    (사용자 질문을 수정하면, 그에 대한 AI 답변도 다시 받아야 하므로)
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # 1. 삭제할 메시지의 타임스탬프 가져오기
+    cursor.execute("SELECT timestamp FROM chat_history WHERE id = ?", (message_id,))
+    timestamp_row = cursor.fetchone()
+    if not timestamp_row:
+        conn.close()
+        return
+
+    # 2. 해당 타임스탬프 이후의 모든 메시지 삭제
+    timestamp_to_delete_from = timestamp_row['timestamp']
+    cursor.execute(
+        "DELETE FROM chat_history WHERE username = ? AND session_id = ? AND timestamp >= ?",
+        (username, session_id, timestamp_to_delete_from)
+    )
     conn.commit()
     conn.close()
