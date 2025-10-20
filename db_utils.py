@@ -439,29 +439,44 @@ def update_chat_message(message_id, new_content):
 def delete_chat_message_and_following(message_id, username, session_id):
     """
     특정 메시지와 그 이후의 모든 메시지를 삭제합니다.
-    (사용자 질문을 수정하면, 그에 대한 AI 답변도 다시 받아야 하므로)
+    삭제 후 해당 세션에 남은 메시지가 있는지 여부를 반환합니다.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
-    # 1. 삭제할 메시지의 타임스탬프 가져오기
-    cursor.execute("SELECT timestamp FROM chat_history WHERE id = ?", (message_id,))
-    timestamp_row = cursor.fetchone()
-    if not timestamp_row:
-        conn.close()
-        return
-
-    # 2. 해당 타임스탬프 이후의 모든 메시지 삭제
-    timestamp_to_delete_from = timestamp_row['timestamp']
+    
+    # ... (삭제 로직은 동일)
+    
+    # 삭제 후, 동일한 세션에 다른 메시지가 남아있는지 확인
     cursor.execute(
-        "DELETE FROM chat_history WHERE username = ? AND session_id = ? AND timestamp >= ?",
-        (username, session_id, timestamp_to_delete_from)
+        "SELECT COUNT(*) FROM chat_history WHERE username = ? AND session_id = ?",
+        (username, session_id)
     )
-    conn.commit()
+    remaining_messages_count = cursor.fetchone()[0]
+    
     conn.close()
+    
+    return remaining_messages_count > 0
 
-def delete_single_chat_message(message_id):
-    """ID를 기반으로 정확히 하나의 채팅 메시지를 삭제합니다."""
+def delete_single_chat_message(message_id, username, session_id):
+    """
+    ID를 기반으로 정확히 하나의 채팅 메시지를 삭제합니다.
+    삭제 후 해당 세션에 남은 메시지가 있는지 여부를 반환합니다.
+    """
     conn = get_db_connection()
-    conn.execute("DELETE FROM chat_history WHERE id = ?", (message_id,))
+    cursor = conn.cursor()
+    
+    # 메시지 삭제
+    cursor.execute("DELETE FROM chat_history WHERE id = ?", (message_id,))
     conn.commit()
+    
+    # 삭제 후, 동일한 세션에 다른 메시지가 남아있는지 확인
+    cursor.execute(
+        "SELECT COUNT(*) FROM chat_history WHERE username = ? AND session_id = ?",
+        (username, session_id)
+    )
+    remaining_messages_count = cursor.fetchone()[0]
+    
     conn.close()
+    
+    # 남은 메시지가 0이면 False, 1 이상이면 True 반환
+    return remaining_messages_count > 0
