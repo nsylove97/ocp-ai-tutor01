@@ -763,18 +763,21 @@ def render_ai_tutor_page(username):
         # 2. 사용자 메시지를 DB에 저장
         save_chat_message(username, session_id, "user", prompt)
 
-        # 3. API에 보낼 대화 기록에 방금 입력한 사용자 메시지를 추가
-        chat_history_for_api.append({"role": "user", "parts": [prompt]})
+        # 3. API에 보낼 '이전까지의' 대화 기록을 가져옴
+        history_before_prompt = get_chat_history(username, session_id)
         
         # 4. AI 응답 생성 및 표시
         with st.chat_message("assistant"):
             with st.spinner("AI가 답변을 생각 중입니다..."):
                 from gemini_handler import get_chat_response
-                response_text = get_chat_response(chat_history_for_api, "") 
+                response_text = get_chat_response(history_before_prompt, prompt)
                 st.markdown(response_text)
         
         # 5. AI 응답을 DB에 저장
         save_chat_message(username, session_id, "model", response_text)
+
+        # 6. 모든 작업이 끝난 후 rerun을 호출하여 다음 입력을 준비
+        st.rerun()
 
 # --- Main App Entry Point ---
 def run_main_app(authenticator, all_user_info):
