@@ -802,27 +802,43 @@ def render_ai_tutor_page(username):
                         st.rerun()
 
     # --- 6. 사용자 입력 및 AI 응답 처리 ---
-    prompt = st.chat_input("질문을 입력하세요...")
-    
-    # 처리할 작업이 있는지 확인 (새 질문 또는 수정된 질문)
-    action_needed = False
+    if prompt := st.chat_input("질문을 입력하세요..."):
+        # 현재 대화 기록이 비어있는지 (즉, 이것이 첫 질문인지) 확인
+        is_first_message = not full_chat_history
+
+        # 1. 사용자 메시지를 DB에 저장
+        # 첫 메시지일 경우, 프롬프트 자체를 기본 제목으로 함께 저장
+        save_chat_message(username, session_id, "user", prompt, session_title=prompt if is_first_message else None)
+
+        # AI 응답 생성
+        with st.spinner("AI가 답변을 생각 중입니다..."):
+            current_history_for_api = get_chat_history(username, session_id)
+            from gemini_handler import get_chat_response
+            response_text = get_chat_response(current_history_for_api, prompt)
+            
+            # AI 응답을 DB에 저장
+            save_chat_message(username, session_id, "model", response_text)
+
+        # 모든 작업 완료 후 UI를 완전히 새로고침
+        st.rerun()
     
     # Case 1: '수정 후 다시 질문' 버튼이 눌렸을 경우
-    if 'edited_question_info' in st.session_state and st.session_state.edited_question_info:
-        info = st.session_state.pop('edited_question_info') # 정보 사용 후 즉시 제거
-        msg_id_to_edit = info['id']
-        edited_content = info['content']
+        if 'edited_question_info' in st.session_state and st.session_state.edited_question_info:
+
+            # 1. DB에서 메시지 내용 업데이트
+            update_chat_message(msg_id_to_edit, edited_content)
+            
+            # 만약 수정된 메시지가 해당 세션의 첫 메시지였다면, 제목도 함께 업데이트
+            is_first_message_edited = (full_chat_history and msg_id_to_edit == full_chat_history[0]['id'])
+            if is_first_message_edited:
+                update_chat_session_title(username, session_id, edited_content[:30])
+            # --- 여기까지 ---
+            # 2. 수정된 메시지 '이후'의 모든 메시지 삭제
+            delete_chat_messages_from(msg_id_to_edit, username, session_id)
         
-        # 1. DB에서 메시지 내용 업데이트
-        update_chat_message(msg_id_to_edit, edited_content)
-        
-        # 2. 수정된 메시지 '이후'의 모든 메시지 삭제
-        # (다음 메시지 ID부터 지워야 하므로 +1은 하지 않음, DB 함수가 타임스탬프 기준으로 처리)
-        delete_chat_messages_from(msg_id_to_edit, username, session_id)
-        
-        # 3. AI에게 보낼 질문으로 설정
-        prompt_to_send_to_ai = edited_content
-        action_needed = True
+            # 3. AI에게 보낼 질문으로 설정
+            prompt_to_send_to_ai = edited_content
+            action_needed = True
 
     # Case 2: 새로운 질문이 입력되었을 경우
     elif prompt:

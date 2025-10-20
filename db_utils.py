@@ -389,16 +389,36 @@ def get_chat_history(username, session_id):
     conn.close()
     return [{"role": row['role'], "parts": [row['content']]} for row in history]
 
-def save_chat_message(username, session_id, role, content):
-    """채팅 메시지를 DB에 저장합니다."""
+def save_chat_message(username, session_id, role, content, session_title=None):
+    """
+    채팅 메시지를 DB에 저장합니다.
+    session_title이 제공되면 함께 저장하거나 업데이트합니다.
+    """
     conn = get_db_connection()
-    conn.execute(
-        "INSERT INTO chat_history (username, session_id, role, content) VALUES (?, ?, ?, ?)",
-        (username, session_id, role, content)
-    )
+    cursor = conn.cursor()
+    
+    # 먼저 해당 세션이 존재하는지 확인
+    cursor.execute("SELECT COUNT(*) FROM chat_history WHERE session_id = ?", (session_id,))
+    session_exists = cursor.fetchone()[0] > 0
+
+    if session_exists:
+        # 세션이 이미 존재하면, 메시지만 추가
+        cursor.execute(
+            "INSERT INTO chat_history (username, session_id, role, content) VALUES (?, ?, ?, ?)",
+            (username, session_id, role, content)
+        )
+    else:
+        # 세션의 첫 메시지이면, 제목과 함께 추가
+        # 제목이 없으면 content의 일부를 사용
+        title_to_save = session_title if session_title else content[:30]
+        cursor.execute(
+            "INSERT INTO chat_history (username, session_id, session_title, role, content) VALUES (?, ?, ?, ?, ?)",
+            (username, session_id, title_to_save, role, content)
+        )
+
     conn.commit()
     conn.close()
-
+    
 def get_chat_sessions(username):
     """특정 사용자의 모든 채팅 세션 ID와 첫 메시지를 가져옵니다."""
     conn = get_db_connection()
