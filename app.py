@@ -730,17 +730,24 @@ def render_ai_tutor_page(username):
     chat_history_for_api = [{"role": msg['role'], "parts": [msg['content']]} for msg in full_chat_history]
     
     # --- 4. 제목 자동 생성 및 표시/편집 UI ---
-    # 조건: 메시지가 있고(1개 이상), 현재 세션 정보가 DB에 있고, 제목이 비어있을 때
-    if full_chat_history and session_id in [s['session_id'] for s in chat_sessions] and not next((s.get('session_title') for s in chat_sessions if s['session_id'] == session_id), None):
+    current_session_row = next((s for s in chat_sessions if s['session_id'] == session_id), None)
+    current_session = dict(current_session_row) if current_session_row else None
+
+    # 이제 current_session은 안전한 파이썬 딕셔너리이거나 None입니다.
+    has_title = current_session and current_session.get('session_title')
+    
+    # 조건: 메시지가 있고, 제목이 아직 없을 때만 AI 호출
+    if full_chat_history and not has_title:
         with st.spinner("AI가 대화 제목을 생성 중입니다..."):
             new_title = generate_session_title(chat_history_for_api)
             if new_title:
                 update_chat_session_title(username, session_id, new_title)
-                st.rerun()
+                st.rerun() # 제목 생성 후 즉시 UI 갱신
 
-    if not full_chat_history:
-        st.caption("아래 입력창에 첫 질문을 입력하여 대화를 시작하세요.")
-        st.caption("아래 입력창에 첫 질문을 입력하여 대화를 시작하세요.")
+    display_title = "새로운 대화" # 기본 제목
+    if current_session:
+        # .get()을 안전하게 사용하여 제목 표시
+        display_title = current_session.get('session_title') or (current_session.get('content', '새 대화')[:30] + "...")
 
     # --- 5. 화면에 대화 기록 및 편집/삭제 UI 렌더링 ---
     for i, message in enumerate(full_chat_history):
