@@ -52,6 +52,27 @@ def setup_database_tables():
             difficulty TEXT NOT NULL DEFAULT '보통'
         )''')
     
+    # AI 해설 저장 테이블
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS ai_explanations (
+        question_id INTEGER NOT NULL,
+        question_type TEXT NOT NULL,
+        explanation TEXT NOT NULL, -- JSON 형태의 해설
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (question_id, question_type)
+    )''')
+
+    # AI 튜터 채팅 기록 저장 테이블
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS chat_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        session_id TEXT NOT NULL, -- 각 대화 세션을 구분하는 ID
+        role TEXT NOT NULL, -- 'user' 또는 'model'
+        content TEXT NOT NULL,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+    
     # 기타 테이블
     cursor.execute('''CREATE TABLE IF NOT EXISTS modified_questions (id INTEGER PRIMARY KEY AUTOINCREMENT, original_id INTEGER, question TEXT, options TEXT, answer TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS user_answers (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, question_id INTEGER, question_type TEXT, user_choice TEXT, is_correct BOOLEAN, solved_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
@@ -309,3 +330,84 @@ def clear_all_modified_questions():
     conn.execute("DELETE FROM modified_questions")
     conn.commit()
     conn.close() 
+
+# --- AI 해설 관리 ---
+def save_ai_explanation(q_id, q_type, explanation_json):
+    """생성된 AI 해설을 DB에 저장하거나 업데이트합니다."""
+    conn = get_db_connection()
+    conn.execute(
+        "INSERT OR REPLACE INTO ai_explanations (question_id, question_type, explanation) VALUES (?, ?, ?)",
+        (q_id, q_type, explanation_json)
+    )
+    conn.commit()
+    conn.close()
+
+def get_ai_explanation_from_db(q_id, q_type):
+    """DB에서 저장된 AI 해설을 가져옵니다."""
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT explanation FROM ai_explanations WHERE question_id = ? AND question_type = ?",
+        (q_id, q_type)
+    ).fetchone()
+    conn.close()
+    return json.loads(row['explanation']) if row else None
+
+def delete_ai_explanation(q_id, q_type):
+    """DB에서 특정 AI 해설을 삭제합니다."""
+    conn = get_db_connection()
+    conn.execute("DELETE FROM ai_explanations WHERE question_id = ? AND question_type = ?", (q_id, q_type))
+    conn.commit()
+    conn.close()
+
+def get_all_explanations_for_admin():
+    """관리자용으로 저장된 모든 AI 해설 목록을 가져옵니다."""
+    conn = get_db_connection()
+    rows = conn.execute("SELECT question_id, question_type FROM ai_explanations ORDER BY question_id").fetchall()
+    conn.close()
+    return rows
+
+# --- AI 튜터 채팅 기록 관리 ---
+def get_chat_history(username, session_id):
+    """특정 사용자의 특정 채팅 세션 기록을 가져옵니다."""
+    conn = get_db_connection()
+    history = conn.execute(
+        "SELECT role, content FROM chat_history WHERE username = ? AND session_id = ? ORDER BY timestamp ASC",
+        (username, session_id)
+    ).fetchall()
+    conn.close()
+    return [{"role": row['role'], "parts": [row['content']]} for row in history]
+
+def save_chat_message(username, session_id, role, content):
+    """채팅 메시지를 DB에 저장합니다."""
+    conn = get_db_connection()
+    conn.execute(
+        "INSERT INTO chat_history (username, session_id, role, content) VALUES (?, ?, ?, ?)",
+        (username, session_id, role, content)
+    )
+    conn.commit()
+    conn.close()
+
+def get_chat_sessions(username):
+    """특정 사용자의 모든 채팅 세션 ID와 첫 메시지를 가져옵니다."""
+    conn = get_db_connection()
+    query = """
+    SELECT session_id, content
+    FROM chat_history
+    WHERE id IN (
+        SELECT MIN(id)
+        FROM chat_history
+        WHERE username = ?
+        GROUP BY session_id
+    )
+    ORDER BY timestamp DESC
+    """
+    sessions = conn.execute(query, (username,)).fetchall()
+    conn.close()
+    return sessions
+
+def delete_chat_session(username, session_id):
+    """특정 채팅 세션을 삭제합니다."""
+    conn = get_db_connection()
+    conn.execute("DELETE FROM chat_history WHERE username = ? AND session_id = ?", (username, session_id))
+    conn.commit()
+    conn.close()

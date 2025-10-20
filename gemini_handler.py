@@ -208,3 +208,19 @@ def analyze_difficulty(question_text: str) -> str:
     except Exception as e:
         print(f"Difficulty analysis failed for a question: {e}")
         return '보통' # 오류 발생 시 기본값 반환
+
+def get_chat_response(history: list, question: str) -> str:
+    """
+    대화 기록을 바탕으로 Gemini 채팅 모델의 응답을 생성합니다.
+    """
+    if not model:
+        return "Gemini API가 설정되지 않았습니다."
+
+    try:
+        # gemini-flash 모델은 채팅에 더 적합할 수 있습니다.
+        chat_model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        chat = chat_model.start_chat(history=history)
+        response = chat.send_message(question)
+        return response.text
+    except Exception as e:
+        return f"AI 응답 생성 중 오류가 발생했습니다: {e}"

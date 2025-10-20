@@ -20,7 +20,10 @@ from db_utils import (
     get_wrong_answers, delete_wrong_answer, get_all_modified_questions, save_modified_question,
     delete_modified_question, clear_all_modified_questions, get_stats, get_top_5_missed,
     fetch_all_users, add_new_user, delete_user, get_all_users_for_admin, ensure_master_account,
-    get_question_ids_by_difficulty, clear_all_original_questions, export_questions_to_json_format
+    get_question_ids_by_difficulty, clear_all_original_questions, export_questions_to_json_format,
+    save_ai_explanation, get_ai_explanation_from_db, delete_ai_explanation,
+    get_all_explanations_for_admin, get_chat_history, save_chat_message,
+    get_chat_sessions, delete_chat_session
 )
 from ui_components import display_question, display_results
 
@@ -39,11 +42,30 @@ if not MASTER_ACCOUNT_PASSWORD:
     st.stop() # 앱 실행을 중지
 
 # --- Helper Functions ---
-@st.cache_data
-def get_ai_explanation(_q_id, _q_type):
-    question_data = get_question_by_id(_q_id, _q_type)
-    if question_data: return generate_explanation(question_data)
-    return {"error": f"DB에서 문제(ID: {_q_id}, Type: {_q_type})를 찾을 수 없습니다."}
+def get_ai_explanation(q_id, q_type):
+    """
+    AI 해설을 가져옵니다. DB에 저장된 해설이 있으면 그것을 반환하고,
+    없으면 새로 생성하여 DB에 저장한 후 반환합니다.
+    """
+    # 1. DB에서 먼저 찾아보기
+    explanation = get_ai_explanation_from_db(q_id, q_type)
+    if explanation:
+        st.toast("저장된 해설을 불러왔습니다.", icon="💾")
+        return explanation
+
+    # 2. DB에 없으면 새로 생성
+    st.toast("AI가 새로운 해설을 생성합니다...", icon="🤖")
+    question_data = get_question_by_id(q_id, q_type)
+    if not question_data:
+        return {"error": f"DB에서 문제(ID: {q_id}, Type: {q_type})를 찾을 수 없습니다."}
+    
+    new_explanation = generate_explanation(question_data)
+    
+    # 3. 생성된 해설을 DB에 저장 (오류가 아닌 경우에만)
+    if "error" not in new_explanation:
+        save_ai_explanation(q_id, q_type, json.dumps(new_explanation))
+        
+    return new_explanation
 
 def initialize_session_state():
     defaults = {
@@ -222,7 +244,7 @@ def render_management_page(username):
     is_admin = st.session_state.get('is_admin', False)
 
     # 탭 목록 정의
-    common_tabs = ["원본 문제 데이터", "문제 추가", "문제 편집", "오답 노트 관리", "AI 변형 문제 관리"]
+    common_tabs = ["원본 문제 데이터", "문제 추가", "문제 편집", "오답 노트 관리", "AI 변형 문제 관리", "AI 해설 관리"]
     tab_list = ["👑 사용자 관리"] + common_tabs if is_admin else ["👋 회원 탈퇴"] + common_tabs
     tabs = st.tabs(tab_list)
     
@@ -572,6 +594,25 @@ def render_management_page(username):
                             single_mod_modal.close()
                             st.rerun()
 
+    # --- 탭 6: AI 해설 관리 탭 ---
+    with tabs[6]: 
+        st.subheader("💾 저장된 AI 해설 관리")
+        st.info("저장된 AI 해설을 삭제하면, 다음 요청 시 새로운 해설이 생성됩니다.")
+        
+        all_explanations = get_all_explanations_for_admin()
+        if not all_explanations:
+            st.write("저장된 AI 해설이 없습니다.")
+        else:
+            for exp_info in all_explanations:
+                col1, col2 = st.columns([0.8, 0.2])
+                with col1:
+                    st.text(f"문제 ID: {exp_info['question_id']} ({exp_info['question_type']})")
+                with col2:
+                    if st.button("해설 삭제", key=f"del_exp_{exp_info['question_id']}_{exp_info['question_type']}", type="secondary"):
+                        delete_ai_explanation(exp_info['question_id'], exp_info['question_type'])
+                        st.toast("해설이 삭제되었습니다.", icon="🗑️")
+                        st.rerun()
+
 def render_analytics_page(username):
     st.header("📈 학습 통계")
     total, correct, accuracy = get_stats(username)
@@ -588,6 +629,65 @@ def render_analytics_page(username):
             with st.container(border=True):
                 st.write(f"**{row['wrong_count']}회 오답** (ID: {row['id']})")
                 st.markdown(row['question'], unsafe_allow_html=True)
+
+def render_ai_tutor_page(username):
+    """'AI 튜터 Q&A' 채팅 페이지를 렌더링합니다."""
+    st.header("🤖 AI 튜터 Q&A")
+    st.info("Oracle OCP 또는 데이터베이스 관련 개념에 대해 자유롭게 질문하세요.")
+
+    # --- 채팅 세션 관리 사이드바 ---
+    with st.sidebar:
+        st.write("---")
+        st.subheader("대화 기록")
+        chat_sessions = get_chat_sessions(username)
+        
+        if st.button("새 대화 시작", use_container_width=True):
+            st.session_state.chat_session_id = f"session_{random.randint(1000, 9999)}"
+            st.rerun()
+
+        if 'chat_session_id' not in st.session_state:
+            if chat_sessions:
+                st.session_state.chat_session_id = chat_sessions[0]['session_id']
+            else:
+                st.session_state.chat_session_id = f"session_{random.randint(1000, 9999)}"
+
+        for session in chat_sessions:
+            session_id = session['session_id']
+            preview = session['content'][:30] + "..."
+            if st.button(preview, key=f"session_{session_id}", use_container_width=True):
+                st.session_state.chat_session_id = session_id
+                st.rerun()
+
+    # --- 메인 채팅 화면 ---
+    session_id = st.session_state.chat_session_id
+    st.caption(f"현재 대화 세션 ID: {session_id}")
+
+    # DB에서 현재 세션의 대화 기록 불러오기
+    chat_history_for_api = get_chat_history(username, session_id)
+    
+    # 화면에 대화 기록 표시
+    for message in chat_history_for_api:
+        with st.chat_message("user" if message['role'] == "user" else "assistant"):
+            st.markdown(message['parts'][0])
+
+    # 사용자 입력 처리
+    if prompt := st.chat_input("질문을 입력하세요..."):
+        # 사용자 메시지 저장 및 표시
+        save_chat_message(username, session_id, "user", prompt)
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        # AI 응답 생성 및 표시
+        with st.chat_message("assistant"):
+            with st.spinner("AI가 답변을 생각 중입니다..."):
+                # gemini_handler에 새로 추가한 함수 사용
+                from gemini_handler import get_chat_response
+                response = get_chat_response(chat_history_for_api, prompt)
+                st.markdown(response)
+        
+        # AI 응답 저장
+        save_chat_message(username, session_id, "model", response)
+        st.rerun()
 
 # --- Main App Entry Point ---
 def run_main_app(authenticator, all_user_info):
@@ -607,7 +707,7 @@ def run_main_app(authenticator, all_user_info):
         st.write("---")
         st.title("메뉴")
         
-        menu_items = { "home": "📝 퀴즈 풀기", "notes": "📒 오답 노트", "analytics": "📈 학습 통계", "manage": "⚙️ 설정 및 관리" }
+        menu_items = { "home": "📝 퀴즈 풀기", "tutor": "🤖 AI 튜터 Q&A", "notes": "📒 오답 노트", "analytics": "📈 학습 통계", "manage": "⚙️ 설정 및 관리" }
         for view_key, label in menu_items.items():
             button_type = "primary" if st.session_state.current_view == view_key else "secondary"
             if st.button(label, use_container_width=True, type=button_type):
@@ -642,7 +742,7 @@ def run_main_app(authenticator, all_user_info):
                 st.rerun()
         
     view_map = {
-        "home": render_home_page, "quiz": render_quiz_page, "results": render_results_page,
+        "home": render_home_page, "tutor": lambda: render_ai_tutor_page(username), "quiz": render_quiz_page, "results": render_results_page,
         "notes": render_notes_page, "manage": render_management_page, "analytics": render_analytics_page,
     }
     render_func = view_map.get(st.session_state.current_view, render_home_page)
