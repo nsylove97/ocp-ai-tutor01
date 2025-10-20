@@ -223,3 +223,34 @@ def get_chat_response(history: list, question: str) -> str:
         return response.text
     except Exception as e:
         return f"AI 응답 생성 중 오류가 발생했습니다: {e}"
+
+def generate_session_title(history: list) -> str:
+    """대화 기록을 바탕으로 간결한 제목을 생성합니다."""
+    if not model or not history:
+        return "새로운 대화"
+
+    # API 호출 비용을 줄이기 위해 일부 기록만 사용 (예: 처음 4개 메시지)
+    history_for_title = history[:4]
+    
+    # history를 사람이 읽기 쉬운 대화 형식으로 변환
+    conversation = "\n".join([f"{msg['role']}: {msg['parts'][0]}" for msg in history_for_title])
+
+    prompt = f"""
+    Based on the following conversation excerpt, create a very short, concise title in Korean (max 5 words).
+    The title should summarize the main topic of the conversation.
+
+    Conversation:
+    ---
+    {conversation}
+    ---
+
+    Title:
+    """
+
+    try:
+        response = model.generate_content(prompt, safety_settings=safety_settings)
+        # 응답에서 불필요한 문자(따옴표, 별표 등) 제거
+        title = response.text.strip().replace("*", "").replace("\"", "").replace("'", "")
+        return title if title else "대화 요약"
+    except Exception:
+        return "대화 요약 실패"

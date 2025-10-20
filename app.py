@@ -12,7 +12,9 @@ from streamlit_quill import st_quill
 from streamlit_modal import Modal
 
 # --- 2. Custom Modules ---
-from gemini_handler import generate_explanation, generate_modified_question, analyze_difficulty
+from gemini_handler import (
+    generate_explanation, generate_modified_question, analyze_difficulty, get_chat_response, generate_session_title
+)
 # db_utils는 함수 단위로 명시적으로 임포트하여 가독성 및 안정성 향상
 from db_utils import (
     setup_database_tables, load_original_questions_from_json, get_db_connection,
@@ -665,9 +667,10 @@ def render_ai_tutor_page(username):
         if st.button("새 대화 시작 ➕", use_container_width=True):
             import uuid
             st.session_state.chat_session_id = f"session_{uuid.uuid4()}"
+            st.session_state.editing_message_id = None
             st.rerun()
 
-        if st.session_state.chat_session_id is None:
+        if 'chat_session_id' not in st.session_state or st.session_state.chat_session_id is None:
             if chat_sessions:
                 st.session_state.chat_session_id = chat_sessions[0]['session_id']
             else:
@@ -713,29 +716,44 @@ def render_ai_tutor_page(username):
     # API 전송용 기록 (id 제외)
     chat_history_for_api = [{"role": msg['role'], "parts": [msg['content']]} for msg in full_chat_history]
 
+    # --- 4. 제목 자동 생성 및 표시 ---
+    # 대화에 메시지가 있고, 제목이 아직 설정되지 않았을 때만 AI 호출
+    current_session = next((dict(s) for s in chat_sessions if s['session_id'] == session_id), None)
+    has_title = current_session and current_session.get('session_title')
+
+    if full_chat_history and not has_title:
+        with st.spinner("AI가 대화 제목을 생성 중입니다..."):
+            new_title = generate_session_title(chat_history_for_api)
+            update_chat_session_title(username, session_id, new_title)
+            st.rerun() # 제목 생성 후 UI 갱신을 위해 rerun
+
+    # 제목 표시 (메인 화면 상단)
+    display_title = "새로운 대화"
+    if current_session:
+        display_title = current_session.get('session_title') or (current_session.get('content', '새 대화')[:30] + "...")
+    st.subheader(f"대화: {display_title}")
+
     # --- 4. 화면에 대화 기록 및 편집/삭제 UI 렌더링 ---
-    for message in full_chat_history:
+    for i, message in enumerate(full_chat_history):
         is_user = message['role'] == "user"
         with st.chat_message("user" if is_user else "assistant"):
             
-            # 편집 중인 메시지와 현재 메시지가 동일한 경우, 편집 UI를 보여줌
             if st.session_state.editing_message_id == message['id']:
-                edited_content = st.text_area(
-                    "메시지 수정:", 
-                    value=message['content'], 
-                    key=f"edit_content_{message['id']}"
-                )
+                # 편집 UI
+                edited_content = st.text_area("메시지 수정:", value=message['content'], key=f"edit_content_{message['id']}")
                 c1, c2 = st.columns(2)
-                if c1.button("✅ 수정 후 다시 질문", key=f"resubmit_{message['id']}"):
-                    update_chat_message(message['id'], edited_content)
-                    delete_chat_message_and_following(message['id'] + 1, username, session_id)
+                
+                # on_click 콜백을 사용하여 상태를 명확하게 전달
+                def set_resubmit_info(msg_id, content):
+                    st.session_state.resubmit_info = {'id': msg_id, 'content': content}
+
+                if c1.button("✅ 수정 후 다시 질문", key=f"resubmit_{message['id']}", on_click=set_resubmit_info, args=(message['id'], edited_content)):
                     st.session_state.editing_message_id = None # 편집 상태 종료
-                    # AI에게 다시 질문하는 로직을 아래 사용자 입력 처리 부분과 통합
-                    st.session_state.last_question_for_rerun = edited_content
-                    st.rerun()
+                    # rerun은 on_click에 의해 자동으로 트리거됨
+                # --- 여기까지 ---
 
                 if c2.button("❌ 취소", key=f"cancel_edit_{message['id']}"):
-                    st.session_state.editing_message_id = None # 편집 상태 종료
+                    st.session_state.editing_message_id = None
                     st.rerun()
             else:
                 # 일반 메시지 표시
@@ -754,29 +772,31 @@ def render_ai_tutor_page(username):
                         st.rerun()
 
     # --- 5. 사용자 입력 및 AI 응답 처리 ---
+    if 'resubmit_info' in st.session_state and st.session_state.resubmit_info:
+        info = st.session_state.pop('resubmit_info') # 정보 사용 후 즉시 제거
+        message_id = info['id']
+        edited_content = info['content']
 
+        update_chat_message(message_id, edited_content)
+        delete_chat_message_and_following(message_id + 1, username, session_id)
+        
+        # AI에게 다시 질문
+        with st.spinner("AI가 수정된 질문에 대한 답변을 생성 중입니다..."):
+            current_history_for_api = get_chat_history(username, session_id)
+            response_text = get_chat_response(current_history_for_api, edited_content)
+            save_chat_message(username, session_id, "model", response_text)
+        
+        st.rerun()
+
+    # 새 질문 입력 처리
     if prompt := st.chat_input("질문을 입력하세요..."):
-        # 1. 사용자 메시지를 먼저 화면에 즉시 표시
-        with st.chat_message("user"):
-            st.markdown(prompt)
-        
-        # 2. 사용자 메시지를 DB에 저장
         save_chat_message(username, session_id, "user", prompt)
-
-        # 3. API에 보낼 '이전까지의' 대화 기록을 가져옴
-        history_before_prompt = get_chat_history(username, session_id)
         
-        # 4. AI 응답 생성 및 표시
-        with st.chat_message("assistant"):
-            with st.spinner("AI가 답변을 생각 중입니다..."):
-                from gemini_handler import get_chat_response
-                response_text = get_chat_response(history_before_prompt, prompt)
-                st.markdown(response_text)
-        
-        # 5. AI 응답을 DB에 저장
-        save_chat_message(username, session_id, "model", response_text)
+        with st.spinner("AI가 답변을 생각 중입니다..."):
+            current_history_for_api = get_chat_history(username, session_id)
+            response_text = get_chat_response(current_history_for_api, prompt)
+            save_chat_message(username, session_id, "model", response_text)
 
-        # 6. 모든 작업이 끝난 후 rerun을 호출하여 다음 입력을 준비
         st.rerun()
 
 # --- Main App Entry Point ---
