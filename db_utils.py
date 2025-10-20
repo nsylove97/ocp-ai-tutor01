@@ -458,3 +458,10 @@ def delete_chat_message_and_following(message_id, username, session_id):
     )
     conn.commit()
     conn.close()
+
+def delete_single_chat_message(message_id):
+    """ID를 기반으로 정확히 하나의 채팅 메시지를 삭제합니다."""
+    conn = get_db_connection()
+    conn.execute("DELETE FROM chat_history WHERE id = ?", (message_id,))
+    conn.commit()
+    conn.close()

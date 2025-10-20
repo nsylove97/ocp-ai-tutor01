@@ -24,7 +24,8 @@ from db_utils import (
     save_ai_explanation, get_ai_explanation_from_db, delete_ai_explanation,
     get_all_explanations_for_admin, get_chat_history, save_chat_message,
     get_chat_sessions, delete_chat_session,
-    update_chat_session_title, get_full_chat_history, update_chat_message, delete_chat_message_and_following
+    update_chat_session_title, get_full_chat_history, update_chat_message, delete_chat_message_and_following,
+    delete_single_chat_message
 )
 from ui_components import display_question, display_results
 
@@ -709,19 +710,31 @@ def render_ai_tutor_page(username):
 
     # 화면에 대화 기록 및 편집/삭제 버튼 표시
     for i, message in enumerate(full_chat_history):
-        with st.chat_message("user" if message['role'] == "user" else "assistant"):
-            if message['role'] == 'user':
-                # 사용자 메시지는 편집 가능하도록 expander 사용
-                with st.expander(label=message['content'], expanded=False):
-                    edited_content = st.text_area("메시지 수정:", value=message['content'], key=f"edit_msg_{message['id']}")
-                    if st.button("수정 후 다시 질문", key=f"resubmit_{message['id']}"):
-                        # 수정된 내용으로 DB 업데이트
-                        update_chat_message(message['id'], edited_content)
-                        # 이 메시지 이후의 모든 AI 답변을 삭제 (새 답변을 받아야 하므로)
-                        delete_chat_message_and_following(message['id'] + 1, username, session_id)
-                        st.rerun()
-            else:
-                st.markdown(message['content'])
+        is_user = message['role'] == "user"
+        with st.chat_message("user" if is_user else "assistant"):
+            
+            col1, col2 = st.columns([0.9, 0.1]) # 메시지 내용과 버튼 영역 분리
+            
+            with col1:
+                if is_user:
+                    # 사용자 메시지는 편집 가능하도록 expander 사용
+                    with st.expander(label=message['content'], expanded=False):
+                        edited_content = st.text_area("메시지 수정:", value=message['content'], key=f"edit_msg_{message['id']}")
+                        if st.button("수정 후 다시 질문", key=f"resubmit_{message['id']}"):
+                            update_chat_message(message['id'], edited_content)
+                            # 이 메시지 이후의 모든 AI 답변을 삭제
+                            delete_chat_message_and_following(message['id'] + 1, username, session_id)
+                            st.rerun()
+                else:
+                    # AI 메시지는 그냥 표시
+                    st.markdown(message['content'])
+            
+            with col2:
+                # 각 메시지 옆에 작은 삭제 버튼 추가
+                if st.button("🗑️", key=f"del_msg_{message['id']}", help="이 메시지 삭제"):
+                    delete_single_chat_message(message['id'])
+                    st.toast("메시지가 삭제되었습니다.")
+                    st.rerun()
 
     # 사용자 입력 처리
     if prompt := st.chat_input("질문을 입력하세요..."):
