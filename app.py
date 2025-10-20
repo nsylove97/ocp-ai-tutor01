@@ -648,20 +648,22 @@ def render_analytics_page(username):
                 st.markdown(row['question'], unsafe_allow_html=True)
 
 def render_ai_tutor_page(username):
-    """AI 튜터 Q&A 페이지 (UI/UX 및 버그 수정 최종 버전)"""
+    """AI 튜터 Q&A 페이지 """
     st.header("🤖 AI 튜터 Q&A")
     st.info("Oracle OCP 또는 데이터베이스 관련 개념에 대해 자유롭게 질문하세요.")
 
     # --- 1. 세션 상태 초기화 ---
-    if "chat_session_id" not in st.session_state: st.session_state.chat_session_id = None
-    if "editing_message_id" not in st.session_state: st.session_state.editing_message_id = None
-    if "editing_title" not in st.session_state: st.session_state.editing_title = False # 제목 편집 모드 상태
+    if "chat_session_id" not in st.session_state:
+        st.session_state.chat_session_id = None
+    if "editing_message_id" not in st.session_state:
+        st.session_state.editing_message_id = None
+    if "editing_title_sid" not in st.session_state: # 어떤 세션의 제목을 편집 중인지 ID로 관리
+        st.session_state.editing_title_sid = None
 
     # --- 2. 채팅 세션 관리 사이드바 ---
     with st.sidebar:
         st.write("---")
         st.subheader("대화 기록")
-        chat_sessions = get_chat_sessions(username) # ★ DB에서 최신 세션 목록을 가져옴
         
         if st.button("새 대화 시작 ➕", use_container_width=True):
             import uuid
@@ -671,20 +673,56 @@ def render_ai_tutor_page(username):
             st.session_state.editing_title = False
             st.rerun()
 
-        # 현재 세션 ID가 없거나, DB에 없는 ID일 경우 최신 세션으로 설정
-        if st.session_state.chat_session_id is None or not any(s['session_id'] == st.session_state.chat_session_id for s in chat_sessions):
-            if chat_sessions:
-                st.session_state.chat_session_id = chat_sessions[0]['session_id']
-            else: # 대화 기록이 아예 없는 경우
-                if st.session_state.chat_session_id is None:
-                    import uuid
-                    st.session_state.chat_session_id = f"session_{uuid.uuid4()}"
-        
         st.write("---")
-        st.subheader("이전 대화 목록")
+        
+        # ★★★ DB에서 항상 최신 세션 목록을 가져옴 ★★★
+        chat_sessions = get_chat_sessions(username)
+
+
+        # --- 여기가 핵심 수정 부분 1: 통합된 대화 기록 UI ---
         for session_row in chat_sessions:
-            # ... (이전 세션 목록 표시 및 삭제 로직은 동일)
-            pass
+            session = dict(session_row)
+            session_id = session['session_id']
+            
+            # 현재 선택된 세션이면 다른 배경색으로 강조
+            with st.container(border=(session_id == st.session_state.chat_session_id)):
+                col1, col2, col3 = st.columns([0.7, 0.15, 0.15])
+                
+                with col1:
+                    # 현재 편집 중인 세션이면 text_input을, 아니면 버튼을 표시
+                    if st.session_state.editing_title_sid == session_id:
+                        new_title = st.text_input(
+                            "대화 제목 수정:", value=session.get('session_title', ''), 
+                            key=f"title_input_{session_id}", label_visibility="collapsed"
+                        )
+                        if new_title != session.get('session_title', ''):
+                            update_chat_session_title(username, session_id, new_title)
+                            st.rerun() # 제목 변경 후 즉시 UI 갱신
+                    else:
+                        title = session.get('session_title') or (session.get('content', '새 대화')[:20] + "...")
+                        if st.button(title, key=f"session_btn_{session_id}", use_container_width=True):
+                            st.session_state.chat_session_id = session_id
+                            st.session_state.editing_message_id = None
+                            st.session_state.editing_title_sid = None # 다른 세션 선택 시 편집 모드 해제
+                            st.rerun()
+                
+                with col2:
+                    # 편집 버튼 또는 완료 버튼
+                    if st.session_state.editing_title_sid == session_id:
+                        if st.button("✅", key=f"save_title_{session_id}", help="수정 완료"):
+                            st.session_state.editing_title_sid = None
+                            st.rerun()
+                    else:
+                        if st.button("✏️", key=f"edit_title_{session_id}", help="제목 수정"):
+                            st.session_state.editing_title_sid = session_id
+                            st.rerun()
+
+                with col3:
+                    if st.button("🗑️", key=f"del_session_{session_id}", help="대화 삭제"):
+                        delete_chat_session(username, session_id)
+                        if st.session_state.chat_session_id == session_id:
+                            st.session_state.chat_session_id = None
+                        st.rerun()
 
     # --- 3. 메인 채팅 화면 ---
     session_id = st.session_state.chat_session_id
@@ -692,44 +730,16 @@ def render_ai_tutor_page(username):
     chat_history_for_api = [{"role": msg['role'], "parts": [msg['content']]} for msg in full_chat_history]
     
     # --- 4. 제목 자동 생성 및 표시/편집 UI ---
-    current_session = next((dict(s) for s in chat_sessions if s['session_id'] == session_id), None)
-    # 메시지가 있을 때만 제목 관련 로직 실행
-    if full_chat_history:
-        has_title = current_session and current_session.get('session_title')
-        # 첫 메시지 생성 후 제목이 없을 때만 AI로 제목 생성 (버그 수정)
-        if not has_title:
-            with st.spinner("AI가 대화 제목을 생성 중입니다..."):
-                new_title = generate_session_title(chat_history_for_api)
-                if new_title: # 유효한 제목이 생성되었을 때만 업데이트
-                    update_chat_session_title(username, session_id, new_title)
-                    st.rerun()
+    # 조건: 메시지가 있고(1개 이상), 현재 세션 정보가 DB에 있고, 제목이 비어있을 때
+    if full_chat_history and session_id in [s['session_id'] for s in chat_sessions] and not next((s.get('session_title') for s in chat_sessions if s['session_id'] == session_id), None):
+        with st.spinner("AI가 대화 제목을 생성 중입니다..."):
+            new_title = generate_session_title(chat_history_for_api)
+            if new_title:
+                update_chat_session_title(username, session_id, new_title)
+                st.rerun()
 
-        display_title = "제목 없음"
-        if current_session:
-            display_title = current_session.get('session_title') or (current_session.get('content', '')[:30] + "...")
-            # 제목 표시 및 편집 버튼
-            col_title, col_btn = st.columns([0.85, 0.15])
-            with col_title:
-                if st.session_state.editing_title:
-                    new_title_input = st.text_input("대화 제목 수정:", value=display_title, key=f"title_input_{session_id}")
-                    if new_title_input != display_title:
-                        update_chat_session_title(username, session_id, new_title_input)
-                        st.toast("제목이 변경되었습니다.")
-                        st.session_state.editing_title = False # 수정 후 편집 모드 종료
-                        st.rerun()
-                else:
-                    st.subheader(f"대화: {display_title}")
-            with col_btn:
-                if not st.session_state.editing_title:
-                    if st.button("✏️ 제목 수정", key="edit_title_btn"):
-                        st.session_state.editing_title = True
-                        st.rerun()
-                else:
-                    if st.button("✅ 완료", key="save_title_btn"):
-                        st.session_state.editing_title = False
-                        st.rerun()
-    else:
-        st.subheader("새로운 대화")
+    if not full_chat_history:
+        st.caption("아래 입력창에 첫 질문을 입력하여 대화를 시작하세요.")
         st.caption("아래 입력창에 첫 질문을 입력하여 대화를 시작하세요.")
 
     # --- 5. 화면에 대화 기록 및 편집/삭제 UI 렌더링 ---
