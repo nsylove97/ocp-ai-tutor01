@@ -719,13 +719,19 @@ def render_ai_tutor_page(username):
                 if is_user:
                     # 사용자 메시지는 편집 가능하도록 expander 사용
                     with st.expander(label=message['content'], expanded=False):
-                        edited_content = st.text_area("메시지 수정:", value=message['content'], key=f"edit_msg_{message['id']}")
-                        if st.button("수정 후 다시 질문", key=f"resubmit_{message['id']}"):
-                            update_chat_message(message['id'], edited_content)
-                            # 이 메시지 이후의 모든 AI 답변을 삭제
-                            delete_chat_message_and_following(message['id'] + 1, username, session_id)
-                            st.rerun()
-                else:
+                        # 각 form에 고유한 key를 부여합니다.
+                        with st.form(key=f"edit_form_{message['id']}", clear_on_submit=True):
+                            edited_content = st.text_area(
+                                "메시지 수정:", 
+                                value=message['content'], 
+                                key=f"edit_msg_content_{message['id']}" 
+                            )
+                            # '수정 후 다시 질문' 버튼을 st.form_submit_button으로 변경
+                            if st.form_submit_button("수정 후 다시 질문"):
+                                # 이 블록은 오직 이 버튼이 '진짜로' 클릭되었을 때만 실행됩니다.
+                                update_chat_message(message['id'], edited_content)
+                                delete_chat_message_and_following(message['id'] + 1, username, session_id)
+                                st.rerun()
                     # AI 메시지는 그냥 표시
                     st.markdown(message['content'])
             
