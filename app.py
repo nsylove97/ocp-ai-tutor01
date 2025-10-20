@@ -448,14 +448,16 @@ def render_management_page(username):
             c3.button("다음 ▶️", on_click=change_id, args=(1,), use_container_width=True)
             edit_id = st.session_state.current_edit_id
             q_data = get_question_by_id(edit_id, 'original')
+
             if q_data:
+                form_cols = st.columns([0.8, 0.2])
+                with form_cols[0]:
+                    st.markdown(f"**ID {edit_id} 문제 수정:**")
+                with form_cols[1]:
+                    if st.button("이 문제 삭제 🗑️", use_container_width=True, type="secondary"):
+                        st.session_state.question_to_delete_id = edit_id
+                        st.rerun()
                 with st.form(key=f"edit_form_{edit_id}"):
-                    form_cols = st.columns([0.8, 0.2])
-                    with form_cols[0]:
-                        st.markdown(f"**ID {edit_id} 문제 수정:**")
-                    with form_cols[1]:
-                        if st.button("이 문제 삭제 🗑️", use_container_width=True, type="secondary"):
-                            st.session_state.question_to_delete_id = edit_id
                     st.markdown(f"**ID {edit_id} 수정:**")
                     curr_opts = json.loads(q_data['options'])
                     curr_ans = json.loads(q_data['answer'])
