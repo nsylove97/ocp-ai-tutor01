@@ -23,10 +23,14 @@ def get_db_connection():
 
 # --- 스키마 설정 ---
 def setup_database_tables():
-    """앱에 필요한 모든 테이블을 생성하고, 필요한 경우 스키마를 업그레이드합니다."""
+    """
+    앱에 필요한 모든 테이블을 생성하고, 필요한 경우 스키마를 안전하게 업그레이드합니다.
+    Streamlit Cloud 환경에서의 반복 실행에도 문제가 없도록 설계되었습니다.
+    """
     conn = get_db_connection()
     cursor = conn.cursor()
-    # users 테이블
+    
+    # --- 1. users 테이블 ---
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
     if not cursor.fetchone():
         cursor.execute('''CREATE TABLE users (username TEXT PRIMARY KEY, name TEXT NOT NULL, password TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user')''')
@@ -34,43 +38,56 @@ def setup_database_tables():
         cursor.execute("PRAGMA table_info(users)")
         if 'role' not in [col['name'] for col in cursor.fetchall()]:
             cursor.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
-            
-    # original_questions 테이블
+
+    # --- 2. original_questions 테이블 ---
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='original_questions'")
-    table_exists = cursor.fetchone()
-    if table_exists:
-        cursor.execute("PRAGMA table_info(original_questions)")
-        columns = [row['name'] for row in cursor.fetchall()]
-        if 'media_url' not in columns: cursor.execute("ALTER TABLE original_questions ADD COLUMN media_url TEXT")
-        if 'media_type' not in columns: cursor.execute("ALTER TABLE original_questions ADD COLUMN media_type TEXT")
-        if 'difficulty' not in columns: cursor.execute("ALTER TABLE original_questions ADD COLUMN difficulty TEXT NOT NULL DEFAULT '보통'")
-    else:
+    if not cursor.fetchone():
         cursor.execute('''
         CREATE TABLE original_questions (
             id INTEGER PRIMARY KEY, question TEXT NOT NULL, options TEXT NOT NULL,
             answer TEXT NOT NULL, concept TEXT, media_url TEXT, media_type TEXT,
             difficulty TEXT NOT NULL DEFAULT '보통'
         )''')
-    
-    # AI 해설 저장 테이블
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS ai_explanations (
-        question_id INTEGER NOT NULL,
-        question_type TEXT NOT NULL,
-        explanation TEXT NOT NULL, -- JSON 형태의 해설
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (question_id, question_type)
-    )''')
+    else:
+        cursor.execute("PRAGMA table_info(original_questions)")
+        columns = [row['name'] for row in cursor.fetchall()]
+        if 'media_url' not in columns: cursor.execute("ALTER TABLE original_questions ADD COLUMN media_url TEXT")
+        if 'media_type' not in columns: cursor.execute("ALTER TABLE original_questions ADD COLUMN media_type TEXT")
+        if 'difficulty' not in columns: cursor.execute("ALTER TABLE original_questions ADD COLUMN difficulty TEXT NOT NULL DEFAULT '보통'")
 
-     # AI 튜터 채팅 기록 저장 테이블
-    cursor.execute("PRAGMA table_info(chat_history)")
-    columns = [row['name'] for row in cursor.fetchall()]
-    if 'session_title' not in columns:
-        cursor.execute("ALTER TABLE chat_history ADD COLUMN session_title TEXT")
-
-    # 기타 테이블
+    # --- 3. modified_questions 테이블 ---
     cursor.execute('''CREATE TABLE IF NOT EXISTS modified_questions (id INTEGER PRIMARY KEY AUTOINCREMENT, original_id INTEGER, question TEXT, options TEXT, answer TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS user_answers (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, question_id INTEGER, question_type TEXT, user_choice TEXT, is_correct BOOLEAN, solved_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+
+    # --- 4. user_answers 테이블 ---
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='user_answers'")
+    if not cursor.fetchone():
+        cursor.execute('''CREATE TABLE IF NOT EXISTS user_answers (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, question_id INTEGER, question_type TEXT, user_choice TEXT, is_correct BOOLEAN, solved_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    else:
+        cursor.execute("PRAGMA table_info(user_answers)")
+        if 'username' not in [col['name'] for col in cursor.fetchall()]:
+            cursor.execute("ALTER TABLE user_answers ADD COLUMN username TEXT NOT NULL DEFAULT 'default_user'")
+
+    # --- 5. ai_explanations 테이블 ---
+    cursor.execute('''CREATE TABLE IF NOT EXISTS ai_explanations (question_id INTEGER NOT NULL, question_type TEXT NOT NULL, explanation TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (question_id, question_type))''')
+
+    # --- 6. chat_history 테이블 ---
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='chat_history'")
+    if not cursor.fetchone():
+        cursor.execute('''
+        CREATE TABLE chat_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL,
+            session_id TEXT NOT NULL, session_title TEXT,
+            role TEXT NOT NULL, content TEXT NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )''')
+    else:
+        # 테이블이 존재하면, 'session_title' 컬럼이 있는지 확인
+        cursor.execute("PRAGMA table_info(chat_history)")
+        columns = [row['name'] for row in cursor.fetchall()]
+        # 컬럼이 없을 때만 ALTER TABLE 실행
+        if 'session_title' not in columns:
+            cursor.execute("ALTER TABLE chat_history ADD COLUMN session_title TEXT")
+
     conn.commit()
     conn.close()
     print("모든 데이터베이스 테이블 확인/생성/업그레이드 완료.")
