@@ -674,47 +674,38 @@ def render_ai_tutor_page(username):
                 import uuid
                 st.session_state.chat_session_id = f"session_{uuid.uuid4()}"
 
+        session_id_to_edit = st.session_state.chat_session_id
+        current_session_row = next((s for s in chat_sessions if s['session_id'] == session_id_to_edit), None)
+        
+        st.write("---")
+        st.subheader("현재 대화 설정")
+        if current_session_row:
+            current_session = dict(current_session_row)
+            current_title = current_session.get('session_title') or (current_session.get('content', '')[:30])
+            
+            new_title = st.text_input(
+                "대화 제목 수정:", 
+                value=current_title, 
+                key=f"sidebar_title_{session_id_to_edit}",
+                help="Enter를 누르면 저장됩니다."
+            )
+            # st.text_input은 Enter를 누르거나 포커스를 잃을 때 값이 업데이트됩니다.
+            # 상태를 비교하여 변경되었을 때만 DB 업데이트
+            if new_title != current_title:
+                update_chat_session_title(username, session_id_to_edit, new_title)
+                st.toast("제목이 변경되었습니다.")
+        else:
+            st.caption("새 대화 시작 후 제목을 설정할 수 있습니다.")
+
+        st.write("---")
+        st.subheader("이전 대화 목록")
         for session_row in chat_sessions:
             session = dict(session_row)
             session_id = session['session_id']
             title = session.get('session_title') or (session.get('content', '새 대화')[:20] + "...")
-            
-            col1, col2 = st.columns([0.8, 0.2])
-            with col1:
-                # 현재 보고 있는 세션이면 버튼 타입을 'primary'로 설정하여 강조
-                button_type = "primary" if session_id == st.session_state.chat_session_id else "secondary"
-                if st.button(title, key=f"session_btn_{session_id}", use_container_width=True, type=button_type):
-                    st.session_state.chat_session_id = session_id
-                    st.session_state.editing_message_id = None
-                    st.rerun()
-            with col2:
-                if st.button("🗑️", key=f"del_session_{session_id}", help="이 대화 삭제"):
-                    delete_chat_session(username, session_id)
-                    if st.session_state.chat_session_id == session_id:
-                        st.session_state.chat_session_id = None
-                    st.rerun()
 
     # --- 3. 메인 채팅 화면 ---
     session_id = st.session_state.chat_session_id
-    
-    # current_session 변수를 루프 밖에서 명확하게 찾고 초기화합니다.
-    current_session = None
-    if chat_sessions:
-        # chat_sessions 리스트에서 현재 session_id와 일치하는 항목을 찾습니다.
-        session_row = next((s for s in chat_sessions if s['session_id'] == session_id), None)
-        if session_row:
-            current_session = dict(session_row)
-
-    # 세션 제목 편집
-    current_title = ""
-    if current_session:
-        current_title = current_session.get('session_title') or (current_session.get('content', '')[:30])
-    
-    new_title = st.text_input("대화 제목:", value=current_title, key=f"title_{session_id}")
-    if new_title != current_title:
-        update_chat_session_title(username, session_id, new_title)
-        st.toast("제목이 변경되었습니다.")
-        st.rerun()
 
     # DB에서 현재 세션의 전체 대화 기록 불러오기 (id 포함)
     full_chat_history = get_full_chat_history(username, session_id)
@@ -763,32 +754,27 @@ def render_ai_tutor_page(username):
                         st.rerun()
 
     # --- 5. 사용자 입력 및 AI 응답 처리 ---
-    
-    # '수정 후 다시 질문'을 눌렀을 때의 질문을 가져옴
-    prompt_to_send = st.session_state.pop('last_question_for_rerun', None)
-    
-    # 새로운 질문이 입력되었는지 확인
-    if not prompt_to_send:
-        prompt_to_send = st.chat_input("질문을 입력하세요...")
 
-    if prompt_to_send:
-        # 사용자 메시지 저장 (새 질문이든, 수정된 질문이든)
-        # 수정된 질문은 DB에 이미 업데이트되었으므로, 새 질문일 때만 저장
-        if 'last_question_for_rerun' not in st.session_state:
-             save_chat_message(username, session_id, "user", prompt_to_send)
+    if prompt := st.chat_input("질문을 입력하세요..."):
+        # 1. 사용자 메시지를 먼저 화면에 즉시 표시
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        
+        # 2. 사용자 메시지를 DB에 저장
+        save_chat_message(username, session_id, "user", prompt)
 
-        # AI 응답 생성
-        with st.spinner("AI가 답변을 생각 중입니다..."):
-            from gemini_handler import get_chat_response
-            # API에 보낼 기록을 '지금 이 순간' 다시 가져와서 최신 상태 유지
-            current_history_for_api = get_chat_history(username, session_id)
-            response = get_chat_response(current_history_for_api, prompt_to_send)
+        # 3. API에 보낼 대화 기록에 방금 입력한 사용자 메시지를 추가
+        chat_history_for_api.append({"role": "user", "parts": [prompt]})
         
-        # AI 응답 저장
-        save_chat_message(username, session_id, "model", response)
+        # 4. AI 응답 생성 및 표시
+        with st.chat_message("assistant"):
+            with st.spinner("AI가 답변을 생각 중입니다..."):
+                from gemini_handler import get_chat_response
+                response_text = get_chat_response(chat_history_for_api, "") 
+                st.markdown(response_text)
         
-        # 모든 작업 완료 후 딱 한 번만 rerun
-        st.rerun()
+        # 5. AI 응답을 DB에 저장
+        save_chat_message(username, session_id, "model", response_text)
 
 # --- Main App Entry Point ---
 def run_main_app(authenticator, all_user_info):
