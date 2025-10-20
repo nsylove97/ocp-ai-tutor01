@@ -646,17 +646,16 @@ def render_analytics_page(username):
                 st.markdown(row['question'], unsafe_allow_html=True)
 
 def render_ai_tutor_page(username):
-    """'AI 튜터 Q&A' 채팅 페이지 (버그 수정 최종 버전)"""
+    """'AI 튜터 Q&A' 채팅 페이지 (고급 관리 기능 포함)"""
     st.header("🤖 AI 튜터 Q&A")
     st.info("Oracle OCP 또는 데이터베이스 관련 개념에 대해 자유롭게 질문하세요.")
 
-    # --- 1. 세션 상태 초기화 ---
-    # 페이지에 필요한 모든 상태 변수를 명확하게 관리
+    # --- 1. 세션 상태 및 변수 초기화 ---
     if "chat_session_id" not in st.session_state:
         st.session_state.chat_session_id = None
     if "editing_message_id" not in st.session_state:
-        st.session_state.editing_message_id = None # 현재 편집 중인 메시지 ID
-
+        st.session_state.editing_message_id = None
+        
     # --- 2. 채팅 세션 관리 사이드바 ---
     with st.sidebar:
         st.write("---")
@@ -676,14 +675,15 @@ def render_ai_tutor_page(username):
                 st.session_state.chat_session_id = f"session_{uuid.uuid4()}"
 
         for session_row in chat_sessions:
-            session = dict(session_row) 
-            
+            session = dict(session_row)
             session_id = session['session_id']
-            title = session.get('session_title') or (session['content'][:20] + "...")
+            title = session.get('session_title') or (session.get('content', '새 대화')[:20] + "...")
             
             col1, col2 = st.columns([0.8, 0.2])
             with col1:
-                if st.button(title, key=f"session_btn_{session_id}", use_container_width=True):
+                # 현재 보고 있는 세션이면 버튼 타입을 'primary'로 설정하여 강조
+                button_type = "primary" if session_id == st.session_state.chat_session_id else "secondary"
+                if st.button(title, key=f"session_btn_{session_id}", use_container_width=True, type=button_type):
                     st.session_state.chat_session_id = session_id
                     st.session_state.editing_message_id = None
                     st.rerun()
@@ -696,14 +696,19 @@ def render_ai_tutor_page(username):
 
     # --- 3. 메인 채팅 화면 ---
     session_id = st.session_state.chat_session_id
-    st.caption(f"현재 대화 세션 ID: {session_id}")
     
+    # current_session 변수를 루프 밖에서 명확하게 찾고 초기화합니다.
+    current_session = None
+    if chat_sessions:
+        # chat_sessions 리스트에서 현재 session_id와 일치하는 항목을 찾습니다.
+        session_row = next((s for s in chat_sessions if s['session_id'] == session_id), None)
+        if session_row:
+            current_session = dict(session_row)
+
     # 세션 제목 편집
-    current_session_row = next((s for s in chat_sessions if s['session_id'] == session_id), None)
     current_title = ""
     if current_session:
-        current_session = dict(current_session_row) # 딕셔너리로 변환
-        current_title = current_session.get('session_title') or (current_session['content'][:30])
+        current_title = current_session.get('session_title') or (current_session.get('content', '')[:30])
     
     new_title = st.text_input("대화 제목:", value=current_title, key=f"title_{session_id}")
     if new_title != current_title:
