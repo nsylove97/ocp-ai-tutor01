@@ -679,7 +679,7 @@ def render_ai_tutor_page(username):
         chat_sessions = get_chat_sessions(username)
 
 
-        # --- 여기가 핵심 수정 부분 1: 통합된 대화 기록 UI ---
+        # --- 통합된 대화 기록 UI ---
         for session_row in chat_sessions:
             session = dict(session_row)
             session_id = session['session_id']
@@ -726,8 +726,14 @@ def render_ai_tutor_page(username):
 
     # --- 3. 메인 채팅 화면 ---
     session_id = st.session_state.chat_session_id
+
+    if not session_id: # 세션 ID가 없는 엣지 케이스 처리
+        st.warning("채팅 세션을 불러올 수 없습니다. 새 대화를 시작해주세요.")
+        return
+    
     full_chat_history = get_full_chat_history(username, session_id)
     chat_history_for_api = [{"role": msg['role'], "parts": [msg['content']]} for msg in full_chat_history]
+    chat_sessions = get_chat_sessions(username)
     
     # --- 4. 제목 자동 생성 및 표시/편집 UI ---
     current_session_row = next((s for s in chat_sessions if s['session_id'] == session_id), None)
@@ -801,71 +807,50 @@ def render_ai_tutor_page(username):
                             st.toast("메시지가 삭제되었습니다.")
                         st.rerun()
 
-    # --- 6. 사용자 입력 및 AI 응답 처리 ---
-    if prompt := st.chat_input("질문을 입력하세요..."):
-        # 현재 대화 기록이 비어있는지 (즉, 이것이 첫 질문인지) 확인
-        is_first_message = not full_chat_history
-        action_needed = False
-        prompt_to_send_to_ai = None
-
-        # 1. 사용자 메시지를 DB에 저장
-        # 첫 메시지일 경우, 프롬프트 자체를 기본 제목으로 함께 저장
-        save_chat_message(username, session_id, "user", prompt, session_title=prompt if is_first_message else None)
-
-        # AI 응답 생성
-        with st.spinner("AI가 답변을 생각 중입니다..."):
-            current_history_for_api = get_chat_history(username, session_id)
-            from gemini_handler import get_chat_response
-            response_text = get_chat_response(current_history_for_api, prompt)
-            
-            # AI 응답을 DB에 저장
-            save_chat_message(username, session_id, "model", response_text)
-
-        # 모든 작업 완료 후 UI를 완전히 새로고침
-        st.rerun()
-    
-    # Case 1: '수정 후 다시 질문' 버튼이 눌렸을 경우
-        if 'edited_question_info' in st.session_state and st.session_state.edited_question_info:
-
-            # 1. DB에서 메시지 내용 업데이트
-            update_chat_message(msg_id_to_edit, edited_content)
-            
-            # 만약 수정된 메시지가 해당 세션의 첫 메시지였다면, 제목도 함께 업데이트
-            is_first_message_edited = (full_chat_history and msg_id_to_edit == full_chat_history[0]['id'])
-            if is_first_message_edited:
-                update_chat_session_title(username, session_id, edited_content[:30])
-            # --- 여기까지 ---
-            # 2. 수정된 메시지 '이후'의 모든 메시지 삭제
-            delete_chat_messages_from(msg_id_to_edit, username, session_id)
+    # --- 6. 사용자 입력 및 AI 응답 처리  ---
+    # Case 1: '수정 후 다시 질문' 버튼이 눌렸는지 먼저 확인
+    if 'edited_question_info' in st.session_state and st.session_state.edited_question_info:
+        info = st.session_state.pop('edited_question_info') # 정보 사용 후 즉시 제거
+        msg_id_to_edit = info['id']
+        edited_content = info['content']
         
-            # 3. AI에게 보낼 질문으로 설정
-            prompt_to_send_to_ai = edited_content
-            action_needed = True
-
-    # Case 2: 새로운 질문이 입력되었을 경우
-    elif prompt:
-        # 1. 새 메시지를 DB에 저장
-        save_chat_message(username, session_id, "user", prompt)
+        # 1. DB 업데이트
+        update_chat_message(msg_id_to_edit, edited_content)
+        if full_chat_history and msg_id_to_edit == full_chat_history[0]['id']:
+            update_chat_session_title(username, session_id, edited_content[:30])
         
-        # 2. AI에게 보낼 질문으로 설정
-        prompt_to_send_to_ai = prompt
-        action_needed = True
-    
-    # AI 호출이 필요한 경우에만 실행
-    if action_needed:
-        with st.spinner("AI가 답변을 생각 중입니다..."):
-            # 항상 최신 대화 기록을 DB에서 다시 가져옴
-            current_history_for_api = get_chat_history(username, session_id)
-            
+        # 2. 수정 지점 이후 메시지 삭제
+        delete_chat_messages_from(msg_id_to_edit, username, session_id)
+        
+        # 3. AI 호출
+        with st.spinner("AI가 수정된 질문에 대한 답변을 생성 중입니다..."):
+            current_history = get_chat_history(username, session_id)
             from gemini_handler import get_chat_response
-            response_text = get_chat_response(current_history_for_api, prompt_to_send_to_ai)
+            response = get_chat_response(current_history, edited_content)
+            save_chat_message(username, session_id, "model", response)
             
-            # AI 응답을 DB에 저장
-            save_chat_message(username, session_id, "model", response_text)
-
-        # 모든 작업 완료 후 UI를 완전히 새로고침
+        # 4. 모든 작업 후 UI 새로고침
         st.rerun()
 
+    # Case 2: '수정 후 다시 질문'이 아닐 경우, 새로운 질문 입력을 처리
+    else:
+        prompt = st.chat_input("질문을 입력하세요...")
+        if prompt:
+            is_first_message = not full_chat_history
+            
+            # 1. 새 사용자 메시지 저장
+            save_chat_message(username, session_id, "user", prompt, session_title=prompt if is_first_message else None)
+            
+            # 2. AI 호출
+            with st.spinner("AI가 답변을 생각 중입니다..."):
+                current_history = get_chat_history(username, session_id)
+                from gemini_handler import get_chat_response
+                response = get_chat_response(current_history, prompt)
+                save_chat_message(username, session_id, "model", response)
+            
+            # 3. 모든 작업 후 UI 새로고침
+            st.rerun()
+            
 # --- Main App Entry Point ---
 def run_main_app(authenticator, all_user_info):
     """로그인 성공 후 실행되는 메인 앱 로직."""
