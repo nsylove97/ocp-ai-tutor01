@@ -27,7 +27,7 @@ from db_utils import (
     get_all_explanations_for_admin, get_chat_history, save_chat_message,
     get_chat_sessions, delete_chat_session,
     update_chat_session_title, get_full_chat_history, update_chat_message, delete_chat_message_and_following,
-    delete_single_chat_message
+    delete_single_chat_message, delete_chat_messages_from
 )
 from ui_components import display_question, display_results
 
@@ -754,6 +754,7 @@ def render_ai_tutor_page(username):
         is_user = message['role'] == "user"
         with st.chat_message("user" if is_user else "assistant"):         
             if st.session_state.editing_message_id == message['id']:
+
                 # 편집 UI
                 edited_content = st.text_area("메시지 수정:", value=message['content'], key=f"edit_content_{message['id']}")
                 c1, c2 = st.columns(2)
@@ -763,9 +764,15 @@ def render_ai_tutor_page(username):
                     st.session_state.resubmit_info = {'id': msg_id, 'content': content}
 
                 if c1.button("✅ 수정 후 다시 질문", key=f"resubmit_{message['id']}", on_click=set_resubmit_info, args=(message['id'], edited_content)):
-                    st.session_state.editing_message_id = None # 편집 상태 종료
-                    # rerun은 on_click에 의해 자동으로 트리거됨
-                # --- 여기까지 ---
+                    # 1. 수정된 질문을 session_state에 임시 저장
+                    st.session_state.edited_question_info = {
+                        "id": message['id'],
+                        "content": edited_content
+                    }
+                    # 2. 편집 상태 종료
+                    st.session_state.editing_message_id = None
+                    # 3. rerun하여 페이지 하단에서 후속 처리
+                    st.rerun()
 
                 if c2.button("❌ 취소", key=f"cancel_edit_{message['id']}"):
                     st.session_state.editing_message_id = None
@@ -795,31 +802,50 @@ def render_ai_tutor_page(username):
                         st.rerun()
 
     # --- 6. 사용자 입력 및 AI 응답 처리 ---
-    if 'resubmit_info' in st.session_state and st.session_state.resubmit_info:
-        info = st.session_state.pop('resubmit_info') # 정보 사용 후 즉시 제거
-        message_id = info['id']
+    prompt = st.chat_input("질문을 입력하세요...")
+    
+    # 처리할 작업이 있는지 확인 (새 질문 또는 수정된 질문)
+    action_needed = False
+    
+    # Case 1: '수정 후 다시 질문' 버튼이 눌렸을 경우
+    if 'edited_question_info' in st.session_state and st.session_state.edited_question_info:
+        info = st.session_state.pop('edited_question_info') # 정보 사용 후 즉시 제거
+        msg_id_to_edit = info['id']
         edited_content = info['content']
-
-        update_chat_message(message_id, edited_content)
-        delete_chat_message_and_following(message_id + 1, username, session_id)
         
-        # AI에게 다시 질문
-        with st.spinner("AI가 수정된 질문에 대한 답변을 생성 중입니다..."):
-            current_history_for_api = get_chat_history(username, session_id)
-            response_text = get_chat_response(current_history_for_api, edited_content)
-            save_chat_message(username, session_id, "model", response_text)
+        # 1. DB에서 메시지 내용 업데이트
+        update_chat_message(msg_id_to_edit, edited_content)
         
-        st.rerun()
+        # 2. 수정된 메시지 '이후'의 모든 메시지 삭제
+        # (다음 메시지 ID부터 지워야 하므로 +1은 하지 않음, DB 함수가 타임스탬프 기준으로 처리)
+        delete_chat_messages_from(msg_id_to_edit, username, session_id)
+        
+        # 3. AI에게 보낼 질문으로 설정
+        prompt_to_send_to_ai = edited_content
+        action_needed = True
 
-    # 새 질문 입력 처리
-    if prompt := st.chat_input("질문을 입력하세요..."):
+    # Case 2: 새로운 질문이 입력되었을 경우
+    elif prompt:
+        # 1. 새 메시지를 DB에 저장
         save_chat_message(username, session_id, "user", prompt)
         
+        # 2. AI에게 보낼 질문으로 설정
+        prompt_to_send_to_ai = prompt
+        action_needed = True
+    
+    # AI 호출이 필요한 경우에만 실행
+    if action_needed:
         with st.spinner("AI가 답변을 생각 중입니다..."):
+            # 항상 최신 대화 기록을 DB에서 다시 가져옴
             current_history_for_api = get_chat_history(username, session_id)
-            response_text = get_chat_response(current_history_for_api, prompt)
+            
+            from gemini_handler import get_chat_response
+            response_text = get_chat_response(current_history_for_api, prompt_to_send_to_ai)
+            
+            # AI 응답을 DB에 저장
             save_chat_message(username, session_id, "model", response_text)
 
+        # 모든 작업 완료 후 UI를 완전히 새로고침
         st.rerun()
 
 # --- Main App Entry Point ---

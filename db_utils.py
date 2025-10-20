@@ -480,3 +480,32 @@ def delete_single_chat_message(message_id, username, session_id):
     
     # 남은 메시지가 0이면 False, 1 이상이면 True 반환
     return remaining_messages_count > 0
+
+def delete_chat_messages_from(message_id, username, session_id):
+    """
+    특정 메시지 ID부터 그 이후의 모든 메시지를 해당 세션에서 삭제합니다.
+    주로 사용자 질문이 수정되었을 때, 그에 대한 이전 AI 답변들을 지우기 위해 사용됩니다.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 1. 기준이 되는 메시지의 타임스탬프 가져오기
+    cursor.execute("SELECT timestamp FROM chat_history WHERE id = ?", (message_id,))
+    timestamp_row = cursor.fetchone()
+    
+    if not timestamp_row:
+        # 기준 메시지를 찾을 수 없으면 아무것도 하지 않음
+        conn.close()
+        return
+
+    # 2. 해당 타임스탬프 또는 그 이후에 생성된 모든 메시지를 삭제
+    # (자기 자신 포함하여 삭제)
+    timestamp_to_delete_from = timestamp_row['timestamp']
+    cursor.execute(
+        "DELETE FROM chat_history WHERE username = ? AND session_id = ? AND timestamp >= ?",
+        (username, session_id, timestamp_to_delete_from)
+    )
+    
+    conn.commit()
+    conn.close()
+    print(f"Session {session_id}: Messages from timestamp {timestamp_to_delete_from} deleted.")
