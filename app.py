@@ -402,18 +402,23 @@ def render_management_page(username):
 
             if st.form_submit_button("✅ 새 문제 추가하기"):
                 new_q_html = st.session_state.temp_new_question
-                new_difficulty = st.selectbox("난이도 설정:", ('쉬움', '보통', '어려움'), index=1, key="new_diff")
-                if not new_q_html or not new_q_html.strip() or new_q_html == '<p><br></p>': st.error("질문 내용을 입력해야 합니다.")
-                elif not valid_options: st.error("선택지 내용을 입력해야 합니다.")
-                elif not new_answer: st.error("정답을 선택해야 합니다.")
+                if not new_q_html or not new_q_html.strip() or new_q_html == '<p><br></p>': 
+                    st.error("질문 내용을 입력해야 합니다.")
+                elif not valid_options: 
+                    st.error("선택지 내용을 입력해야 합니다.")
+                elif not new_answer: 
+                    st.error("정답을 선택해야 합니다.")
                 else:
                     media_url, media_type = None, None
                     if uploaded_file:
                         file_path = os.path.join(MEDIA_DIR, uploaded_file.name)
                         with open(file_path, "wb") as f: f.write(uploaded_file.getbuffer())
                         media_url, media_type = file_path, 'image' if uploaded_file.type.startswith('image') else 'video'
+
                     final_options = {k: v for k, v in st.session_state.temp_new_options.items() if k in valid_options}
+
                     new_id = add_new_original_question(new_q_html, final_options, new_answer, new_difficulty, media_url, media_type)
+                    
                     st.session_state.temp_new_question = ""
                     st.session_state.temp_new_options = {}
                     st.toast(f"성공! 새 문제(ID: {new_id})가 추가되었습니다.", icon="🎉")
@@ -850,7 +855,7 @@ def render_ai_tutor_page(username):
             
             # 3. 모든 작업 후 UI 새로고침
             st.rerun()
-            
+
 # --- Main App Entry Point ---
 def run_main_app(authenticator, all_user_info):
     """로그인 성공 후 실행되는 메인 앱 로직."""
