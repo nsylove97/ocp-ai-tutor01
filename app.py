@@ -646,50 +646,55 @@ def render_analytics_page(username):
                 st.markdown(row['question'], unsafe_allow_html=True)
 
 def render_ai_tutor_page(username):
-    """'AI 튜터 Q&A' 채팅 페이지 (고급 관리 기능 포함)"""
+    """'AI 튜터 Q&A' 채팅 페이지 (버그 수정 최종 버전)"""
     st.header("🤖 AI 튜터 Q&A")
     st.info("Oracle OCP 또는 데이터베이스 관련 개념에 대해 자유롭게 질문하세요.")
 
-    # --- 1. 채팅 세션 관리 사이드바 ---
+    # --- 1. 세션 상태 초기화 ---
+    # 페이지에 필요한 모든 상태 변수를 명확하게 관리
+    if "chat_session_id" not in st.session_state:
+        st.session_state.chat_session_id = None
+    if "editing_message_id" not in st.session_state:
+        st.session_state.editing_message_id = None # 현재 편집 중인 메시지 ID
+
+    # --- 2. 채팅 세션 관리 사이드바 ---
     with st.sidebar:
         st.write("---")
         st.subheader("대화 기록")
         chat_sessions = get_chat_sessions(username)
         
         if st.button("새 대화 시작 ➕", use_container_width=True):
-            # UUID를 사용하여 절대 중복되지 않는 세션 ID 생성
             import uuid
             st.session_state.chat_session_id = f"session_{uuid.uuid4()}"
             st.rerun()
 
-        if 'chat_session_id' not in st.session_state:
+        if st.session_state.chat_session_id is None:
             if chat_sessions:
                 st.session_state.chat_session_id = chat_sessions[0]['session_id']
             else:
                 import uuid
                 st.session_state.chat_session_id = f"session_{uuid.uuid4()}"
 
-        # 각 세션을 버튼과 삭제 버튼으로 표시
         for session in chat_sessions:
             session_id = session['session_id']
-            # 제목이 없으면 첫 메시지의 일부를 제목으로 사용
-            title = session['session_title'] or (session['content'][:20] + "...")
+            title = session.get('session_title') or (session['content'][:20] + "...")
             
             col1, col2 = st.columns([0.8, 0.2])
             with col1:
                 if st.button(title, key=f"session_btn_{session_id}", use_container_width=True):
                     st.session_state.chat_session_id = session_id
+                    st.session_state.editing_message_id = None # 세션 변경 시 편집 상태 초기화
                     st.rerun()
             with col2:
                 if st.button("🗑️", key=f"del_session_{session_id}", help="이 대화 삭제"):
                     delete_chat_session(username, session_id)
-                    # 현재 세션이 삭제되었으면 다른 세션으로 전환
                     if st.session_state.chat_session_id == session_id:
-                        del st.session_state.chat_session_id
+                        st.session_state.chat_session_id = None
                     st.rerun()
 
-    # --- 2. 메인 채팅 화면 ---
+    # --- 3. 메인 채팅 화면 ---
     session_id = st.session_state.chat_session_id
+    st.caption(f"현재 대화 세션 ID: {session_id}")
     
     # 세션 제목 편집
     current_session = next((s for s in chat_sessions if s['session_id'] == session_id), None)
@@ -708,52 +713,72 @@ def render_ai_tutor_page(username):
     # API 전송용 기록 (id 제외)
     chat_history_for_api = [{"role": msg['role'], "parts": [msg['content']]} for msg in full_chat_history]
 
-    # 화면에 대화 기록 및 편집/삭제 버튼 표시
-    for i, message in enumerate(full_chat_history):
+    # --- 4. 화면에 대화 기록 및 편집/삭제 UI 렌더링 ---
+    for message in full_chat_history:
         is_user = message['role'] == "user"
         with st.chat_message("user" if is_user else "assistant"):
             
-            col1, col2 = st.columns([0.9, 0.1]) # 메시지 내용과 버튼 영역 분리
-            
-            with col1:
-                if is_user:
-                    # 사용자 메시지는 편집 가능하도록 expander 사용
-                    with st.expander(label=message['content'], expanded=False):
-                        # 각 form에 고유한 key를 부여합니다.
-                        with st.form(key=f"edit_form_{message['id']}", clear_on_submit=True):
-                            edited_content = st.text_area(
-                                "메시지 수정:", 
-                                value=message['content'], 
-                                key=f"edit_msg_content_{message['id']}" 
-                            )
-                            # '수정 후 다시 질문' 버튼을 st.form_submit_button으로 변경
-                            if st.form_submit_button("수정 후 다시 질문"):
-                                # 이 블록은 오직 이 버튼이 '진짜로' 클릭되었을 때만 실행됩니다.
-                                update_chat_message(message['id'], edited_content)
-                                delete_chat_message_and_following(message['id'] + 1, username, session_id)
-                                st.rerun()
-                    # AI 메시지는 그냥 표시
-                    st.markdown(message['content'])
-            
-            with col2:
-                # 각 메시지 옆에 작은 삭제 버튼 추가
-                if st.button("🗑️", key=f"del_msg_{message['id']}", help="이 메시지 삭제"):
-                    delete_single_chat_message(message['id'])
-                    st.toast("메시지가 삭제되었습니다.")
+            # 편집 중인 메시지와 현재 메시지가 동일한 경우, 편집 UI를 보여줌
+            if st.session_state.editing_message_id == message['id']:
+                edited_content = st.text_area(
+                    "메시지 수정:", 
+                    value=message['content'], 
+                    key=f"edit_content_{message['id']}"
+                )
+                c1, c2 = st.columns(2)
+                if c1.button("✅ 수정 후 다시 질문", key=f"resubmit_{message['id']}"):
+                    update_chat_message(message['id'], edited_content)
+                    delete_chat_message_and_following(message['id'] + 1, username, session_id)
+                    st.session_state.editing_message_id = None # 편집 상태 종료
+                    # AI에게 다시 질문하는 로직을 아래 사용자 입력 처리 부분과 통합
+                    st.session_state.last_question_for_rerun = edited_content
                     st.rerun()
 
-    # 사용자 입력 처리
-    if prompt := st.chat_input("질문을 입력하세요..."):
-        # 사용자 메시지 저장
-        save_chat_message(username, session_id, "user", prompt)
-        
+                if c2.button("❌ 취소", key=f"cancel_edit_{message['id']}"):
+                    st.session_state.editing_message_id = None # 편집 상태 종료
+                    st.rerun()
+            else:
+                # 일반 메시지 표시
+                col1, col2, col3 = st.columns([0.8, 0.1, 0.1])
+                with col1:
+                    st.markdown(message['content'])
+                if is_user:
+                    with col2:
+                        if st.button("✏️", key=f"edit_btn_{message['id']}", help="이 메시지 수정"):
+                            st.session_state.editing_message_id = message['id']
+                            st.rerun()
+                with col3:
+                    if st.button("🗑️", key=f"del_msg_{message['id']}", help="이 메시지 삭제"):
+                        delete_single_chat_message(message['id'])
+                        st.toast("메시지가 삭제되었습니다.")
+                        st.rerun()
+
+    # --- 5. 사용자 입력 및 AI 응답 처리 ---
+    
+    # '수정 후 다시 질문'을 눌렀을 때의 질문을 가져옴
+    prompt_to_send = st.session_state.pop('last_question_for_rerun', None)
+    
+    # 새로운 질문이 입력되었는지 확인
+    if not prompt_to_send:
+        prompt_to_send = st.chat_input("질문을 입력하세요...")
+
+    if prompt_to_send:
+        # 사용자 메시지 저장 (새 질문이든, 수정된 질문이든)
+        # 수정된 질문은 DB에 이미 업데이트되었으므로, 새 질문일 때만 저장
+        if 'last_question_for_rerun' not in st.session_state:
+             save_chat_message(username, session_id, "user", prompt_to_send)
+
         # AI 응답 생성
         with st.spinner("AI가 답변을 생각 중입니다..."):
             from gemini_handler import get_chat_response
-            response = get_chat_response(chat_history_for_api, prompt)
+            # API에 보낼 기록을 '지금 이 순간' 다시 가져와서 최신 상태 유지
+            current_history_for_api = get_chat_history(username, session_id)
+            response = get_chat_response(current_history_for_api, prompt_to_send)
         
         # AI 응답 저장
         save_chat_message(username, session_id, "model", response)
+        
+        # 모든 작업 완료 후 딱 한 번만 rerun
         st.rerun()
 
 # --- Main App Entry Point ---
