@@ -675,7 +675,9 @@ def render_ai_tutor_page(username):
                 import uuid
                 st.session_state.chat_session_id = f"session_{uuid.uuid4()}"
 
-        for session in chat_sessions:
+        for session_row in chat_sessions:
+            session = dict(session_row) 
+            
             session_id = session['session_id']
             title = session.get('session_title') or (session['content'][:20] + "...")
             
@@ -683,7 +685,7 @@ def render_ai_tutor_page(username):
             with col1:
                 if st.button(title, key=f"session_btn_{session_id}", use_container_width=True):
                     st.session_state.chat_session_id = session_id
-                    st.session_state.editing_message_id = None # 세션 변경 시 편집 상태 초기화
+                    st.session_state.editing_message_id = None
                     st.rerun()
             with col2:
                 if st.button("🗑️", key=f"del_session_{session_id}", help="이 대화 삭제"):
@@ -697,15 +699,17 @@ def render_ai_tutor_page(username):
     st.caption(f"현재 대화 세션 ID: {session_id}")
     
     # 세션 제목 편집
-    current_session = next((s for s in chat_sessions if s['session_id'] == session_id), None)
+    current_session_row = next((s for s in chat_sessions if s['session_id'] == session_id), None)
     current_title = ""
     if current_session:
-        current_title = current_session['session_title'] or (current_session['content'][:30])
+        current_session = dict(current_session_row) # 딕셔너리로 변환
+        current_title = current_session.get('session_title') or (current_session['content'][:30])
     
     new_title = st.text_input("대화 제목:", value=current_title, key=f"title_{session_id}")
     if new_title != current_title:
         update_chat_session_title(username, session_id, new_title)
         st.toast("제목이 변경되었습니다.")
+        st.rerun()
 
     # DB에서 현재 세션의 전체 대화 기록 불러오기 (id 포함)
     full_chat_history = get_full_chat_history(username, session_id)
