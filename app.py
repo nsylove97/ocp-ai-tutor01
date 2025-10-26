@@ -170,7 +170,15 @@ def render_notes_page(username):
     
     st.info(f"총 {len(wrong_answers)}개의 틀린 문제가 있습니다. 다시 풀어보거나 아래에서 상세 내용을 확인하세요.")
     if st.button("틀린 문제 다시 풀기", type="primary"):
-        st.session_state.questions_to_solve = [{'id': q['question_id'], 'type': q['question_type']} for q in wrong_answers]
+        questions_to_solve_list = []
+        for row in wrong_answers:
+                    q_dict = dict(row)
+                    q_id = q_dict.get('question_id')
+                    q_type = q_dict.get('question_type')
+                    if q_id is not None and q_type is not None:
+                        questions_to_solve_list.append({'id': q_id, 'type': q_type})
+                        
+        st.session_state.questions_to_solve = questions_to_solve_list
         st.session_state.current_question_index = 0
         st.session_state.user_answers = {}
         st.session_state.current_view = 'quiz'

@@ -261,7 +261,9 @@ def get_wrong_answers(username: str):
         SELECT 'modified' as type, id, question, options, answer, NULL as media_url, NULL as media_type, '보통' as difficulty FROM modified_questions
     )
     SELECT 
-        ua.question_type, q.*
+        ua.question_id AS question_id, 
+        ua.question_type AS question_type, 
+        q.*
     FROM user_answers ua
     JOIN all_questions q ON ua.question_id = q.id AND ua.question_type = q.type
     WHERE ua.is_correct = 0 AND ua.username = ?
